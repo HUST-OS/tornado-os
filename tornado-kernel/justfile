@@ -1,0 +1,14 @@
+target := "riscv64imac-unknown-none-elf"
+mode := "debug"
+build-path := "../target/" + target + "/" + mode + "/"
+
+kernel-elf := build-path + "tornado-kernel"
+kernel-bin := build-path + "tornado-kernel.bin"
+
+objcopy := "rust-objcopy --binary-architecture=riscv64"
+
+build: kernel
+    @{{objcopy}} {{kernel-elf}} --strip-all -O binary {{kernel-bin}}
+
+kernel:
+    @cargo build --target={{target}}
