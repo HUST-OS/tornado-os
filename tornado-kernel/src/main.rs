@@ -7,6 +7,7 @@ extern crate alloc;
 mod console;
 mod panic;
 mod sbi;
+mod interrupt;
 mod memory;
 
 #[cfg(not(test))]
@@ -17,6 +18,11 @@ pub extern "C" fn rust_main() -> ! {
     println!("booted");
 
     memory::init();
+    interrupt::init();
+
+    unsafe {
+        llvm_asm!("ebreak"::::"volatile");
+    };
 
     // 动态内存分配测试
     use alloc::boxed::Box;
