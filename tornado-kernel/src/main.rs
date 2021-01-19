@@ -40,5 +40,6 @@ pub extern "C" fn rust_main() -> ! {
         assert_eq!(value, i);
     }
     println!("heap test passed");
-    sbi::shutdown()
+    loop {}
+    // sbi::shutdown()
 }
