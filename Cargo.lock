@@ -129,4 +129,12 @@ version = "0.1.0"
 dependencies = [
  "buddy_system_allocator",
  "riscv",
+ "spin",
+ "woke",
 ]
+
+[[package]]
+name = "woke"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eafdab77c9ee549298ca6585107832aa89d77b14ba13cda220fec6105b17dbb1"

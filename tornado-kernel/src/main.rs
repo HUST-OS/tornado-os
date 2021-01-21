@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(global_asm, llvm_asm, alloc_error_handler)]
+
 extern crate alloc;
 
 #[macro_use]
@@ -9,6 +10,7 @@ mod panic;
 mod sbi;
 mod interrupt;
 mod memory;
+mod task;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -40,6 +42,14 @@ pub extern "C" fn rust_main() -> ! {
         assert_eq!(value, i);
     }
     println!("heap test passed");
-    loop {}
-    // sbi::shutdown()
+
+    let executor = task::Executor::default();
+
+    executor.spawn(async {
+        println!("Hello world!")
+    });
+
+    executor.run_until_idle();
+
+    sbi::shutdown()
 }

@@ -20,7 +20,7 @@ pub static mut TICKS: usize = 0;
 pub fn tick() {
     set_next_timeout();
     unsafe {
-        TICKS += 1;
+        TICKS = TICKS.wrapping_add(1);
         if TICKS % 100 == 0 {
             println!("{} tick", TICKS);
         }
