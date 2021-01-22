@@ -6,6 +6,7 @@ extern crate alloc;
 
 #[macro_use]
 mod console;
+mod algorithm;
 mod panic;
 mod sbi;
 mod interrupt;
@@ -42,6 +43,19 @@ pub extern "C" fn rust_main() -> ! {
         assert_eq!(value, i);
     }
     println!("heap test passed");
+
+    // 物理页分配
+    for i in 0..2 {
+        let frame_0 = match memory::FRAME_ALLOCATOR.lock().alloc() {
+            Some(frame_tracker) => frame_tracker,
+            None => panic!("frame allocation failed")
+        };
+        let frame_1 = match memory::FRAME_ALLOCATOR.lock().alloc() {
+            Some(frame_tracker) => frame_tracker,
+            None => panic!("frame allocation failed")
+        };
+        println!("Test #{}: {:?} and {:?}", i, frame_0.start_address(), frame_1.start_address());
+    }
 
     let executor = task::Executor::default();
 

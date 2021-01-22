@@ -11,3 +11,4 @@ buddy_system_allocator = "0.6"
 riscv = "*"
 spin = "0.7"
 woke = "0.0.2"
+lazy_static = { version = "*", features = ["spin_no_std"] }
