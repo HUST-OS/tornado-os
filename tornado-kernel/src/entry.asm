@@ -1,8 +1,24 @@
     .section .text.entry
     .globl _start
 _start:
-    la sp, boot_stack_top
-    call rust_main
+    # 初始化启动页
+    lui t0, %hi(boot_page_table)
+    li t1, 0xffffffff40000000 # 计算物理地址
+    sub t0, t0, t1
+    srli t0, t0, 12
+    li t1, (8 << 60) # 8代表Sv39模式
+    or t0, t0, t1
+    csrw satp, t0 # 写入 satp 
+    sfence.vma # 更新页表缓存
+
+    # 加载栈地址
+    lui sp, %hi(boot_stack_top)
+    addi sp, sp, %lo(boot_stack_top)
+
+    # 跳转到rust_main
+    lui t0, %hi(rust_main)
+    addi t0, t0, %lo(rust_main)
+    jr t0
 
     .section .bss.stack
     .global boot_stack
@@ -10,3 +26,14 @@ boot_stack:
     .space 4096 * 16
     .global boot_stack_top
 boot_stack_top:
+
+    .section .data
+    .align 12
+boot_page_table:
+    .quad 0
+    .quad 0
+    # 第 2 项：0x8000_0000 -> 0x8000_0000，0xcf 表示 VRWXAD 均为 1
+    .quad (0x80000 << 10) | 0xcf
+    .zero 508 * 8
+    # 第 511 项：0xffff_ffff_c000_0000 -> 0x8000_0000，0xcf 表示 VRWXAD 均为 1
+    .quad (0x80000 << 10) | 0xcf

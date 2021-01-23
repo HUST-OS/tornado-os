@@ -2,7 +2,8 @@ OUTPUT_ARCH(riscv)
 
 ENTRY(_start)
 
-BASE_ADDRESS = 0x80200000;
+/* 省点虚拟空间……假设内核最多只有1G大小 */
+BASE_ADDRESS = 0xffffffffc0200000;
 
 SECTIONS
 {
@@ -10,27 +11,34 @@ SECTIONS
 
     kernel_start = .;
 
-    .text : {
+    .text : ALIGN(4K) {
         _stext = .;
         *(.text.entry)
         *(.text .text.*)
+        _etext = .;
     }
 
-    .rodata : {
+    .rodata : ALIGN(4K) {
         _srodata = .;
         *(.rodata .rodata.*)
+        _erodata = .;
     }
 
-    .data : {
+    .data : ALIGN(4K) {
         _sdata = .;
         *(.data .data.*)
+        _edata = .;
     }
 
-    .bss : {
+    .bss (NOLOAD) : ALIGN(4K)  {
         _sbss = .;
         *(.sbss .bss .bss.*)
+        _ebss = .;
     }
 
-    . = ALIGN(4K);
     kernel_end = .;
+
+    /DISCARD/ : {
+        *(.eh_frame)
+    }
 }

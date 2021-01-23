@@ -17,5 +17,5 @@ fn main() {
     println!("cargo:rerun-if-changed=src/linker.ld");
 
     println!("cargo:rerun-if-changed=src/entry.asm");
-    println!("cargo:rerun-if-changed=src/interrupt/interruptasm");
+    println!("cargo:rerun-if-changed=src/interrupt/interrupt.asm");
 }

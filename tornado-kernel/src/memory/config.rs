@@ -15,3 +15,5 @@ lazy_static! {
 }
 
 pub const PAGE_SIZE: usize = 4096;
+
+pub const KERNEL_MAP_OFFSET: usize = 0xffff_ffff_4000_0000;
