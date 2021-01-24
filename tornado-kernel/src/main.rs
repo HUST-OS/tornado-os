@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(global_asm, llvm_asm, alloc_error_handler)]
 
+#[macro_use]
 extern crate alloc;
 
 #[macro_use]
@@ -42,7 +43,13 @@ pub extern "C" fn rust_main() -> ! {
     for (i, value) in vec.into_iter().enumerate() {
         assert_eq!(value, i);
     }
+    
     println!("heap test passed");
+    #[cfg(riscv)]
+    let remap = memory::MemorySet::new_kernel().unwrap();
+    #[cfg(riscv)]
+    remap.activate();
+    println!("kernel remapped");
 
     // 物理页分配
     for i in 0..2 {

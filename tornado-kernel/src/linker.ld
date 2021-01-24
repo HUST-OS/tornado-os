@@ -36,7 +36,7 @@ SECTIONS
         _ebss = .;
     }
 
-    kernel_end = .;
+    free_memory_start = .;
 
     /DISCARD/ : {
         *(.eh_frame)

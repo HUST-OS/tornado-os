@@ -6,11 +6,11 @@ pub const KERNEL_HEAP_SIZE: usize = 0x80_0000;
 pub const MEMORY_END_ADDRESS: PhysicalAddress = PhysicalAddress(0x8800_0000);
 
 lazy_static! {
-    pub static ref KERNEL_END_ADDRESS: PhysicalAddress = {
+    pub static ref FREE_MEMORY_START: PhysicalAddress = {
         extern "C" {
-            fn kernel_end();
+            fn free_memory_start();
         }
-        PhysicalAddress(kernel_end as usize)
+        PhysicalAddress(free_memory_start as usize)
     };
 }
 

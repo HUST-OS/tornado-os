@@ -2,9 +2,7 @@
     .globl _start
 _start:
     # 初始化启动页
-    lui t0, %hi(boot_page_table)
-    li t1, 0xffffffff40000000 # 计算物理地址
-    sub t0, t0, t1
+    la t0, boot_page_table # 此时pc是物理地址，得到的是物理地址的偏移
     srli t0, t0, 12
     li t1, (8 << 60) # 8代表Sv39模式
     or t0, t0, t1
