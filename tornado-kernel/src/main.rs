@@ -53,11 +53,11 @@ pub extern "C" fn rust_main() -> ! {
 
     // 物理页分配
     for i in 0..2 {
-        let frame_0 = match memory::FRAME_ALLOCATOR.lock().alloc() {
+        let frame_0 = match memory::frame_alloc() {
             Some(frame_tracker) => frame_tracker,
             None => panic!("frame allocation failed")
         };
-        let frame_1 = match memory::FRAME_ALLOCATOR.lock().alloc() {
+        let frame_1 = match memory::frame_alloc() {
             Some(frame_tracker) => frame_tracker,
             None => panic!("frame allocation failed")
         };

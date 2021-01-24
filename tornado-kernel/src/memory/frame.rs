@@ -2,4 +2,7 @@ mod allocator;
 mod tracker;
 
 pub use tracker::FrameTracker;
-pub(crate) use allocator::FRAME_ALLOCATOR;
+
+pub fn frame_alloc() -> Option<FrameTracker> {
+    allocator::FRAME_ALLOCATOR.lock().alloc()
+}

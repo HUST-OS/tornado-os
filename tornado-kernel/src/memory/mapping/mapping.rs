@@ -1,5 +1,5 @@
 use crate::memory::{
-    FRAME_ALLOCATOR, config::PAGE_SIZE,
+    frame_alloc, config::PAGE_SIZE,
     PhysicalPageNumber, VirtualAddress, VirtualPageNumber, 
     frame::FrameTracker
 };
@@ -21,7 +21,7 @@ pub struct Mapping {
 impl Mapping {
     /// 分配一个有根节点的映射
     pub fn new_alloc() -> Option<Mapping> {
-        let root_table = PageTableTracker::new_zeroed(FRAME_ALLOCATOR.lock().alloc()?);
+        let root_table = PageTableTracker::new_zeroed(frame_alloc()?);
         let root_ppn = root_table.page_number();
         Some(Mapping {
             page_tables: vec![root_table],
@@ -38,7 +38,7 @@ impl Mapping {
             // 这个地方没有页表
             if entry.is_empty() {
                 // 分配一个新的页表
-                let new_table = PageTableTracker::new_zeroed(FRAME_ALLOCATOR.lock().alloc()?);
+                let new_table = PageTableTracker::new_zeroed(frame_alloc()?);
                 let new_ppn = new_table.page_number();
                 // 把新的页表写到页表项里
                 *entry = PageTableEntry::new(Some(new_ppn), Flags::VALID);
@@ -115,7 +115,7 @@ impl Mapping {
                 dst_slice.copy_from_slice(src_slice);
             }
             // 分配新的页帧，用于映射
-            let mut frame = FRAME_ALLOCATOR.lock().alloc()?;
+            let mut frame = frame_alloc()?;
             // 更新页表
             self.map_one(vpn, Some(frame.page_number()), flags)?;
             // 写入数据
