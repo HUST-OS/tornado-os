@@ -70,6 +70,11 @@ impl VirtualAddress {
     pub unsafe fn deref_virtual<T>(self) -> &'static mut T {
         &mut *(self.0 as *mut T)
     }
+    // 线性映射下，得到物理地址对应的虚拟地址
+    pub fn physical_address_linear(self) -> PhysicalAddress {
+        let pa = self.0.wrapping_sub(KERNEL_MAP_OFFSET);
+        PhysicalAddress(pa)
+    }
 }
 
 impl core::ops::Add<usize> for VirtualAddress {
@@ -88,7 +93,7 @@ impl core::ops::Sub<VirtualAddress> for VirtualAddress {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct VirtualPageNumber(usize);
 
 impl VirtualPageNumber {
@@ -106,8 +111,9 @@ impl VirtualPageNumber {
     }
     // 线性映射下，得到虚拟页号对应的物理页号
     pub fn physical_page_number_linear(self) -> PhysicalPageNumber {
-        let pa = self.0.wrapping_sub(KERNEL_MAP_OFFSET);
-        PhysicalPageNumber(pa / PAGE_SIZE)
+        let va = self.start_address();
+        let pa = va.physical_address_linear();
+        PhysicalPageNumber(pa.0 / PAGE_SIZE)
     }
     /// 对于Sv39，得到一、二、三级页号
     pub fn levels(&self) -> [usize; 3] {

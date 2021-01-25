@@ -1,5 +1,5 @@
 use crate::algorithm::{Allocator, StackedAllocator};
-use crate::memory::{PhysicalAddress, PhysicalPageNumber, frame::FrameTracker};
+use crate::memory::{PhysicalPageNumber, frame::FrameTracker};
 use crate::memory::config::{FREE_MEMORY_START, MEMORY_END_ADDRESS};
 use core::ops::Range;
 use lazy_static::lazy_static;
@@ -8,7 +8,7 @@ use spin::Mutex;
 lazy_static! {
     /// 帧分配器
     pub static ref FRAME_ALLOCATOR: Mutex<FrameAllocator<StackedAllocator>> = {
-        let pa_start = PhysicalAddress::from(*FREE_MEMORY_START);
+        let pa_start = FREE_MEMORY_START.physical_address_linear();
         let ppn_start = PhysicalPageNumber::ceil(pa_start);
         let ppn_end = PhysicalPageNumber::floor(MEMORY_END_ADDRESS);
         return Mutex::new(FrameAllocator::new(

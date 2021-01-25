@@ -126,14 +126,22 @@ impl Mapping {
         None
     }
     /// 把当前的映射保存到satp寄存器
-    #[cfg(riscv)]
     pub fn activate(&self) {
-        use riscv::{register::satp::{self, Mode}, asm};
+        // use riscv::{register::satp::{self, Mode}, asm};
+        // unsafe {
+        //     // 保存到satp寄存器
+        //     satp::set(Mode::Sv39, 0 /* asid */, self.root_ppn.into());
+        //     // 刷新页表缓存
+        //     asm::sfence_vma_all();
+        // }
+        // satp 低 27 位为页号，高 4 位为模式，8 表示 Sv39
+        let root_ppn: usize = self.root_ppn.into();
+        let new_satp = root_ppn | (8 << 60);
         unsafe {
-            // 保存到satp寄存器
-            satp::set(Mode::Sv39, 0 /* asid */, self.root_ppn.into());
-            // 刷新页表缓存
-            asm::sfence_vma_all();
+            // 将 new_satp 的值写到 satp 寄存器
+            llvm_asm!("csrw satp, $0" :: "r"(new_satp) :: "volatile");
+            // 刷新 TLB
+            llvm_asm!("sfence.vma" :::: "volatile");
         }
     }
 }
@@ -149,7 +157,9 @@ fn range_vpn_contains_va(src: Range<VirtualAddress>) -> Range<VirtualPageNumber>
 
 // 一个虚拟页号段区间的迭代器
 struct VpnRangeIter {
+    // 区间结束，不包含
     end_addr: usize,
+    // 区间开始，包含
     current_addr: usize,
 }
 
@@ -159,11 +169,11 @@ impl Iterator for VpnRangeIter {
         if self.current_addr == self.end_addr {
             return None;
         }
+        // 这里只要右移12位即可，ceil和floor区别不大
+        let current_vpn = VirtualPageNumber::ceil(VirtualAddress(self.current_addr));
         let next_addr = self.current_addr.wrapping_add(PAGE_SIZE);
-        let next_va = VirtualAddress(next_addr);
-        let next_vpn = VirtualPageNumber::ceil(next_va);
         self.current_addr = next_addr;
-        Some(next_vpn)
+        Some(current_vpn)
     }
 }
 

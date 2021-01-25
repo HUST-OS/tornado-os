@@ -45,9 +45,7 @@ pub extern "C" fn rust_main() -> ! {
     }
     
     println!("heap test passed");
-    #[cfg(riscv)]
     let remap = memory::MemorySet::new_kernel().unwrap();
-    #[cfg(riscv)]
     remap.activate();
     println!("kernel remapped");
 

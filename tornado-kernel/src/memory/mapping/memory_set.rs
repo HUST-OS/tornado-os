@@ -25,6 +25,12 @@ impl MemorySet {
             fn _sbss();
             fn _ebss();
         }
+        
+        println!("text:   {:x?}", VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize));
+        println!("rodata: {:x?}", VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize));
+        println!("data:   {:x?}", VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize));
+        println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
+        println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
 
         // 建立字段
         let segments = vec![
@@ -37,25 +43,25 @@ impl MemorySet {
             // .rodata 段，r--
             Segment {
                 map_type: MapType::Linear,
-                range: VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize),
+                range: VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize),
                 flags: Flags::READABLE,
             },
             // .data 段，rw-
             Segment {
                 map_type: MapType::Linear,
-                range: VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize),
+                range: VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize),
                 flags: Flags::READABLE | Flags::WRITABLE,
             },
             // .bss 段，rw-
             Segment {
                 map_type: MapType::Linear,
-                range: VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize),
+                range: VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize),
                 flags: Flags::READABLE | Flags::WRITABLE,
             },
             // 剩余内存空间，rw-
             Segment {
                 map_type: MapType::Linear,
-                range: FREE_MEMORY_START.virtual_address_linear()..MEMORY_END_ADDRESS.virtual_address_linear(),
+                range: *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear(),
                 flags: Flags::READABLE | Flags::WRITABLE,
             },
         ];
@@ -71,7 +77,6 @@ impl MemorySet {
     /// 替换 `satp` 以激活页表
     ///
     /// 如果当前页表就是自身，则不会替换，但仍然会刷新 TLB。
-    #[cfg(riscv)]
     pub fn activate(&self) {
         self.mapping.activate()
     }

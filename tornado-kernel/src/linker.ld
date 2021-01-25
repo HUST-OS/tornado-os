@@ -35,7 +35,8 @@ SECTIONS
         *(.sbss .bss .bss.*)
         _ebss = .;
     }
-
+    
+    . = ALIGN(4K);
     free_memory_start = .;
 
     /DISCARD/ : {
