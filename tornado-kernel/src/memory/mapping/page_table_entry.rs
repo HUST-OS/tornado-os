@@ -8,6 +8,7 @@ const FLAG_RANGE: core::ops::Range<usize> = 0..8;
 const PAGE_NUMBER_RANGE: core::ops::Range<usize> = 10..54;
 
 impl PageTableEntry {
+    /// 创建一个新的页表项
     pub fn new(page_number: Option<PhysicalPageNumber>, mut flags: Flags) -> Self {
         flags.set(Flags::VALID, page_number.is_some());
         let inner = *0usize
@@ -15,19 +16,6 @@ impl PageTableEntry {
             .set_bits(PAGE_NUMBER_RANGE, page_number
                 .map(|a| a.into()).unwrap_or(0));
         PageTableEntry(inner)
-    }
-    /// 设置物理页号，同时根据 ppn 是否为 Some 来设置 Valid 位
-    pub fn update_page_number(&mut self, ppn: Option<PhysicalPageNumber>) {
-        let mut new_flags = self.flags();
-        if ppn.is_some() {
-            new_flags.insert(Flags::VALID)
-        } else {
-            new_flags.remove(Flags::VALID)
-        };
-        let new_ppn_bits = ppn.map(|a| a.into()).unwrap_or(0); 
-        self.0
-            .set_bits(FLAG_RANGE, new_flags.bits())
-            .set_bits(PAGE_NUMBER_RANGE, new_ppn_bits);
     }
     /// 获取页号
     pub fn page_number(&self) -> PhysicalPageNumber {

@@ -8,6 +8,7 @@ pub enum MapType {
     /// 线性映射，操作系统使用
     Linear,
     /// 按帧分配映射
+    #[allow(unused)] // 后面给用户上下文用
     Framed,
 }
 
