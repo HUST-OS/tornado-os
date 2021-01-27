@@ -1,10 +1,7 @@
-use spin::Mutex;
+mod task;
+mod process;
+mod processor;
 
-pub struct Process {
-    pub is_user: bool,
-    pub inner: Mutex<ProcessInner>,    
-}
-
-pub struct ProcessInner {
-
-}
+pub use task::{Task, TaskId};
+pub use process::{Process, ProcessInner};
+pub use processor::Processor;

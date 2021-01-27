@@ -17,6 +17,7 @@ impl PhysicalAddress {
     }
 }
 
+/// 物理页号
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysicalPageNumber(usize);
 
@@ -93,6 +94,13 @@ impl core::ops::Sub<VirtualAddress> for VirtualAddress {
     }
 }
 
+impl From<VirtualAddress> for usize {
+    fn from(src: VirtualAddress) -> usize {
+        src.0
+    }
+}
+
+/// 虚拟页号
 #[derive(Clone, Copy, Debug)]
 pub struct VirtualPageNumber(usize);
 

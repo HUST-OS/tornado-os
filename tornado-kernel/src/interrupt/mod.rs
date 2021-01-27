@@ -1,6 +1,8 @@
 mod handler;
 mod timer;
 
+pub use handler::TrapFrame;
+
 /// 初始化中断相关的子模块
 /// 
 /// - [`handler::init`]

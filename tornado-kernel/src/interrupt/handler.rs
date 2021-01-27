@@ -1,4 +1,4 @@
-use riscv::register::{stvec, sstatus::Sstatus, sepc, scause::{self, Trap, Exception}};
+use riscv::register::{stvec, sstatus::{self, SPP, Sstatus}, sepc, scause::{self, Trap, Exception}};
 use crate::println;
 
 use super::timer;
@@ -20,6 +20,30 @@ pub struct TrapFrame {
     x: [usize; 32],
     sstatus: Sstatus,
     sepc: usize,
+}
+
+impl TrapFrame {
+    // 新建任务时，构建它的上下文
+    pub fn new_task_context(is_user: bool, pc: usize, stack_top: usize) -> TrapFrame {
+        // 设置sstatus的特权级
+        #[cfg(riscv)]
+        if is_user {    
+            sstatus::set_spp(SPP::User);
+        } else {
+            sstatus::set_spp(SPP::Supervisor);
+        }
+        // sret到用户线程后，开启中断
+        unsafe { sstatus::set_spie() };
+        let sstatus = sstatus::read();
+        let mut ans = TrapFrame {
+            x: [0; 32],
+            sstatus,
+            sepc: pc
+        };
+        // 设置栈顶
+        ans.x[2] = stack_top;
+        ans
+    }
 }
 
 use core::fmt;

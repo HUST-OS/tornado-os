@@ -14,3 +14,4 @@ woke = "0.0.2"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 bitflags = "1.2"
 bit_field = "0.10"
+hashbrown = "0.9"
