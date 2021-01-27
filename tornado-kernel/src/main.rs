@@ -13,6 +13,7 @@ mod sbi;
 mod interrupt;
 mod memory;
 mod task;
+mod process;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
