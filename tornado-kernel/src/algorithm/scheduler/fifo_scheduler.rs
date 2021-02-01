@@ -6,9 +6,9 @@ pub struct FifoScheduler<T> {
     pool: LinkedList<T>,
 }
 
-impl<T: Clone + PartialEq> FifoScheduler<T> {
+impl<T> FifoScheduler<T> {
     /// 创建一个空的调度器
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             pool: LinkedList::new(),
         }

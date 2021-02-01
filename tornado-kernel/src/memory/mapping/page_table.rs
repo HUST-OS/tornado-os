@@ -15,6 +15,7 @@ impl PageTable {
     }
 }
 
+#[derive(Debug)]
 pub struct PageTableTracker(pub FrameTracker);
 
 impl PageTableTracker {

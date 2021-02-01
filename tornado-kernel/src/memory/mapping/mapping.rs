@@ -9,6 +9,7 @@ use core::ops::Range;
 use core::ptr::slice_from_raw_parts_mut;
 
 /// 一个上下文的内存映射关系
+#[derive(Debug)]
 pub struct Mapping {
     /// 使用到的所有页表
     page_tables: Vec<PageTableTracker>,

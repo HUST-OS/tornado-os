@@ -63,7 +63,7 @@ pub extern "C" fn rust_main() -> ! {
         };
         println!("Test #{}: {:?} and {:?}", i, frame_0.start_address(), frame_1.start_address());
     }
-
+    
     let executor = task::Executor::default();
 
     executor.spawn(async {

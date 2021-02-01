@@ -16,6 +16,7 @@ pub fn init() {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct TrapFrame {
     x: [usize; 32],
     sstatus: Sstatus,

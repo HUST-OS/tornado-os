@@ -4,6 +4,7 @@ use crate::memory::VirtualAddress;
 use alloc::vec::Vec;
 
 /// 一个上下文中，所有与内存空间有关的信息
+#[derive(Debug)]
 pub struct MemorySet {
     /// 本上下文的页表和映射关系
     pub mapping: Mapping,

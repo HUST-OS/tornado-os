@@ -2,6 +2,8 @@ use alloc::sync::Arc;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use core::ops::Range;
+use core::future::Future;
+use alloc::boxed::Box;
 use crate::{interrupt::TrapFrame, memory::VirtualAddress, process::Process};
 
 lazy_static! {
@@ -12,8 +14,6 @@ lazy_static! {
 pub struct Task {
     /// 任务的编号
     pub id: TaskId,
-    /// 本任务运行的栈；任务被强制中断暂停时，下一个任务使用新分配的栈
-    pub stack: Range<VirtualAddress>,
     /// 任务所属的进程
     pub process: Arc<Process>,
     /// 任务信息的可变部分
@@ -21,11 +21,13 @@ pub struct Task {
 }
 
 /// 任务的编号
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub struct TaskId(usize);
 
 /// 任务信息的可变部分
 pub struct TaskInner {
+    /// 本任务运行的栈；任务被强制中断暂停时，下一个任务使用新分配的栈
+    pub stack: Range<VirtualAddress>,
     /// 任务的执行上下文；仅当遇到中断强制暂停时，这里是Some
     pub context: Option<TrapFrame>,
     /// 任务是否正在休眠
@@ -37,6 +39,7 @@ pub struct TaskInner {
 impl Task {
     /// 创建一个任务，需要输入创建好的栈
     pub fn new_kernel(
+        future: impl Future<Output = ()> + 'static + Send,
         process: Arc<Process>,
         stack: Range<VirtualAddress>
     ) -> Arc<Task> {
@@ -56,9 +59,9 @@ impl Task {
         // 打包为任务
         Arc::new(Task {
             id: task_id,
-            stack,
             process,
             inner: Mutex::new(TaskInner {
+                stack,
                 context: Some(context),
                 sleeping: false,
                 ended: false,

@@ -13,6 +13,7 @@ pub enum MapType {
 }
 
 /// 一个需要映射的程序片段
+#[derive(Debug)]
 pub struct Segment {
     /// 映射类型
     pub map_type: MapType,

@@ -35,6 +35,18 @@ SECTIONS
         *(.sbss .bss .bss.*)
         _ebss = .;
     }
+
+    .shared_rw : ALIGN(4K) {
+        _sshared_rw = .;
+        *(.shared_rw .shared_rw.*)
+        _eshared_rw = .;
+    }
+
+    .shared_x : ALIGN(4K) {
+        _sshared_x = .;
+        *(.shared_x .shared_x.*)
+        _eshared_x = .;
+    }
     
     . = ALIGN(4K);
     free_memory_start = .;
