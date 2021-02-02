@@ -17,3 +17,7 @@ pub struct ProcessInner {
     /// 进程中所有任务的公用内存映射
     pub memory_set: MemorySet,
 }
+
+/// 进程的编号
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProcessId(usize);
