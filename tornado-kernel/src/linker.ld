@@ -36,16 +36,16 @@ SECTIONS
         _ebss = .;
     }
 
-    .shared_rw : ALIGN(4K) {
-        _sshared_rw = .;
-        *(.shared_rw .shared_rw.*)
-        _eshared_rw = .;
+    .shared_data : ALIGN(4K) {
+        _sshared_data = .;
+        *(.shared_data .shared_data.*)
+        _eshared_data = .;
     }
 
-    .shared_x : ALIGN(4K) {
-        _sshared_x = .;
-        *(.shared_x .shared_x.*)
-        _eshared_x = .;
+    .shared_text : ALIGN(4K) {
+        _sshared_text = .;
+        *(.shared_text .shared_text.*)
+        _eshared_text = .;
     }
     
     . = ALIGN(4K);
