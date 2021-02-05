@@ -5,9 +5,10 @@ mod lock;
 
 pub use lock::Lock;
 pub use task::{Task, TaskId};
-pub use process::{Process, ProcessInner, ProcessId};
+pub use process::{Process, ProcessId};
 
 use crate::algorithm::{Scheduler, FifoScheduler};
+use crate::hart::ThreadPointer;
 
 /// 所有任务的调度器
 #[link_section = ".shared_data"]
@@ -18,15 +19,16 @@ pub static SHARED_SCHEDULER: spin::Mutex<FifoScheduler<SharedTaskHandle>> =
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SharedTaskHandle {
     /// 地址空间的编号
-    asid: ProcessId,
+    pub(crate) address_space_id: ProcessId,
     /// 对每个虚拟空间来说，task_ptr是Arc<Task>相应的虚拟地址
     /// 比如内核中是内核虚拟地址，用户中是用户的虚拟地址
-    task_ptr: usize,
+    pub(crate) task_ptr: usize,
 }
 
 impl SharedTaskHandle {
     fn should_switch(&self) -> bool {
-        current_address_space_id() == self.asid
+        // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
+        SharedAddressSpace::current().address_space_id != self.address_space_id
     }
 }
 
@@ -63,6 +65,15 @@ pub enum TaskResult {
     Finished,
 }
 
-fn current_address_space_id() -> ProcessId {
-    unsafe { core::mem::transmute(usize::max_value()) }// todo: 从执行器中获得
+/// 共享的地址空间
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SharedAddressSpace {
+    /// 当前的进程编号
+    pub address_space_id: ProcessId,
+}
+
+impl SharedAddressSpace {
+    fn current<'a>() -> &'a SharedAddressSpace {
+        unsafe { ThreadPointer::as_ref().expect("get current context") }
+    }
 }

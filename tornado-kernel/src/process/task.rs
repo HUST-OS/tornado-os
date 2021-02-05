@@ -4,7 +4,8 @@ use spin::Mutex;
 use core::ops::Range;
 use core::future::Future;
 use alloc::boxed::Box;
-use crate::{interrupt::TrapFrame, memory::VirtualAddress, process::Process};
+use crate::{interrupt::TrapFrame, memory::VirtualAddress};
+use crate::process::{Process, SharedTaskHandle, SharedAddressSpace};
 
 lazy_static! {
     static ref TASK_ID_COUNTER: Mutex<usize> = Mutex::new(0);
@@ -18,6 +19,8 @@ pub struct Task {
     pub process: Arc<Process>,
     /// 任务信息的可变部分
     pub inner: Mutex<TaskInner>,
+    /// 任务的内容
+    pub future: Box<dyn Future<Output = ()> + 'static + Send + Sync>
 }
 
 /// 任务的编号
@@ -39,15 +42,19 @@ pub struct TaskInner {
 impl Task {
     /// 创建一个任务，需要输入创建好的栈
     pub fn new_kernel(
-        future: impl Future<Output = ()> + 'static + Send,
+        future: impl Future<Output = ()> + 'static + Send + Sync,
         process: Arc<Process>,
         stack: Range<VirtualAddress>
     ) -> Arc<Task> {
         // 构建上下文
         let stack_top: usize = stack.end.into();
+        let shared_address_space = Box::new(SharedAddressSpace {
+            address_space_id: process.process_id()
+        });
         let context = TrapFrame::new_task_context(
             false,
             0,
+            Box::into_raw(shared_address_space) as usize, // todo: 这里有内存泄漏，要在drop里处理
             stack_top
         );
         // 任务编号自增
@@ -65,8 +72,19 @@ impl Task {
                 context: Some(context),
                 sleeping: false,
                 ended: false,
-            })
+            }),
+            future: Box::new(future),
         })
+    }
+
+    /// 转换到共享的任务编号
+    ///
+    /// note(unsafe): 创建了一个没有边界的生命周期
+    pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
+        SharedTaskHandle {
+            address_space_id: self.process.process_id(),
+            task_ptr: Arc::as_ptr(&self) as usize
+        }
     }
 }
 

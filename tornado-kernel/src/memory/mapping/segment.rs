@@ -1,4 +1,4 @@
-use crate::memory::address::VirtualAddress;
+use crate::memory::{VirtualAddress, VirtualPageNumber};
 use crate::memory::mapping::Flags;
 use core::ops::Range;
 
@@ -24,5 +24,8 @@ pub struct Segment {
 }
 
 impl Segment {
-    
+    /// 将地址相应地上下取整，获得虚拟页号区间
+    pub fn page_range(&self) -> Range<VirtualPageNumber> {
+        VirtualPageNumber::floor(self.range.start)..VirtualPageNumber::ceil(self.range.end)
+    }
 }

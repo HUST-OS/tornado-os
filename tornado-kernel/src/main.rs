@@ -3,6 +3,8 @@
 #![feature(global_asm, llvm_asm, alloc_error_handler)]
 #![feature(drain_filter)]
 
+use memory::STACK_SIZE;
+
 #[macro_use]
 extern crate alloc;
 
@@ -15,6 +17,7 @@ mod interrupt;
 mod memory;
 mod task;
 mod process;
+mod hart;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -64,13 +67,19 @@ pub extern "C" fn rust_main() -> ! {
         println!("Test #{}: {:?} and {:?}", i, frame_0.start_address(), frame_1.start_address());
     }
     
-    let executor = task::Executor::default();
+    // let executor = task::Executor::default();
 
-    executor.spawn(async {
-        println!("Hello world!")
-    });
+    // executor.spawn(async {
+    //     println!("Hello world!")
+    // });
 
-    executor.run_until_idle();
+    // executor.run_until_idle();
+
+    let process = process::Process::new_kernel().expect("create process");
+    let stack = process.alloc_stack().expect("alloc initial stack");
+    let task = process::Task::new_kernel(async {
+        println!("hello world!")
+    }, process, stack);
 
     sbi::shutdown()
 }

@@ -25,7 +25,7 @@ pub struct TrapFrame {
 
 impl TrapFrame {
     // 新建任务时，构建它的上下文
-    pub fn new_task_context(is_user: bool, pc: usize, stack_top: usize) -> TrapFrame {
+    pub fn new_task_context(is_user: bool, pc: usize, tp: usize, stack_top: usize) -> TrapFrame {
         // 设置sstatus的特权级
         #[cfg(riscv)]
         if is_user {    
@@ -43,6 +43,8 @@ impl TrapFrame {
         };
         // 设置栈顶
         ans.x[2] = stack_top;
+        // 设置线程指针
+        ans.x[4] = tp;
         ans
     }
 }

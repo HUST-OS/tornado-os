@@ -86,6 +86,12 @@ impl core::ops::Add<usize> for VirtualAddress {
     }
 }
 
+impl core::ops::AddAssign<usize> for VirtualAddress {
+    fn add_assign(&mut self, rhs: usize) {
+        self.0 = self.0.wrapping_add(rhs)
+    }
+}
+
 impl core::ops::Sub<VirtualAddress> for VirtualAddress {
     type Output = usize;
     fn sub(self, rhs: VirtualAddress) -> Self::Output {
@@ -101,7 +107,7 @@ impl From<VirtualAddress> for usize {
 }
 
 /// 虚拟页号
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtualPageNumber(usize);
 
 impl VirtualPageNumber {

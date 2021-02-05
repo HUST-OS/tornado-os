@@ -67,7 +67,9 @@ impl Mapping {
     }
 
     /// 插入并映射一个段
-    pub fn map_segment(&mut self, segment: &Segment, init_data: Option<&[u8]>) -> Option<()> {
+    pub fn map_segment(
+        &mut self, segment: &Segment, init_data: Option<&[u8]>
+    ) -> Option<Vec<(VirtualPageNumber, FrameTracker)>> {
         match segment.map_type {
             MapType::Linear => self.map_range_linear(
                 range_vpn_contains_va(segment.range.clone()), 
@@ -83,7 +85,9 @@ impl Mapping {
     }
 
     // 插入和映射线性的段
-    fn map_range_linear(&mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>) -> Option<()> {
+    fn map_range_linear(
+        &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
+    ) -> Option<Vec<(VirtualPageNumber, FrameTracker)>> {
         for vpn in vpn_step_iter(vpn_range) {
             self.map_one(vpn, Some(vpn.physical_page_number_linear()), flags)?;
         }
@@ -93,10 +97,14 @@ impl Mapping {
             let target_slice = unsafe { &mut *slice_from_raw_parts_mut(target_data, target_len) };
             target_slice.copy_from_slice(src_data);
         }
-        Some(())
+        Some(Vec::new())
     }
+
     // 插入和映射按帧分页的段
-    fn map_range_framed(&mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>) -> Option<()> {
+    fn map_range_framed(
+        &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
+    ) -> Option<Vec<(VirtualPageNumber, FrameTracker)>> {
+        let mut allocated_pairs = Vec::new();
         for vpn in vpn_step_iter(vpn_range) {
             // 新页面的内容
             let mut page_data = [0u8; PAGE_SIZE];
@@ -124,7 +132,7 @@ impl Mapping {
             // 保存帧跟踪器，否则会被释放
             self.mapped_pairs.push_back((vpn, frame));
         }
-        None
+        Some(allocated_pairs) // todo!
     }
     /// 把当前的映射保存到satp寄存器
     pub fn activate(&self) {
