@@ -11,9 +11,14 @@ use crate::algorithm::{Scheduler, FifoScheduler};
 use crate::hart::ThreadPointer;
 
 /// 所有任务的调度器
+///
+/// 注意：所有在.shared_data段分配的堆空间，必须也在.shared_data段里面，否则另一边的进程就无法访问共享的堆内存
 #[link_section = ".shared_data"]
 pub static SHARED_SCHEDULER: spin::Mutex<FifoScheduler<SharedTaskHandle>> = 
     spin::Mutex::new(FifoScheduler::new());
+// luojia65: 绝对不是这样写的，得改
+#[link_section = ".shared_data"]
+pub static SHARED_HEAP: buddy_system_allocator::LockedHeap = buddy_system_allocator::LockedHeap::empty();
 
 /// 共享的包含Future在用户空间的地址
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
