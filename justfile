@@ -2,8 +2,8 @@ target := "riscv64imac-unknown-none-elf"
 mode := "debug"
 build-path := "target/" + target + "/" + mode + "/"
 
-bootloader-elf := "../rustsbi/target/riscv64gc-unknown-none-elf/debug/rustsbi-qemu"
-bootloader-bin := "../rustsbi/target/riscv64gc-unknown-none-elf/debug/rustsbi-qemu.bin"
+bootloader-elf := "../rustsbi/target/" + target + "/debug/rustsbi-qemu"
+bootloader-bin := "../rustsbi/target/" + target + "/debug/rustsbi-qemu.bin"
 kernel-elf := build-path + "tornado-kernel"
 kernel-bin := build-path + "tornado-kernel.bin"
 
