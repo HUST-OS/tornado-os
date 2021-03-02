@@ -24,7 +24,7 @@ pub struct Task {
 }
 
 /// 任务的编号
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
 pub struct TaskId(usize);
 
 /// 任务信息的可变部分
@@ -91,5 +91,13 @@ impl Task {
 impl PartialEq for Task {
     fn eq(&self, other: &Task) -> bool {
         self.id == other.id
+    }
+}
+
+impl Eq for Task {}
+
+impl core::hash::Hash for Task {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
