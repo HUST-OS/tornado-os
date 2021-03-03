@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(global_asm, llvm_asm, alloc_error_handler)]
+#![feature(global_asm, llvm_asm, asm, alloc_error_handler)]
 #![feature(drain_filter)]
 #![feature(maybe_uninit_uninit_array)]
 
@@ -81,6 +81,10 @@ pub extern "C" fn rust_main() -> ! {
     let task = process::Task::new_kernel(async {
         println!("hello world!")
     }, process, stack);
+    let shared_scheduler = process::shared_scheduler();
+    unsafe { 
+        process::shared_add_task(shared_scheduler, task.shared_task_handle());
+    }
 
     sbi::shutdown()
 }

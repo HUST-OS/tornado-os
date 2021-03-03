@@ -20,6 +20,10 @@ type SharedScheduler = spin::Mutex<RingFifoScheduler<SharedTaskHandle, 500>>;
 #[link_section = ".shared_data"]
 pub static SHARED_SCHEDULER: SharedScheduler = spin::Mutex::new(RingFifoScheduler::new());
 
+pub fn shared_scheduler() -> NonNull<()> {
+    NonNull::new(&SHARED_SCHEDULER as *const _ as *mut ()).expect("create non null pointer")
+}
+
 /// 共享的包含Future在用户空间的地址
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SharedTaskHandle {

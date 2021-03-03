@@ -18,9 +18,11 @@ impl<T> FifoScheduler<T> {
 
 impl<T: Clone + PartialEq> Scheduler<T> for FifoScheduler<T> {
     type Priority = ();
-    fn add_task(&mut self, task: T) {
+    fn add_task(&mut self, task: T) -> Option<T> {
         // 加入链表尾部
         self.pool.push_back(task);
+        // 不考虑内存溢出，总是成功
+        None
     }
     fn next_task(&mut self) -> Option<T> {
         // 从头部取出放回尾部，同时将其返回

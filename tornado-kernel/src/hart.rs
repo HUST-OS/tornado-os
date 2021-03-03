@@ -10,7 +10,7 @@ pub struct ThreadPointer<'a> {
 impl<'a> ThreadPointer<'a> {
     /// 写一个指针到上下文指针
     pub unsafe fn write(address: usize) {
-        llvm_asm!("mv tp, %0"::"r"(address));
+        asm!("mv tp, {}", in(reg) address);
     }
 
     /// 得到借用
@@ -25,8 +25,14 @@ impl<'a> ThreadPointer<'a> {
 
     #[inline(always)]
     unsafe fn read() -> Self {
-        let tp: usize;
-        llvm_asm!("":"={tp}"(tp));
-        ThreadPointer { address: tp, _borrowed: PhantomData }
+        match () {
+            #[cfg(riscv)] () => {
+                let tp: usize;
+                asm!("", lateout("tp") tp);
+                ThreadPointer { address: tp, _borrowed: PhantomData }
+            },
+            #[cfg(not(riscv))] () => unimplemented!(),
+        }
+        
     }
 }

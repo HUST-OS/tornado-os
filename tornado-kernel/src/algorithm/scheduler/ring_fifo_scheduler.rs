@@ -18,12 +18,14 @@ impl<T, const N: usize> RingFifoScheduler<T, N> {
 
 impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T, N> {
     type Priority = ();
-    fn add_task(&mut self, task: T) {
+    fn add_task(&mut self, task: T) -> Option<T> {
         // 加入环形队列
         let ans = self.ring.push_back(task);
-        if let Some(_t) = ans { // 如果满了，退出（应该要返回队列满了）
-            panic!()
+        // 直接返回self.ring.push_back也可以
+        if let Some(t) = ans { // 如果满了，退出
+            return Some(t)
         }
+        None
     }
     fn next_task(&mut self) -> Option<T> {
         // 从头部取出放回尾部，同时将其返回
