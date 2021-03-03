@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(global_asm, llvm_asm, alloc_error_handler)]
 #![feature(drain_filter)]
+#![feature(maybe_uninit_uninit_array)]
 
 use memory::STACK_SIZE;
 

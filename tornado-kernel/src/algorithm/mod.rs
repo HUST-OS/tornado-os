@@ -17,8 +17,10 @@ mod allocator {
 
 mod scheduler {
     mod fifo_scheduler;
+    mod ring_fifo_scheduler;
 
     pub use fifo_scheduler::FifoScheduler;
+    pub use ring_fifo_scheduler::RingFifoScheduler;
 
     pub trait Scheduler<T: Clone + PartialEq> {
         /// 优先级的类型
