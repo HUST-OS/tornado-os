@@ -16,9 +16,6 @@ use crate::hart::ThreadPointer;
 #[link_section = ".shared_data"]
 pub static SHARED_SCHEDULER: spin::Mutex<FifoScheduler<SharedTaskHandle>> = 
     spin::Mutex::new(FifoScheduler::new());
-// luojia65: 绝对不是这样写的，得改
-#[link_section = ".shared_data"]
-pub static SHARED_HEAP: buddy_system_allocator::LockedHeap = buddy_system_allocator::LockedHeap::empty();
 
 /// 共享的包含Future在用户空间的地址
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
