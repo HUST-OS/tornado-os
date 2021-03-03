@@ -9,10 +9,11 @@ pub use process::{Process, ProcessId};
 
 use crate::algorithm::{Scheduler, FifoScheduler};
 use crate::hart::ThreadPointer;
+use core::ptr::NonNull;
 
 /// 所有任务的调度器
 ///
-/// 注意：所有在.shared_data段分配的堆空间，必须也在.shared_data段里面，否则另一边的进程就无法访问共享的堆内存
+/// 注意：所有.shared_data段内的数据不应该分配堆空间
 #[link_section = ".shared_data"]
 pub static SHARED_SCHEDULER: spin::Mutex<FifoScheduler<SharedTaskHandle>> = 
     spin::Mutex::new(FifoScheduler::new());
@@ -34,16 +35,22 @@ impl SharedTaskHandle {
     }
 }
 
+#[allow(unused)] // todo: 用上 -- luojia65
+pub static SHARED_RAW_TABLE: (unsafe fn(NonNull<()>, SharedTaskHandle), unsafe fn(NonNull<()>) -> TaskResult)
+    = (shared_add_task, shared_pop_task);
+
+type SharedScheduler = spin::Mutex<FifoScheduler<SharedTaskHandle>>;
+
 #[link_section = ".shared_text"]
-#[allow(unused)]
-pub fn shared_add_task(handle: SharedTaskHandle) {
-    SHARED_SCHEDULER.lock().add_task(handle);
+pub unsafe fn shared_add_task(shared_scheduler: NonNull<()>, handle: SharedTaskHandle) {
+    let s: NonNull<SharedScheduler> = shared_scheduler.cast();
+    s.as_ref().lock().add_task(handle);
 }
 
 #[link_section = ".shared_text"]
-#[allow(unused)]
-pub fn shared_pop_task() -> TaskResult {
-    let mut scheduler = SHARED_SCHEDULER.lock();
+pub unsafe fn shared_pop_task(shared_scheduler: NonNull<()>) -> TaskResult {
+    let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
+    let mut scheduler = s.as_mut().lock();
     if let Some(task) = scheduler.peek_next_task() {
         if task.should_switch() {
             return TaskResult::ShouldYield
