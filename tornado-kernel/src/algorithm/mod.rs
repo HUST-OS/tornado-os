@@ -1,5 +1,5 @@
 pub use allocator::{Allocator, StackedAllocator};
-pub use scheduler::{Scheduler, FifoScheduler};
+pub use scheduler::{Scheduler, FifoScheduler, RingFifoScheduler};
 
 mod allocator {
     mod stacked_allocator;

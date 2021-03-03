@@ -7,16 +7,18 @@ pub use lock::Lock;
 pub use task::{Task, TaskId};
 pub use process::{Process, ProcessId};
 
-use crate::algorithm::{Scheduler, FifoScheduler};
+use crate::algorithm::{Scheduler, RingFifoScheduler};
 use crate::hart::ThreadPointer;
 use core::ptr::NonNull;
+
+/// 共享调度器的类型
+type SharedScheduler = spin::Mutex<RingFifoScheduler<SharedTaskHandle, 500>>;
 
 /// 所有任务的调度器
 ///
 /// 注意：所有.shared_data段内的数据不应该分配堆空间
 #[link_section = ".shared_data"]
-pub static SHARED_SCHEDULER: spin::Mutex<FifoScheduler<SharedTaskHandle>> = 
-    spin::Mutex::new(FifoScheduler::new());
+pub static SHARED_SCHEDULER: SharedScheduler = spin::Mutex::new(RingFifoScheduler::new());
 
 /// 共享的包含Future在用户空间的地址
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,8 +40,6 @@ impl SharedTaskHandle {
 #[allow(unused)] // todo: 用上 -- luojia65
 pub static SHARED_RAW_TABLE: (unsafe fn(NonNull<()>, SharedTaskHandle), unsafe fn(NonNull<()>) -> TaskResult)
     = (shared_add_task, shared_pop_task);
-
-type SharedScheduler = spin::Mutex<FifoScheduler<SharedTaskHandle>>;
 
 #[link_section = ".shared_text"]
 pub unsafe fn shared_add_task(shared_scheduler: NonNull<()>, handle: SharedTaskHandle) {
