@@ -76,10 +76,10 @@ pub extern "C" fn rust_main() -> ! {
 
     // todo: 这里要有个地方往tp里写东西，目前会出错
     let process = process::Process::new_kernel().expect("create process 1");
-    let stack_handle = process.alloc_stack().expect("alloc initial stack");
+    // let stack_handle = process.alloc_stack().expect("alloc initial stack");
 
-    let task_1 = process::Task::new_kernel(task_1(), process.clone(), stack_handle.clone());
-    let task_2 = process::Task::new_kernel(task_2(), process, stack_handle);
+    let task_1 = process::Task::new_kernel(task_1(), process.clone());
+    let task_2 = process::Task::new_kernel(task_2(), process);
 
     let shared_scheduler = process::shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
@@ -95,9 +95,16 @@ pub extern "C" fn rust_main() -> ! {
 }
 
 async fn task_1() {
-    println!("hello world from 1!")
+    // let new_task = process::Task::new_kernel(task_3(), process);
+    // let shared_scheduler = process::shared_scheduler();
+    // process::shared_add_task(shared_scheduler, handle);
+    println!("hello world from 1!");
 }
 
 async fn task_2() {
     println!("hello world from 2!")
 }
+
+// async fn task_3() {
+//     println!("hello world from 3!")
+// }

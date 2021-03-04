@@ -25,7 +25,7 @@ impl<T: Clone + PartialEq> Scheduler<T> for FifoScheduler<T> {
         None
     }
     fn next_task(&mut self) -> Option<T> {
-        // 从头部取出放回尾部
+        // 从头部取出
         self.pool.pop_front()
     }
     fn peek_next_task(&self) -> Option<&T> {
