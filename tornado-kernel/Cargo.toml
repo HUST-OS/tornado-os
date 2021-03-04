@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 buddy_system_allocator = "0.6"
-riscv = "*"
+riscv = { git = "https://github.com/rust-embedded/riscv", rev = "7358eda6" }
 spin = "0.7"
 woke = "0.0.2"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }

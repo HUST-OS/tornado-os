@@ -27,11 +27,10 @@ impl TrapFrame {
     // 新建任务时，构建它的上下文
     pub fn new_task_context(is_user: bool, pc: usize, tp: usize, stack_top: usize) -> TrapFrame {
         // 设置sstatus的特权级
-        #[cfg(riscv)]
         if is_user {    
-            sstatus::set_spp(SPP::User);
+            unsafe { sstatus::set_spp(SPP::User) };
         } else {
-            sstatus::set_spp(SPP::Supervisor);
+            unsafe { sstatus::set_spp(SPP::Supervisor) };
         }
         // sret到用户线程后，开启中断
         unsafe { sstatus::set_spie() };

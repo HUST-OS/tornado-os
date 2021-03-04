@@ -6,6 +6,7 @@ use core::future::Future;
 use alloc::boxed::Box;
 use crate::{interrupt::TrapFrame, memory::VirtualAddress};
 use crate::process::{Process, SharedTaskHandle, SharedAddressSpace};
+use core::pin::Pin;
 
 lazy_static! {
     static ref TASK_ID_COUNTER: Mutex<usize> = Mutex::new(0);
@@ -20,7 +21,7 @@ pub struct Task {
     /// 任务信息的可变部分
     pub inner: Mutex<TaskInner>,
     /// 任务的内容
-    pub future: Box<dyn Future<Output = ()> + 'static + Send + Sync>
+    pub future: Mutex<Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>> // 用UnsafeCell代替Mutex会好一点
 }
 
 /// 任务的编号
@@ -48,15 +49,12 @@ impl Task {
     ) -> Arc<Task> {
         // 构建上下文
         let stack_top: usize = stack.end.into();
-        let shared_address_space = Box::new(SharedAddressSpace {
-            address_space_id: process.process_id()
-        });
         let context = TrapFrame::new_task_context(
             false,
             0,
-            Box::into_raw(shared_address_space) as usize, // todo: 这里有内存泄漏，要在drop里处理
+            0,
             stack_top
-        );
+        ); // todo: 逻辑是不是错了？
         // 任务编号自增
         let task_id = {
             let counter = TASK_ID_COUNTER.lock();
@@ -73,7 +71,7 @@ impl Task {
                 sleeping: false,
                 ended: false,
             }),
-            future: Box::new(future),
+            future: Mutex::new(Box::pin(future)),
         })
     }
 
@@ -82,9 +80,29 @@ impl Task {
     /// note(unsafe): 创建了一个没有边界的生命周期
     pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
         SharedTaskHandle {
-            address_space_id: self.process.process_id(),
-            task_ptr: Arc::as_ptr(&self) as usize
+            address_space_id: self.process.address_space_id(),
+            task_ptr: Arc::into_raw(self) as usize
         }
+    }
+}
+
+impl Task {
+    fn mark_ready(&self) {
+        self.inner.lock().sleeping = false;
+    }
+
+    pub(crate) fn is_sleeping(&self) -> bool {
+        self.inner.lock().sleeping
+    }
+
+    pub(crate) fn mark_sleep(&self) {
+        self.inner.lock().sleeping = true;
+    }
+}
+
+impl woke::Woke for Task {
+    fn wake_by_ref(task: &Arc<Self>) {
+        task.mark_ready();
     }
 }
 

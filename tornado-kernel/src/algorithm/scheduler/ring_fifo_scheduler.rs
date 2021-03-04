@@ -28,13 +28,8 @@ impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T,
         None
     }
     fn next_task(&mut self) -> Option<T> {
-        // 从头部取出放回尾部，同时将其返回
-        if let Some(task) = self.ring.pop_front() {
-            self.ring.push_back(task.clone());
-            Some(task)
-        } else {
-            None
-        }
+        // 从头部取出放回尾部
+        self.ring.pop_front()
     }
     fn peek_next_task(&self) -> Option<&T> {
         // 拿出头部的引用
