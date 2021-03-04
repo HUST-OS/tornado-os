@@ -25,13 +25,8 @@ impl<T: Clone + PartialEq> Scheduler<T> for FifoScheduler<T> {
         None
     }
     fn next_task(&mut self) -> Option<T> {
-        // 从头部取出放回尾部，同时将其返回
-        if let Some(task) = self.pool.pop_front() {
-            self.pool.push_back(task.clone());
-            Some(task)
-        } else {
-            None
-        }
+        // 从头部取出放回尾部
+        self.pool.pop_front()
     }
     fn peek_next_task(&self) -> Option<&T> {
         // 拿出头部的引用
