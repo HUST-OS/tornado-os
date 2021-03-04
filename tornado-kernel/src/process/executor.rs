@@ -28,7 +28,9 @@ impl Executor {
         G: Fn(SharedTaskHandle) -> Option<SharedTaskHandle> 
     {
         loop {
-            match pop_task() {
+            let task = pop_task();
+            println!("next task = {:x?}", task);
+            match task {
                 TaskResult::Task(handle) => {
                     // 在相同的地址空间里面
                     let task: Arc<Task> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
@@ -40,11 +42,12 @@ impl Executor {
                     // poll our future and give it a waker
                     let mut context = Context::from_waker(&*waker);
                     let ret = task.future.lock().as_mut().poll(&mut context);
+                    println!("Ret = {:?}", ret);
                     if let Poll::Pending = ret {
                         push_task(handle);
                     }
                 },
-                TaskResult::ShouldYield => {}
+                TaskResult::ShouldYield => todo!("转让到目的的地址空间中"),
                 TaskResult::Finished => break
             }
         }

@@ -9,7 +9,6 @@ pub use process::{Process, ProcessId};
 pub use executor::Executor;
 
 use crate::{algorithm::{Scheduler, RingFifoScheduler}, memory::AddressSpaceId};
-use crate::hart::ThreadPointer;
 use core::ptr::NonNull;
 
 /// 共享调度器的类型
@@ -38,7 +37,7 @@ pub struct SharedTaskHandle {
 impl SharedTaskHandle {
     fn should_switch(&self) -> bool {
         // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
-        SharedAddressSpace::current().address_space_id != self.address_space_id
+        SharedAddressSpace::current_address_space_id() != self.address_space_id
     }
 }
 
@@ -72,6 +71,7 @@ pub unsafe fn shared_pop_task(shared_scheduler: NonNull<()>) -> TaskResult {
 }
 
 /// 共享调度器返回的结果
+#[derive(Debug)]
 pub enum TaskResult {
     /// 应当立即执行特定任务
     Task(SharedTaskHandle),
@@ -89,7 +89,12 @@ pub struct SharedAddressSpace {
 }
 
 impl SharedAddressSpace {
-    fn current<'a>() -> &'a SharedAddressSpace {
-        unsafe { ThreadPointer::as_ref().expect("get current context") }
+    fn current_address_space_id() -> AddressSpaceId {
+        use alloc::boxed::Box;
+        let addr = crate::hart::read_tp();
+        let bx: Box<SharedAddressSpace> = unsafe { Box::from_raw(addr as *mut _) };
+        let ans = bx.address_space_id;
+        drop(Box::into_raw(bx));
+        ans
     }
 }

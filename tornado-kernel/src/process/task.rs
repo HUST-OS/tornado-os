@@ -49,15 +49,12 @@ impl Task {
     ) -> Arc<Task> {
         // 构建上下文
         let stack_top: usize = stack.end.into();
-        let shared_address_space = Box::new(SharedAddressSpace {
-            address_space_id: process.address_space_id()
-        });
         let context = TrapFrame::new_task_context(
             false,
             0,
-            Box::into_raw(shared_address_space) as usize, // todo: 这里有内存泄漏，要在drop里处理
+            0,
             stack_top
-        );
+        ); // todo: 逻辑是不是错了？
         // 任务编号自增
         let task_id = {
             let counter = TASK_ID_COUNTER.lock();
@@ -84,7 +81,7 @@ impl Task {
     pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
         SharedTaskHandle {
             address_space_id: self.process.address_space_id(),
-            task_ptr: Arc::as_ptr(&self) as usize
+            task_ptr: Arc::into_raw(self) as usize
         }
     }
 }

@@ -1,7 +1,9 @@
 use lazy_static::lazy_static;
 use alloc::sync::Arc;
+use alloc::boxed::Box;
 use core::ops::Range;
 use spin::Mutex;
+use crate::process::SharedAddressSpace;
 use crate::memory::{AddressSpaceId, Flags, MemorySet, STACK_SIZE, VirtualAddress};
 
 /// 进程的所有信息
@@ -29,6 +31,12 @@ impl Process {
     ///
     /// 如果内存分配失败，返回None
     pub fn new_kernel() -> Option<Arc<Self>> {
+        let shared_address_space = Box::new(SharedAddressSpace {
+            address_space_id: AddressSpaceId::kernel()
+        });
+        let tp = Box::into_raw(shared_address_space) as usize; // todo: 这里有内存泄漏，要在drop里处理
+        println!("Process::new_kernel, tp = {:x}", tp);
+        unsafe { crate::hart::write_tp(tp) };
         Some(Arc::new(Process {
             id: next_process_id(),
             is_user: false,
@@ -38,10 +46,10 @@ impl Process {
             })
         }))
     }
-    /// 得到进程编号
-    pub fn process_id(&self) -> ProcessId {
-        self.id
-    }
+    // /// 得到进程编号
+    // pub fn process_id(&self) -> ProcessId {
+    //     self.id
+    // }
     /// 得到进程对应的地址空间编号
     pub fn address_space_id(&self) -> AddressSpaceId {
         self.inner.lock().address_space_id
