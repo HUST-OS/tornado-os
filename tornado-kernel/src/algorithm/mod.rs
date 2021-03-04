@@ -1,5 +1,5 @@
 pub use allocator::{Allocator, StackedAllocator};
-pub use scheduler::{Scheduler, FifoScheduler};
+pub use scheduler::{Scheduler, FifoScheduler, RingFifoScheduler};
 
 mod allocator {
     mod stacked_allocator;
@@ -17,14 +17,16 @@ mod allocator {
 
 mod scheduler {
     mod fifo_scheduler;
+    mod ring_fifo_scheduler;
 
     pub use fifo_scheduler::FifoScheduler;
+    pub use ring_fifo_scheduler::RingFifoScheduler;
 
     pub trait Scheduler<T: Clone + PartialEq> {
         /// 优先级的类型
         type Priority;
-        /// 向调度器中添加一个任务
-        fn add_task(&mut self, task: T);
+        /// 向调度器中添加一个任务；成功返回None，如果不成功，返回T
+        fn add_task(&mut self, task: T) -> Option<T>;
         /// 获取下一个任务的引用，但不弹出任务
         fn peek_next_task(&self) -> Option<&T>;
         /// 获取下一个时间段应当执行的任务
