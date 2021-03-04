@@ -14,7 +14,6 @@ mod panic;
 mod sbi;
 mod interrupt;
 mod memory;
-mod task;
 mod process;
 mod hart;
 
