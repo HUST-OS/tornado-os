@@ -26,12 +26,15 @@ impl<'a> ThreadPointer<'a> {
     #[inline(always)]
     unsafe fn read() -> Self {
         match () {
-            #[cfg(riscv)] () => {
+            #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+            () => {
                 let tp: usize;
-                asm!("", lateout("tp") tp);
+                // asm!("", lateout("tp") tp); // bug: #
+                llvm_asm!("":"={tp}"(tp));
                 ThreadPointer { address: tp, _borrowed: PhantomData }
             },
-            #[cfg(not(riscv))] () => unimplemented!(),
+            #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
+            () => unimplemented!(),
         }
         
     }

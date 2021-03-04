@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use alloc::sync::Arc;
 use core::ops::Range;
 use spin::Mutex;
-use crate::memory::{MemorySet, Flags, STACK_SIZE, VirtualAddress};
+use crate::memory::{AddressSpaceId, Flags, MemorySet, STACK_SIZE, VirtualAddress};
 
 /// 进程的所有信息
 #[derive(Debug)]
@@ -20,6 +20,8 @@ pub struct Process {
 pub struct ProcessInner {
     /// 进程中所有任务的公用内存映射
     memory_set: MemorySet,  
+    /// 进程的地址空间编号
+    address_space_id: AddressSpaceId,
 }
 
 impl Process {
@@ -32,12 +34,17 @@ impl Process {
             is_user: false,
             inner: Mutex::new(ProcessInner {
                 memory_set: MemorySet::new_kernel()?,
+                address_space_id: AddressSpaceId::kernel(),
             })
         }))
     }
     /// 得到进程编号
     pub fn process_id(&self) -> ProcessId {
         self.id
+    }
+    /// 得到进程对应的地址空间编号
+    pub fn address_space_id(&self) -> AddressSpaceId {
+        self.inner.lock().address_space_id
     }
     /// 在本进程的地址空间下，分配一个新的任务栈
     pub fn alloc_stack(&self) -> Option<Range<VirtualAddress>> {

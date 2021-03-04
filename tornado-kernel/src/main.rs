@@ -4,8 +4,6 @@
 #![feature(drain_filter)]
 #![feature(maybe_uninit_uninit_array)]
 
-use memory::STACK_SIZE;
-
 #[macro_use]
 extern crate alloc;
 
@@ -76,15 +74,31 @@ pub extern "C" fn rust_main() -> ! {
 
     // executor.run_until_idle();
 
-    let process = process::Process::new_kernel().expect("create process");
-    let stack = process.alloc_stack().expect("alloc initial stack");
-    let task = process::Task::new_kernel(async {
-        println!("hello world!")
-    }, process, stack);
-    let shared_scheduler = process::shared_scheduler();
-    unsafe { 
-        process::shared_add_task(shared_scheduler, task.shared_task_handle());
-    }
 
+    // todo: 这里要有个地方往tp里写东西，目前会出错
+    let process = process::Process::new_kernel().expect("create process 1");
+    let stack_handle = process.alloc_stack().expect("alloc initial stack");
+
+    let task_1 = process::Task::new_kernel(task_1(), process.clone(), stack_handle.clone());
+    let task_2 = process::Task::new_kernel(task_2(), process, stack_handle);
+
+    let shared_scheduler = process::shared_scheduler();
+    println!("Shared scheduler: {:?}", shared_scheduler);
+    unsafe { 
+        process::shared_add_task(shared_scheduler, task_1.shared_task_handle());
+        process::shared_add_task(shared_scheduler, task_2.shared_task_handle());
+    }
+    process::Executor::run_until_idle(
+        || unsafe { process::shared_pop_task(shared_scheduler) },
+        |handle| unsafe { process::shared_add_task(shared_scheduler, handle) }
+    );
     sbi::shutdown()
+}
+
+async fn task_1() {
+    println!("hello world from 1!")
+}
+
+async fn task_2() {
+    println!("hello world from 2!")
 }
