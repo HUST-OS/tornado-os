@@ -7,10 +7,12 @@ use alloc::boxed::Box;
 use crate::{interrupt::TrapFrame, memory::VirtualAddress};
 use crate::process::{Process, SharedTaskHandle, SharedAddressSpace};
 use core::pin::Pin;
+use core::fmt;
+use core::sync::atomic::{AtomicUsize, Ordering};
 
-lazy_static! {
-    static ref TASK_ID_COUNTER: Mutex<usize> = Mutex::new(0);
-}
+// lazy_static! {
+//     static ref TASK_ID_COUNTER: Mutex<usize> = Mutex::new(0);
+// }
 
 /// 任务的信息
 pub struct Task {
@@ -27,6 +29,19 @@ pub struct Task {
 /// 任务的编号
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
 pub struct TaskId(usize);
+
+impl TaskId {
+    pub(crate) fn generate() -> TaskId {
+        // 任务编号计数器，任务编号自增
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+        if id > usize::max_value() / 2 {
+            // TODO: 不让系统 Panic
+            panic!("too many tasks!")
+        }
+        TaskId(id)
+    }
+}
 
 /// 任务信息的可变部分
 pub struct TaskInner {
@@ -56,11 +71,12 @@ impl Task {
             stack_top
         ); // todo: 逻辑是不是错了？
         // 任务编号自增
-        let task_id = {
-            let counter = TASK_ID_COUNTER.lock();
-            let ans = counter.wrapping_add(1);
-            TaskId(ans)
-        };
+        // let task_id = {
+        //     let counter = TASK_ID_COUNTER.lock();
+        //     let ans = counter.wrapping_add(1);
+        //     TaskId(ans)
+        // };
+        let task_id = TaskId::generate();
         // 打包为任务
         Arc::new(Task {
             id: task_id,
@@ -117,5 +133,19 @@ impl Eq for Task {}
 impl core::hash::Hash for Task {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
+    }
+}
+
+impl fmt::Debug for Task {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let inner = self.inner.lock();
+        f.debug_struct("Task")
+            .field("task id", &self.id)
+            .field("address space id", &self.process.address_space_id())
+            .field("stack", &inner.stack)
+            .field("context", &inner.context)
+            .field("is_sleeping", &inner.sleeping)
+            .field("is_ended", &inner.ended)
+            .finish()
     }
 }

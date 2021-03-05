@@ -4,6 +4,7 @@ use buddy_system_allocator::LockedHeap;
 
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
+/// 全局的堆分配器
 #[global_allocator]
 static HEAP: LockedHeap = LockedHeap::empty();
 

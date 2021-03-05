@@ -80,7 +80,9 @@ pub extern "C" fn rust_main() -> ! {
 
     let task_1 = process::Task::new_kernel(task_1(), process.clone(), stack_handle.clone());
     let task_2 = process::Task::new_kernel(task_2(), process, stack_handle);
-
+    
+    println!("task_1: {:?}", task_1);
+    println!("task_2: {:?}", task_2);
     let shared_scheduler = process::shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
     unsafe { 
