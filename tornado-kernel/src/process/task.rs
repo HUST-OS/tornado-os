@@ -5,7 +5,7 @@ use core::ops::Range;
 use core::future::Future;
 use alloc::boxed::Box;
 use crate::{interrupt::TrapFrame, memory::VirtualAddress};
-use crate::process::{Process, SharedTaskHandle, SharedAddressSpace};
+use crate::process::{Process, SharedTaskHandle};
 use core::pin::Pin;
 use core::fmt;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -15,6 +15,8 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 // }
 
 /// 任务的信息
+// TODO: 只是内核任务，用户任务由用户自己定义表现方式
+// 如果要运行用户的进程，首先切换到用户的地址空间，其中包含一个初始化好的栈和剩余空间，然后在里面增加用户的任务
 pub struct Task {
     /// 任务的编号
     pub id: TaskId,
@@ -45,8 +47,10 @@ impl TaskId {
 
 /// 任务信息的可变部分
 pub struct TaskInner {
-    /// 本任务运行的栈；任务被强制中断暂停时，下一个任务使用新分配的栈
-    pub stack: Range<VirtualAddress>,
+    /// 本任务运行的栈
+    ///
+    /// 内核任务复用执行器的栈。用户任务占有一个栈，下一个任务复用此栈。强制中断暂停时，下一个任务使用新分配的栈。
+    pub stack: Option<Range<VirtualAddress>>,
     /// 任务的执行上下文；仅当遇到中断强制暂停时，这里是Some
     pub context: Option<TrapFrame>,
     /// 任务是否正在休眠
@@ -56,20 +60,11 @@ pub struct TaskInner {
 }
 
 impl Task {
-    /// 创建一个任务，需要输入创建好的栈
+    /// 创建一个任务，将会复用执行器的栈
     pub fn new_kernel(
         future: impl Future<Output = ()> + 'static + Send + Sync,
         process: Arc<Process>,
-        stack: Range<VirtualAddress>
     ) -> Arc<Task> {
-        // 构建上下文
-        let stack_top: usize = stack.end.into();
-        let context = TrapFrame::new_task_context(
-            false,
-            0,
-            0,
-            stack_top
-        ); // todo: 逻辑是不是错了？
         // 任务编号自增
         // let task_id = {
         //     let counter = TASK_ID_COUNTER.lock();
@@ -82,8 +77,8 @@ impl Task {
             id: task_id,
             process,
             inner: Mutex::new(TaskInner {
-                stack,
-                context: Some(context),
+                stack: None,
+                context: None,
                 sleeping: false,
                 ended: false,
             }),
