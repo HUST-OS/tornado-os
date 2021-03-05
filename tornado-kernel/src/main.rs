@@ -78,8 +78,12 @@ pub extern "C" fn rust_main() -> ! {
     let process = process::Process::new_kernel().expect("create process 1");
     // let stack_handle = process.alloc_stack().expect("alloc initial stack");
 
-    let task_1 = process::Task::new_kernel(task_1(), process.clone());
-    let task_2 = process::Task::new_kernel(task_2(), process);
+
+    let task_1 = process::Task::new_kernel(task_1(), process.clone(), stack_handle.clone());
+    let task_2 = process::Task::new_kernel(task_2(), process, stack_handle);
+    
+    println!("task_1: {:?}", task_1);
+    println!("task_2: {:?}", task_2);
 
     let shared_scheduler = process::shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
