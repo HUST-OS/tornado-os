@@ -80,7 +80,8 @@ pub extern "C" fn rust_main() -> ! {
 
 
     let task_1 = process::Task::new_kernel(task_1(), process.clone());
-    let task_2 = process::Task::new_kernel(task_2(), process);
+    let task_2 = process::Task::new_kernel(task_2(), process.clone());
+    let task_3 = process::Task::new_kernel(task_3(), process);
     
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
@@ -95,6 +96,10 @@ pub extern "C" fn rust_main() -> ! {
         || unsafe { process::shared_pop_task(shared_scheduler) },
         |handle| unsafe { process::shared_add_task(shared_scheduler, handle) }
     );
+    unsafe {
+        process::shared_add_task(shared_scheduler, task_3.shared_task_handle());
+    }
+    process::Executor::block_on(|| unsafe { process::shared_pop_task(shared_scheduler)});
     sbi::shutdown()
 }
 
@@ -109,6 +114,6 @@ async fn task_2() {
     println!("hello world from 2!")
 }
 
-// async fn task_3() {
-//     println!("hello world from 3!")
-// }
+async fn task_3() {
+    println!("hello world from 3!")
+}
