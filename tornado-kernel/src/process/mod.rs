@@ -8,17 +8,19 @@ pub use task::{Task, TaskId};
 pub use process::{Process, ProcessId};
 pub use executor::Executor;
 
-use crate::{algorithm::{Scheduler, RingFifoScheduler}, memory::AddressSpaceId};
+#[allow(unused_imports)]
+use crate::{algorithm::{Scheduler, ScheduledItem, RingFifoScheduler, SameAddrSpaceScheduler}, memory::AddressSpaceId};
 use core::ptr::NonNull;
 
 /// 共享调度器的类型
-type SharedScheduler = spin::Mutex<RingFifoScheduler<SharedTaskHandle, 500>>;
+// type SharedScheduler = spin::Mutex<RingFifoScheduler<SharedTaskHandle, 500>>;
+type SharedScheduler = spin::Mutex<SameAddrSpaceScheduler<SharedTaskHandle, 500>>;
 
 /// 所有任务的调度器
 ///
 /// 注意：所有.shared_data段内的数据不应该分配堆空间
 #[link_section = ".shared_data"]
-pub static SHARED_SCHEDULER: SharedScheduler = spin::Mutex::new(RingFifoScheduler::new());
+pub static SHARED_SCHEDULER: SharedScheduler = spin::Mutex::new(SameAddrSpaceScheduler::new());
 
 pub fn shared_scheduler() -> NonNull<()> {
     NonNull::new(&SHARED_SCHEDULER as *const _ as *mut ()).expect("create non null pointer")
@@ -38,6 +40,12 @@ impl SharedTaskHandle {
     fn should_switch(&self) -> bool {
         // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
         SharedAddressSpace::current_address_space_id() != self.address_space_id
+    }
+}
+
+impl ScheduledItem for SharedTaskHandle {
+    fn need_switch(&self) -> bool {
+        self.should_switch()
     }
 }
 

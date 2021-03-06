@@ -1,4 +1,4 @@
-use super::Scheduler;
+use super::{Scheduler, ScheduledItem};
 use core::mem::MaybeUninit;
 use core::ptr;
 
@@ -16,7 +16,7 @@ impl<T, const N: usize> RingFifoScheduler<T, N> {
     }
 }
 
-impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T, N> {
+impl<T: ScheduledItem + Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T, N> {
     type Priority = ();
     fn add_task(&mut self, task: T) -> Option<T> {
         // 加入环形队列

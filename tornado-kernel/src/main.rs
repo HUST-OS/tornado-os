@@ -85,6 +85,7 @@ pub extern "C" fn rust_main() -> ! {
     
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
+    println!("task_3: {:?}", task_3);
 
     let shared_scheduler = process::shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
