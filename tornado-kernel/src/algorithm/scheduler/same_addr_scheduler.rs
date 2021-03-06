@@ -2,29 +2,36 @@ use super::{Scheduler, ScheduledItem};
 use alloc::collections::LinkedList;
 
 /// 尽量调度相同地址空间的调度器
-pub struct SameAddrSpaceScheduler<T> {
+pub struct SameAddrSpaceScheduler<T, const N: usize> {
     tasks: LinkedList<T>,
+    max_len: usize
 }
 
-impl<T> SameAddrSpaceScheduler<T> {
+impl<T, const N: usize> SameAddrSpaceScheduler<T, N> {
     #[allow(unused)]
     pub const fn new() -> Self {
         Self {
             tasks: LinkedList::new(),
+            max_len: N
         }
     }
 }
 
-impl<T> Scheduler<T> for SameAddrSpaceScheduler<T>
+impl<T, const N: usize> Scheduler<T> for SameAddrSpaceScheduler<T, N>
     where T: ScheduledItem + Clone + PartialEq
+
 {
     type Priority = ();
-    /// 添加任务到调度队列
+    /// 添加任务到调度队列  
+    /// 如果队列已满，返回 Some(task)  
     fn add_task(&mut self, task: T) -> Option<T> {
-        // 加入链表尾部
-        self.tasks.push_back(task);
-        // TODO: 考虑内存溢出
-        None
+        if self.tasks.len() < self.max_len {
+            // 加入链表尾部
+            self.tasks.push_back(task);
+            None
+        } else {
+            Some(task)
+        }
     }
     /// 取出下一个当前地址空间的任务  
     /// 如果当前地址空间的任务或者所有任务已经完成，返回 None
@@ -69,4 +76,13 @@ impl<T> Scheduler<T> for SameAddrSpaceScheduler<T>
     fn set_priority(&mut self, _task: T, _prio: Self::Priority) {
         todo!()
     }
+}
+
+impl<T, const N: usize> IntoIterator for SameAddrSpaceScheduler<T, N> {
+    type Item = T;
+    type IntoIter = alloc::collections::linked_list::IntoIter<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.tasks.into_iter()
+    }
+
 }

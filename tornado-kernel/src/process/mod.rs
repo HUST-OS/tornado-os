@@ -14,7 +14,7 @@ use core::ptr::NonNull;
 
 /// 共享调度器的类型
 // type SharedScheduler = spin::Mutex<RingFifoScheduler<SharedTaskHandle, 500>>;
-type SharedScheduler = spin::Mutex<SameAddrSpaceScheduler<SharedTaskHandle>>;
+type SharedScheduler = spin::Mutex<SameAddrSpaceScheduler<SharedTaskHandle, 500>>;
 
 /// 所有任务的调度器
 ///
