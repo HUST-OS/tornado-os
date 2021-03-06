@@ -81,7 +81,7 @@ pub extern "C" fn rust_main() -> ! {
 
     let task_1 = process::Task::new_kernel(task_1(), process.clone());
     let task_2 = process::Task::new_kernel(task_2(), process.clone());
-    let task_3 = process::Task::new_kernel(task_3(), process);
+    let task_3 = process::Task::new_kernel(async { task_3().await }, process);
     
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
@@ -114,6 +114,41 @@ async fn task_2() {
     println!("hello world from 2!")
 }
 
-async fn task_3() {
-    println!("hello world from 3!")
+fn task_3() -> impl core::future::Future<Output = ()> {
+    println!("hello world from 3!");
+    TestFuture::new_ready()
+}
+
+pub(crate) struct TestFuture {
+    is_ready: bool
+}
+
+impl TestFuture {
+    pub fn _new_pending() -> Self {
+        TestFuture {
+            is_ready: false
+        }
+    }
+
+    pub fn new_ready() -> Self {
+        TestFuture {
+            is_ready: true
+        }
+    }
+
+    pub fn _set_state(&mut self, is_ready: bool) {
+        self.is_ready = is_ready;
+    }
+}
+
+impl core::future::Future for TestFuture {
+    type Output = ();
+    
+    fn poll(self: core::pin::Pin<&mut Self>, _cx: &mut core::task::Context<'_>) -> core::task::Poll<Self::Output> {
+        if self.is_ready {
+            core::task::Poll::Ready(())
+        } else {
+            core::task::Poll::Pending
+        }
+    }
 }
