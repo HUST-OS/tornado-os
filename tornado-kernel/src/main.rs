@@ -22,7 +22,7 @@ mod hart;
 global_asm!(include_str!("entry.asm"));
 
 #[no_mangle]
-pub extern "C" fn rust_main() -> ! {
+pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("booted");
 
     memory::init();
@@ -76,6 +76,10 @@ pub extern "C" fn rust_main() -> ! {
 
     println!("Max asid = {:?}", memory::riscv_max_asid());
 
+    // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
+    unsafe { hart::KernelHartInfo::load_hart(hart_id) };
+    println!("Current hart: {}", hart::KernelHartInfo::hart_id());
+
     // todo: 这里要有个地方往tp里写东西，目前会出错
     let process = process::Process::new_kernel().expect("create process 1");
     // let stack_handle = process.alloc_stack().expect("alloc initial stack");
@@ -103,6 +107,10 @@ pub extern "C" fn rust_main() -> ! {
         process::shared_add_task(shared_scheduler, task_3.shared_task_handle());
     }
     process::Executor::block_on(|| unsafe { process::shared_pop_task(shared_scheduler)});
+
+    // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
+    unsafe { hart::KernelHartInfo::unload_hart() };
+    // 没有任务了，关机
     sbi::shutdown()
 }
 

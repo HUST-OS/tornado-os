@@ -1,5 +1,7 @@
 #[allow(unused_imports)]
-use crate::{algorithm::{Scheduler, ScheduledItem, RingFifoScheduler, SameAddrSpaceScheduler}, memory::AddressSpaceId};
+use crate::algorithm::{Scheduler, ScheduledItem, RingFifoScheduler, SameAddrSpaceScheduler};
+use crate::memory::AddressSpaceId;
+use crate::hart::KernelHartInfo;
 use core::ptr::NonNull;
 use super::TaskResult;
 
@@ -19,7 +21,10 @@ pub fn shared_scheduler() -> NonNull<()> {
 
 /// 共享的包含Future在用户空间的地址
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
 pub struct SharedTaskHandle {
+    /// 运行此任务的硬件线程编号
+    pub(crate) hart_id: usize,
     /// 地址空间的编号
     pub(crate) address_space_id: AddressSpaceId,
     /// 对每个虚拟空间来说，task_ptr是Arc<Task>相应的虚拟地址
@@ -30,7 +35,7 @@ pub struct SharedTaskHandle {
 impl SharedTaskHandle {
     fn should_switch(&self) -> bool {
         // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
-        SharedAddressSpace::current_address_space_id() != self.address_space_id
+        KernelHartInfo::current_address_space_id() != self.address_space_id
     }
 }
 
@@ -67,25 +72,4 @@ pub unsafe fn shared_pop_task(shared_scheduler: NonNull<()>) -> TaskResult {
     } else {
         TaskResult::Finished
     }
-}
-
-/// 共享的地址空间
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SharedAddressSpace {
-    /// 当前的地址空间编号；可能多个进程共享一个地址空间
-    pub address_space_id: AddressSpaceId,
-}
-
-impl SharedAddressSpace {
-    fn current_address_space_id() -> AddressSpaceId {
-        use alloc::boxed::Box;
-        let addr = crate::hart::read_tp();
-        let bx: Box<SharedAddressSpace> = unsafe { Box::from_raw(addr as *mut _) };
-        let ans = bx.address_space_id;
-        drop(Box::into_raw(bx));
-        ans
-    }
-    // fn current_process() -> Process {
-
-    // }
 }

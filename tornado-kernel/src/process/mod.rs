@@ -8,7 +8,7 @@ pub use lock::Lock;
 pub use kernel_task::{KernelTask, TaskId};
 pub use process::{Process, ProcessId};
 pub use executor::Executor;
-pub use shared::{SharedTaskHandle, SharedAddressSpace, shared_scheduler, shared_add_task, shared_pop_task};
+pub use shared::{SharedTaskHandle, shared_scheduler, shared_add_task, shared_pop_task};
 
 /// 共享调度器返回的结果
 #[derive(Debug)]

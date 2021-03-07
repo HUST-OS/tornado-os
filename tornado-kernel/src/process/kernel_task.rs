@@ -3,7 +3,7 @@ use spin::Mutex;
 use core::ops::Range;
 use core::future::Future;
 use alloc::boxed::Box;
-use crate::{interrupt::TrapFrame, memory::VirtualAddress};
+use crate::{hart::KernelHartInfo, interrupt::TrapFrame, memory::VirtualAddress};
 use crate::process::{Process, SharedTaskHandle};
 use core::pin::Pin;
 use core::fmt;
@@ -60,12 +60,7 @@ impl KernelTask {
         future: impl Future<Output = ()> + 'static + Send + Sync,
         process: Arc<Process>,
     ) -> Arc<KernelTask> {
-        // 任务编号自增
-        // let task_id = {
-        //     let counter = TASK_ID_COUNTER.lock();
-        //     let ans = counter.wrapping_add(1);
-        //     TaskId(ans)
-        // };
+        // 得到新的内核任务编号
         let task_id = TaskId::generate();
         // 打包为任务
         Arc::new(KernelTask {
@@ -86,6 +81,7 @@ impl KernelTask {
     /// note(unsafe): 创建了一个没有边界的生命周期
     pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
         SharedTaskHandle {
+            hart_id: KernelHartInfo::hart_id(),
             address_space_id: self.process.address_space_id(),
             task_ptr: Arc::into_raw(self) as usize
         }
