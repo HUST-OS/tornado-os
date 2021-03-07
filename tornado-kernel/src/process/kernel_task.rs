@@ -1,5 +1,4 @@
 use alloc::sync::Arc;
-use lazy_static::lazy_static;
 use spin::Mutex;
 use core::ops::Range;
 use core::future::Future;
@@ -10,14 +9,10 @@ use core::pin::Pin;
 use core::fmt;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-// lazy_static! {
-//     static ref TASK_ID_COUNTER: Mutex<usize> = Mutex::new(0);
-// }
-
 /// 任务的信息
 // TODO: 只是内核任务，用户任务由用户自己定义表现方式
 // 如果要运行用户的进程，首先切换到用户的地址空间，其中包含一个初始化好的栈和剩余空间，然后在里面增加用户的任务
-pub struct Task {
+pub struct KernelTask {
     /// 任务的编号
     pub id: TaskId,
     /// 任务所属的进程
@@ -59,12 +54,12 @@ pub struct TaskInner {
     pub ended: bool,
 }
 
-impl Task {
+impl KernelTask {
     /// 创建一个任务，将会复用执行器的栈
-    pub fn new_kernel(
+    pub fn new(
         future: impl Future<Output = ()> + 'static + Send + Sync,
         process: Arc<Process>,
-    ) -> Arc<Task> {
+    ) -> Arc<KernelTask> {
         // 任务编号自增
         // let task_id = {
         //     let counter = TASK_ID_COUNTER.lock();
@@ -73,7 +68,7 @@ impl Task {
         // };
         let task_id = TaskId::generate();
         // 打包为任务
-        Arc::new(Task {
+        Arc::new(KernelTask {
             id: task_id,
             process,
             inner: Mutex::new(TaskInner {
@@ -97,7 +92,7 @@ impl Task {
     }
 }
 
-impl Task {
+impl KernelTask {
     fn mark_ready(&self) {
         self.inner.lock().sleeping = false;
     }
@@ -111,30 +106,30 @@ impl Task {
     }
 }
 
-impl woke::Woke for Task {
+impl woke::Woke for KernelTask {
     fn wake_by_ref(task: &Arc<Self>) {
         task.mark_ready();
     }
 }
 
-impl PartialEq for Task {
-    fn eq(&self, other: &Task) -> bool {
+impl PartialEq for KernelTask {
+    fn eq(&self, other: &KernelTask) -> bool {
         self.id == other.id
     }
 }
 
-impl Eq for Task {}
+impl Eq for KernelTask {}
 
-impl core::hash::Hash for Task {
+impl core::hash::Hash for KernelTask {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }
 
-impl fmt::Debug for Task {
+impl fmt::Debug for KernelTask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let inner = self.inner.lock();
-        f.debug_struct("Task")
+        f.debug_struct("KernelTask")
             .field("task id", &self.id)
             .field("address space id", &self.process.address_space_id())
             .field("stack", &inner.stack)

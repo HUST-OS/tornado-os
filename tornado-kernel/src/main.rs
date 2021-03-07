@@ -80,9 +80,9 @@ pub extern "C" fn rust_main() -> ! {
     // let stack_handle = process.alloc_stack().expect("alloc initial stack");
 
 
-    let task_1 = process::Task::new_kernel(task_1(), process.clone());
-    let task_2 = process::Task::new_kernel(task_2(), process.clone());
-    let task_3 = process::Task::new_kernel(async { task_3().await }, process);
+    let task_1 = process::KernelTask::new(task_1(), process.clone());
+    let task_2 = process::KernelTask::new(task_2(), process.clone());
+    let task_3 = process::KernelTask::new(async { task_3().await }, process);
     
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);

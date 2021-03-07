@@ -1,5 +1,6 @@
 use hashbrown::HashSet;
-use crate::process::{Lock, TaskResult, Task, SharedTaskHandle};
+use crate::process::{Lock, TaskResult, SharedTaskHandle};
+use crate::process::KernelTask;
 use woke::{waker_ref, Woke};
 use alloc::sync::Arc;
 use core::{future, task::{Poll, Context}};
@@ -32,8 +33,8 @@ impl Executor {
             println!("next task = {:x?}", task);
             match task {
                 TaskResult::Task(handle) => {
-                    // 在相同的地址空间里面
-                    let task: Arc<Task> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
+                    // 在相同的（内核）地址空间里面
+                    let task: Arc<KernelTask> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
                     task.mark_sleep();
 
                     // make a waker for our task
@@ -58,7 +59,7 @@ impl Executor {
         match task {
             TaskResult::Task(handle) => {
                 // 在相同的地址空间里面，不用切换上下文
-                let task: Arc<Task> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
+                let task: Arc<KernelTask> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
                 // 下面这个步骤应该可以不做
                 task.mark_sleep();
 
