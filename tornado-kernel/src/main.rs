@@ -74,7 +74,7 @@ pub extern "C" fn rust_main() -> ! {
 
     // executor.run_until_idle();
 
-    println!("Max asid = {}", memory::riscv_max_asid());
+    println!("Max asid = {:?}", memory::riscv_max_asid());
 
     // todo: 这里要有个地方往tp里写东西，目前会出错
     let process = process::Process::new_kernel().expect("create process 1");

@@ -30,7 +30,7 @@ lazy_static::lazy_static! {
         spin::Mutex::new((Vec::new(), 0)); // 剩余的空间；
 }
 
-pub fn riscv_max_asid() -> u16 {
+pub fn riscv_max_asid() -> AddressSpaceId {
     #[cfg(target_pointer_width = "64")]
     let mut val: usize = ((1 << 16) - 1) << 44;
     #[cfg(target_pointer_width = "32")]
@@ -42,9 +42,9 @@ pub fn riscv_max_asid() -> u16 {
         csrrw   {val}, satp, {tmp}
     ", tmp = out(reg) _, val = inlateout(reg) val) };
     #[cfg(target_pointer_width = "64")]
-    return ((val >> 44) & ((1 << 16) - 1)) as u16;
+    return AddressSpaceId(((val >> 44) & ((1 << 16) - 1)) as u16);
     #[cfg(target_pointer_width = "32")]
-    return ((val >> 22) & ((1 << 9) - 1)) as u16;
+    return AddressSpaceId(((val >> 22) & ((1 << 9) - 1)) as u16);
 }
 
 // fn next_address_space_id() -> AddressSpaceId {
