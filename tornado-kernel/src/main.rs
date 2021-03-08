@@ -49,6 +49,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
     
     println!("heap test passed");
+    println!("Max asid = {:?}", memory::max_asid());
     let remap = memory::MemorySet::new_kernel().unwrap();
     remap.activate();
     println!("kernel remapped");
@@ -74,10 +75,10 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     // executor.run_until_idle();
 
-    println!("Max asid = {:?}", memory::riscv_max_asid());
-
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };
+    // 这之后就可以分配地址空间了，这之前只能用内核的地址空间
+
     println!("Current hart: {}", hart::KernelHartInfo::hart_id());
 
     // todo: 这里要有个地方往tp里写东西，目前会出错
