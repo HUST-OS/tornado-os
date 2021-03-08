@@ -1,17 +1,19 @@
 use crate::memory::config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE};
-use crate::memory::{Mapping, MapType, Segment, Flags, VirtualAddress, VirtualPageNumber, FrameTracker};
+use crate::memory::{Mapping, MapType, Segment, Flags, VirtualAddress, VirtualPageNumber, FrameTracker, AddressSpaceId};
 use alloc::vec::Vec;
 use core::ops::Range;
 
-/// 一个上下文中，所有与内存空间有关的信息
+/// 一个地址空间中，所有与内存空间有关的信息
 #[derive(Debug)]
 pub struct MemorySet {
-    /// 本上下文的页表和映射关系
+    /// 本空间的页表和映射关系
     pub mapping: Mapping,
     /// 每个字段
     pub segments: Vec<Segment>,
     /// 所有分配的物理页面映射信息
     pub allocated_pairs: Vec<(VirtualPageNumber, FrameTracker)>,
+    /// 这个映射关系的地址空间编号
+    pub address_space_id: AddressSpaceId
 }
 
 impl MemorySet {
@@ -93,7 +95,8 @@ impl MemorySet {
         for segment in segments.iter() {
             mapping.map_segment(segment, None)?;
         }
-        Some(MemorySet { mapping, segments, allocated_pairs })
+        let address_space_id = AddressSpaceId::kernel();
+        Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
     }    
     /// 检测一段内存区域和已有的是否存在重叠区域
     pub fn overlap_with(&self, range: Range<VirtualPageNumber>) -> bool {
@@ -153,7 +156,8 @@ impl MemorySet {
     ///
     /// 如果当前页表就是自身，则不会替换，但仍然会刷新 TLB。
     pub fn activate(&self) {
-        self.mapping.activate()
+        println!("Activating memory set in asid {:?}", self.address_space_id);
+        self.mapping.activate(self.address_space_id)
     }
 }
 

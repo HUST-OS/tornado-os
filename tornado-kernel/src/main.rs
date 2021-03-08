@@ -49,6 +49,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
     
     println!("heap test passed");
+    println!("Max asid = {:?}", memory::max_asid());
     let remap = memory::MemorySet::new_kernel().unwrap();
     remap.activate();
     println!("kernel remapped");
@@ -74,16 +75,15 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     // executor.run_until_idle();
 
-    println!("Max asid = {:?}", memory::riscv_max_asid());
-
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };
+    // 这之后就可以分配地址空间了，这之前只能用内核的地址空间
+
     println!("Current hart: {}", hart::KernelHartInfo::hart_id());
 
     // todo: 这里要有个地方往tp里写东西，目前会出错
     let process = process::Process::new_kernel().expect("create process 1");
     // let stack_handle = process.alloc_stack().expect("alloc initial stack");
-
 
     let task_1 = process::KernelTask::new(task_1(), process.clone());
     let task_2 = process::KernelTask::new(task_2(), process.clone());
@@ -103,9 +103,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         || unsafe { process::shared_pop_task(shared_scheduler) },
         |handle| unsafe { process::shared_add_task(shared_scheduler, handle) }
     );
-    unsafe {
-        process::shared_add_task(shared_scheduler, task_3.shared_task_handle());
-    }
+    
     process::Executor::block_on(|| unsafe { process::shared_pop_task(shared_scheduler)});
 
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
@@ -115,9 +113,16 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 }
 
 async fn task_1() {
-    // let new_task = process::Task::new_kernel(task_3(), process);
-    // let shared_scheduler = process::shared_scheduler();
-    // process::shared_add_task(shared_scheduler, handle);
+    unsafe { 
+        // 创建一个新的任务
+        // 在用户层，这里应该使用系统调用，一次性获得一个资源分配的令牌，代替“进程”结构体，复用这个令牌获得资源
+        let process = hart::KernelHartInfo::current_process().unwrap();
+        // 新建一个任务
+        let new_task = process::KernelTask::new(task_3(), process);
+        // 加入调度器
+        let shared_scheduler = process::shared_scheduler();
+        process::shared_add_task(shared_scheduler, new_task.shared_task_handle());
+    }
     println!("hello world from 1!");
 }
 
@@ -125,9 +130,8 @@ async fn task_2() {
     println!("hello world from 2!")
 }
 
-fn task_3() -> impl core::future::Future<Output = ()> {
+async fn task_3() {
     println!("hello world from 3!");
-    TestFuture::new_ready()
 }
 
 pub(crate) struct TestFuture {

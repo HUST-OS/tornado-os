@@ -1,8 +1,8 @@
 //! 和处理核相关的函数
-use core::ops::Add;
-
+use alloc::collections::LinkedList;
 use alloc::boxed::Box;
-
+use alloc::sync::Arc;
+use crate::process::Process;
 use crate::memory::AddressSpaceId;
 
 /// 写一个指针到上下文指针
@@ -28,7 +28,11 @@ pub fn read_tp() -> usize {
 // 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，以及已经分配的地址空间
 pub struct KernelHartInfo {
     hart_id: usize,
-    address_space_id: AddressSpaceId,
+    current_address_space_id: AddressSpaceId,
+    current_process: Option<Arc<Process>>,
+    hart_max_asid: AddressSpaceId,
+    // 空余的编号回收池；目前已分配最大的编号
+    asid_alloc: (LinkedList<usize>, usize),
 }
 
 impl KernelHartInfo {
@@ -36,7 +40,10 @@ impl KernelHartInfo {
     pub unsafe fn load_hart(hart_id: usize) {
         let hart_info = Box::new(KernelHartInfo {
             hart_id,
-            address_space_id: AddressSpaceId::kernel(),
+            current_address_space_id: AddressSpaceId::kernel(),
+            current_process: None,
+            hart_max_asid: crate::memory::max_asid(),
+            asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
@@ -51,26 +58,63 @@ impl KernelHartInfo {
 
     /// 得到当前硬件线程的编号，必须在load_hart之后使用
     pub fn hart_id() -> usize {
-        let addr = read_tp();
-        let bx: Box<KernelHartInfo> = unsafe { Box::from_raw(addr as *mut _) };
-        let ans = bx.hart_id;
-        drop(Box::into_raw(bx));
-        ans
+        use_tp_box(|b| b.hart_id)
     }  
 
     pub unsafe fn load_address_space_id(asid: AddressSpaceId) {
-        let addr = read_tp();
-        let mut bx: Box<KernelHartInfo> = Box::from_raw(addr as *mut _);
-        bx.address_space_id = asid;
-        drop(Box::into_raw(bx)); // 防止Box指向的内存被释放
+        use_tp_box(|b| b.current_address_space_id = asid);
     }
 
     /// 得到当前的地址空间编号
     pub fn current_address_space_id() -> AddressSpaceId {
-        let addr = read_tp();
-        let bx: Box<KernelHartInfo> = unsafe { Box::from_raw(addr as *mut _) };
-        let ans = bx.address_space_id;
-        drop(Box::into_raw(bx));
-        ans
+        use_tp_box(|b| b.current_address_space_id)
     }
+
+    pub unsafe fn load_process(process: Arc<Process>) {
+        use_tp_box(|b| b.current_process = Some(process.clone()));
+    }
+
+    pub fn current_process() -> Option<Arc<Process>> {
+        use_tp_box(|b| b.current_process.clone())
+    }
+
+    /// 分配一个地址空间编号
+    pub fn alloc_address_space_id() -> Option<AddressSpaceId> {
+        use_tp_box(|b| {
+            let (free, max) = &mut b.asid_alloc;
+            if let Some(_) = free.front() { // 如果链表有内容，返回内容
+                return free.pop_front().map(|idx| unsafe { AddressSpaceId::from_raw(idx) })
+            }
+            // 如果链表是空的
+            if *max < b.hart_max_asid.into_inner() {
+                let ans = *max;
+                *max += 1;
+                Some(unsafe { AddressSpaceId::from_raw(ans) })
+            } else {
+                None
+            }
+        })
+    }
+
+    /// 释放地址空间编号
+    pub fn free_address_space_id(asid: AddressSpaceId) {
+        use_tp_box(|b| {
+            let (free, max) = &mut b.asid_alloc;
+            if asid.into_inner() == *max && *max > 0 {
+                *max -= 1;
+                return;
+            } else {
+                free.push_back(asid.into_inner())
+            }
+        });
+    } 
+}
+
+#[inline]
+fn use_tp_box<F: Fn(&mut Box<KernelHartInfo>) -> T, T>(f: F) -> T {
+    let addr = read_tp();
+    let mut bx: Box<KernelHartInfo> = unsafe { Box::from_raw(addr as *mut _) };
+    let ans = f(&mut bx);
+    drop(Box::into_raw(bx)); // 防止Box指向的空间被释放
+    ans
 }

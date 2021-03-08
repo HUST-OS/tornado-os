@@ -1,8 +1,4 @@
-use crate::memory::{
-    frame_alloc, config::PAGE_SIZE,
-    PhysicalPageNumber, VirtualAddress, VirtualPageNumber, 
-    frame::FrameTracker
-};
+use crate::memory::{AddressSpaceId, PhysicalPageNumber, VirtualAddress, VirtualPageNumber, config::PAGE_SIZE, frame::FrameTracker, frame_alloc};
 use super::{Flags, MapType, Segment, page_table::{PageTable, PageTableTracker}, page_table_entry::PageTableEntry};
 use alloc::{collections::VecDeque, vec::Vec};
 use core::ops::Range;
@@ -20,7 +16,7 @@ pub struct Mapping {
 }
 
 impl Mapping {
-    /// 分配一个有根节点的映射
+    /// 分配一个有根节点的映射，包括分配地址空间编号
     pub fn new_alloc() -> Option<Mapping> {
         let root_table = PageTableTracker::new_zeroed(frame_alloc()?);
         let root_ppn = root_table.page_number();
@@ -135,23 +131,26 @@ impl Mapping {
         Some(allocated_pairs) // todo!
     }
     /// 把当前的映射保存到satp寄存器
-    pub fn activate(&self) {
+    pub fn activate(&self, asid: AddressSpaceId) {
         // use riscv::{register::satp::{self, Mode}, asm};
         // unsafe {
         //     // 保存到satp寄存器
-        //     satp::set(Mode::Sv39, 0 /* asid */, self.root_ppn.into());
+            // satp::set(Mode::Sv39, 0 /* asid */, self.root_ppn.into());
         //     // 刷新页表缓存
         //     asm::sfence_vma_all();
         // }
-        // satp 低 27 位为页号，高 4 位为模式，8 表示 Sv39
+        // satp的0..=43位为页号，44..=59位为地址空间编号，高 4 位为模式，8 表示 Sv39
         let root_ppn: usize = self.root_ppn.into();
-        let new_satp = root_ppn | (8 << 60);
-        unsafe {
+        let asid = asid.into_inner();
+        let new_satp = root_ppn | (asid << 44) | (8 << 60);
+        unsafe { asm!(
             // 将 new_satp 的值写到 satp 寄存器
-            llvm_asm!("csrw satp, $0" :: "r"(new_satp) :: "volatile");
-            // 刷新 TLB
-            llvm_asm!("sfence.vma" :::: "volatile");
-        }
+            "csrw satp, {satp}",
+            // 刷新页表。rs1=x0、rs2=asid，说明刷新与这个地址空间有关的所有地址
+            "sfence.vma x0, {asid}", 
+            satp = in(reg) new_satp,
+            asid = in(reg) asid
+        ) };
     }
 }
 

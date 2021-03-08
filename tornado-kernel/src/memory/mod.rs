@@ -21,6 +21,12 @@ impl AddressSpaceId {
     pub fn kernel() -> AddressSpaceId {
         AddressSpaceId(0)
     }
+    pub(crate) unsafe fn from_raw(asid: usize) -> AddressSpaceId {
+        AddressSpaceId(asid as u16)
+    }
+    pub(crate) fn into_inner(self) -> usize {
+        self.0 as usize
+    }
 }
 
 use alloc::vec::Vec;
@@ -30,7 +36,7 @@ lazy_static::lazy_static! {
         spin::Mutex::new((Vec::new(), 0)); // 剩余的空间；
 }
 
-pub fn riscv_max_asid() -> AddressSpaceId {
+pub fn max_asid() -> AddressSpaceId {
     #[cfg(target_pointer_width = "64")]
     let mut val: usize = ((1 << 16) - 1) << 44;
     #[cfg(target_pointer_width = "32")]
