@@ -87,7 +87,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     let task_1 = process::KernelTask::new(task_1(), process.clone());
     let task_2 = process::KernelTask::new(task_2(), process.clone());
-    let task_3 = process::KernelTask::new(async { task_3().await }, process);
+    let task_3 = process::KernelTask::new(FibonacciFuture::new(5), process);
     
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
@@ -97,7 +97,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("Shared scheduler: {:?}", shared_scheduler);
     unsafe { 
         process::shared_add_task(shared_scheduler, task_1.shared_task_handle());
-        process::shared_add_task(shared_scheduler, task_2.shared_task_handle());
+        process::shared_add_task(shared_scheduler, task_3.shared_task_handle());
     }
     process::Executor::run_until_idle(
         || unsafe { process::shared_pop_task(shared_scheduler) },
@@ -118,7 +118,7 @@ async fn task_1() {
         // 在用户层，这里应该使用系统调用，一次性获得一个资源分配的令牌，代替“进程”结构体，复用这个令牌获得资源
         let process = hart::KernelHartInfo::current_process().unwrap();
         // 新建一个任务
-        let new_task = process::KernelTask::new(task_3(), process);
+        let new_task = process::KernelTask::new(task_2(), process);
         // 加入调度器
         let shared_scheduler = process::shared_scheduler();
         process::shared_add_task(shared_scheduler, new_task.shared_task_handle());
@@ -130,8 +130,38 @@ async fn task_2() {
     println!("hello world from 2!")
 }
 
-async fn task_3() {
-    println!("hello world from 3!");
+struct FibonacciFuture {
+    a: usize,
+    b: usize,
+    i: usize,
+    cnt: usize,
+}
+
+impl FibonacciFuture {
+    fn new(cnt: usize) -> FibonacciFuture {
+        FibonacciFuture { a: 1, b: 1, i: 0, cnt }
+    }
+}
+use core::future::Future;
+use core::task::{Context, Poll};
+use core::pin::Pin;
+
+impl Future for FibonacciFuture {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let t = self.a;
+        self.a += self.b;
+        self.b = t;
+        if self.i == self.cnt {
+            println!("Fibonacci result: {}", self.a);
+            Poll::Ready(())
+        } else {
+            self.i += 1;
+            cx.waker().clone().wake();
+            Poll::Pending
+        }
+    }
 }
 
 pub(crate) struct TestFuture {
