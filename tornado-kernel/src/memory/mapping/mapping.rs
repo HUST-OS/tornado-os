@@ -143,10 +143,14 @@ impl Mapping {
         let root_ppn: usize = self.root_ppn.into();
         let asid = asid.into_inner();
         let new_satp = root_ppn | (asid << 44) | (8 << 60);
-        unsafe {
-            // 将 new_satp 的值写到 satp 寄存器，然后刷新页表
-            asm!("csrw satp, {satp}", "sfence.vma", satp = in(reg) new_satp);
-        }
+        unsafe { asm!(
+            // 将 new_satp 的值写到 satp 寄存器
+            "csrw satp, {satp}",
+            // 刷新页表。rs1=x0、rs2=asid，说明刷新与这个地址空间有关的所有地址
+            "sfence.vma x0, {asid}", 
+            satp = in(reg) new_satp,
+            asid = in(reg) asid
+        ) };
     }
 }
 
