@@ -3,6 +3,7 @@ use alloc::sync::Arc;
 use core::ops::Range;
 use spin::Mutex;
 use crate::memory::{AddressSpaceId, Flags, MemorySet, STACK_SIZE, VirtualAddress};
+use crate::hart::KernelHartInfo;
 
 /// 进程的所有信息
 #[derive(Debug)]
@@ -30,15 +31,19 @@ impl Process {
     /// 如果内存分配失败，返回None
     pub fn new_kernel() -> Option<Arc<Self>> {
         let address_space_id = AddressSpaceId::kernel();
-        unsafe { crate::hart::KernelHartInfo::load_address_space_id(address_space_id) };
-        Some(Arc::new(Process {
+        let ans = Arc::new(Process {
             id: next_process_id(),
             is_user: false,
             inner: Mutex::new(ProcessInner {
                 memory_set: MemorySet::new_kernel()?,
                 address_space_id,
             })
-        }))
+        });
+        unsafe { 
+            KernelHartInfo::load_address_space_id(address_space_id);
+            KernelHartInfo::load_process(ans.clone());
+        };
+        Some(ans)
     }
     // /// 得到进程编号
     // pub fn process_id(&self) -> ProcessId {

@@ -1,7 +1,8 @@
 //! 和处理核相关的函数
 use alloc::collections::LinkedList;
 use alloc::boxed::Box;
-
+use alloc::sync::Arc;
+use crate::process::Process;
 use crate::memory::AddressSpaceId;
 
 /// 写一个指针到上下文指针
@@ -27,7 +28,8 @@ pub fn read_tp() -> usize {
 // 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，以及已经分配的地址空间
 pub struct KernelHartInfo {
     hart_id: usize,
-    address_space_id: AddressSpaceId,
+    current_address_space_id: AddressSpaceId,
+    current_process: Option<Arc<Process>>,
     hart_max_asid: AddressSpaceId,
     // 空余的编号回收池；目前已分配最大的编号
     asid_alloc: (LinkedList<usize>, usize),
@@ -38,7 +40,8 @@ impl KernelHartInfo {
     pub unsafe fn load_hart(hart_id: usize) {
         let hart_info = Box::new(KernelHartInfo {
             hart_id,
-            address_space_id: AddressSpaceId::kernel(),
+            current_address_space_id: AddressSpaceId::kernel(),
+            current_process: None,
             hart_max_asid: crate::memory::max_asid(),
             asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
         });
@@ -59,12 +62,20 @@ impl KernelHartInfo {
     }  
 
     pub unsafe fn load_address_space_id(asid: AddressSpaceId) {
-        use_tp_box(|b| b.address_space_id = asid);
+        use_tp_box(|b| b.current_address_space_id = asid);
     }
 
     /// 得到当前的地址空间编号
     pub fn current_address_space_id() -> AddressSpaceId {
-        use_tp_box(|b| b.address_space_id)
+        use_tp_box(|b| b.current_address_space_id)
+    }
+
+    pub unsafe fn load_process(process: Arc<Process>) {
+        use_tp_box(|b| b.current_process = Some(process.clone()));
+    }
+
+    pub fn current_process() -> Option<Arc<Process>> {
+        use_tp_box(|b| b.current_process.clone())
     }
 
     /// 分配一个地址空间编号
