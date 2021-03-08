@@ -31,6 +31,13 @@ impl Executor {
         loop {
             let task = pop_task();
             println!("next task = {:x?}", task);
+            if let TaskResult::Task(handle) = task {
+                let task: Arc<KernelTask> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
+                if task.is_sleeping() {
+                    push_task(handle);
+                    continue
+                }
+            }
             match task {
                 TaskResult::Task(handle) => {
                     // 在相同的（内核）地址空间里面
@@ -42,6 +49,7 @@ impl Executor {
 
                     // poll our future and give it a waker
                     let mut context = Context::from_waker(&*waker);
+                    println!("Poll begin");
                     let ret = task.future.lock().as_mut().poll(&mut context);
                     println!("Ret = {:?}", ret);
                     if let Poll::Pending = ret {

@@ -96,8 +96,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let shared_scheduler = process::shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
     unsafe { 
-        process::shared_add_task(shared_scheduler, task_1.shared_task_handle());
         process::shared_add_task(shared_scheduler, task_3.shared_task_handle());
+        process::shared_add_task(shared_scheduler, task_1.shared_task_handle());
     }
     process::Executor::run_until_idle(
         || unsafe { process::shared_pop_task(shared_scheduler) },
@@ -139,7 +139,7 @@ struct FibonacciFuture {
 
 impl FibonacciFuture {
     fn new(cnt: usize) -> FibonacciFuture {
-        FibonacciFuture { a: 1, b: 1, i: 0, cnt }
+        FibonacciFuture { a: 0, b: 1, i: 0, cnt }
     }
 }
 use core::future::Future;
@@ -150,15 +150,16 @@ impl Future for FibonacciFuture {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let t = self.a;
-        self.a += self.b;
-        self.b = t;
         if self.i == self.cnt {
             println!("Fibonacci result: {}", self.a);
             Poll::Ready(())
         } else {
+            let t = self.a;
+            self.a += self.b;
+            self.b = t;
             self.i += 1;
-            cx.waker().clone().wake();
+            println!("Fibonacci: i = {}, a = {}, b = {}", self.i, self.a, self.b);
+            cx.waker().wake_by_ref();
             Poll::Pending
         }
     }
