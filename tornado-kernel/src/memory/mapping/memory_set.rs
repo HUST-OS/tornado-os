@@ -19,7 +19,7 @@ pub struct MemorySet {
 impl MemorySet {
     /// 创建内核重映射
     pub fn new_kernel() -> Option<MemorySet> {
-        // 各个字段的起始和结束点，在连接器脚本中给出
+        // 各个字段的起始和结束点，在链接器脚本中给出
         extern "C" {
             fn _stext();
             fn _etext();
@@ -89,7 +89,7 @@ impl MemorySet {
         ];
         let mut mapping = Mapping::new_alloc()?;
         // 准备保存所有新分配的物理页面
-        let mut allocated_pairs = Vec::new();
+        let allocated_pairs = Vec::new();
 
         // 每个字段在页表中进行映射
         for segment in segments.iter() {
