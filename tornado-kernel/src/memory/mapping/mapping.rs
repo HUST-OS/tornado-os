@@ -144,10 +144,8 @@ impl Mapping {
         let asid = asid.into_inner();
         let new_satp = root_ppn | (asid << 44) | (8 << 60);
         unsafe {
-            // 将 new_satp 的值写到 satp 寄存器
-            llvm_asm!("csrw satp, $0" :: "r"(new_satp) :: "volatile");
-            // 刷新 TLB
-            llvm_asm!("sfence.vma" :::: "volatile");
+            // 将 new_satp 的值写到 satp 寄存器，然后刷新页表
+            asm!("csrw satp, {satp}", "sfence.vma", satp = in(reg) new_satp);
         }
     }
 }
