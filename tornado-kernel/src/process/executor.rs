@@ -30,7 +30,7 @@ impl Executor {
     {
         loop {
             let task = pop_task();
-            println!("next task = {:x?}", task);
+            // println!("next task = {:x?}", task);
             if let TaskResult::Task(handle) = task {
                 let task: Arc<KernelTask> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
                 if task.is_sleeping() {
@@ -51,9 +51,9 @@ impl Executor {
 
                     // poll our future and give it a waker
                     let mut context = Context::from_waker(&*waker);
-                    println!("Poll begin");
+                    // println!("Poll begin");
                     let ret = task.future.lock().as_mut().poll(&mut context);
-                    println!("Ret = {:?}", ret);
+                    // println!("Ret = {:?}", ret);
                     if let Poll::Pending = ret {
                         mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                         push_task(handle); 

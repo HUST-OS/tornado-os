@@ -52,7 +52,7 @@ pub static SHARED_RAW_TABLE: (unsafe fn(NonNull<()>, SharedTaskHandle) -> Option
 #[link_section = ".shared_text"]
 pub unsafe fn shared_add_task(shared_scheduler: NonNull<()>, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
     let s: NonNull<SharedScheduler> = shared_scheduler.cast();
-    println!("Add task: scheduler = {:?}, handle = {:x?}", s, handle);
+    // println!("Add task: scheduler = {:?}, handle = {:x?}", s, handle);
     let mut scheduler = s.as_ref().lock();
     scheduler.add_task(handle)
 }
