@@ -3,7 +3,7 @@ use crate::process::{Lock, TaskResult, SharedTaskHandle};
 use crate::process::KernelTask;
 use woke::{waker_ref, Woke};
 use alloc::sync::Arc;
-use core::{future, task::{Poll, Context}};
+use core::{future, mem, task::{Poll, Context}};
 
 /// 运行任务的处理器
 #[derive(Default)]
@@ -34,11 +34,11 @@ impl Executor {
             if let TaskResult::Task(handle) = task {
                 let task: Arc<KernelTask> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
                 if task.is_sleeping() {
-                    drop(Arc::into_raw(task));
+                    mem::forget(task); // 不要释放内存
                     push_task(handle);
                     continue
                 }
-                drop(Arc::into_raw(task));
+                mem::forget(task); // 不要释放内存
             }
             match task {
                 TaskResult::Task(handle) => {
@@ -55,9 +55,9 @@ impl Executor {
                     let ret = task.future.lock().as_mut().poll(&mut context);
                     println!("Ret = {:?}", ret);
                     if let Poll::Pending = ret {
-                        drop(Arc::into_raw(task));
-                        push_task(handle);
-                    } // else drop(task)
+                        mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
+                        push_task(handle); 
+                    } // 否则，释放task的内存。这里相当于drop(task)
                 },
                 TaskResult::ShouldYield => todo!("转让到目的的地址空间中"),
                 TaskResult::Finished => break
