@@ -1,6 +1,6 @@
 use hashbrown::HashSet;
-use crate::process::{Lock, TaskResult, SharedTaskHandle};
-use crate::process::KernelTask;
+use crate::task::{Lock, TaskResult, SharedTaskHandle};
+use crate::task::KernelTask;
 use woke::{waker_ref, Woke};
 use alloc::sync::Arc;
 use core::{future, mem, task::{Poll, Context}};

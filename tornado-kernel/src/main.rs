@@ -15,7 +15,7 @@ mod panic;
 mod sbi;
 mod interrupt;
 mod memory;
-mod process;
+mod task;
 mod hart;
 
 #[cfg(not(test))]
@@ -82,26 +82,26 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("Current hart: {}", hart::KernelHartInfo::hart_id());
 
     // todo: 这里要有个地方往tp里写东西，目前会出错
-    let process = process::Process::new_kernel().expect("create process 1");
+    let process = task::Process::new_kernel().expect("create process 1");
     // let stack_handle = process.alloc_stack().expect("alloc initial stack");
 
-    let task_1 = process::KernelTask::new(task_1(), process.clone());
-    let task_2 = process::KernelTask::new(task_2(), process.clone());
-    let task_3 = process::KernelTask::new(FibonacciFuture::new(5), process);
+    let task_1 = task::KernelTask::new(task_1(), process.clone());
+    let task_2 = task::KernelTask::new(task_2(), process.clone());
+    let task_3 = task::KernelTask::new(FibonacciFuture::new(5), process);
     
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
 
-    let shared_scheduler = process::shared_scheduler();
+    let shared_scheduler = task::shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
     unsafe { 
-        process::shared_add_task(shared_scheduler, task_3.shared_task_handle());
-        process::shared_add_task(shared_scheduler, task_1.shared_task_handle());
+        task::shared_add_task(shared_scheduler, task_3.shared_task_handle());
+        task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
     }
-    process::Executor::run_until_idle(
-        || unsafe { process::shared_pop_task(shared_scheduler) },
-        |handle| unsafe { process::shared_add_task(shared_scheduler, handle) }
+    task::Executor::run_until_idle(
+        || unsafe { task::shared_pop_task(shared_scheduler) },
+        |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }
     );
 
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
@@ -116,10 +116,10 @@ fn spawn(future: impl Future<Output = ()> + 'static + Send + Sync) {
         // 在用户层，这里应该使用系统调用，一次性获得一个资源分配的令牌，代替“进程”结构体，复用这个令牌获得资源
         let process = hart::KernelHartInfo::current_process().unwrap();
         // 新建一个任务
-        let new_task = process::KernelTask::new(future, process);
+        let new_task = task::KernelTask::new(future, process);
         // 加入调度器
-        let shared_scheduler = process::shared_scheduler();
-        process::shared_add_task(shared_scheduler, new_task.shared_task_handle());
+        let shared_scheduler = task::shared_scheduler();
+        task::shared_add_task(shared_scheduler, new_task.shared_task_handle());
     }
 }
 
