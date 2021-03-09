@@ -132,25 +132,14 @@ impl Mapping {
     }
     /// 把当前的映射保存到satp寄存器
     pub fn activate(&self, asid: AddressSpaceId) {
-        // use riscv::{register::satp::{self, Mode}, asm};
-        // unsafe {
-        //     // 保存到satp寄存器
-            // satp::set(Mode::Sv39, 0 /* asid */, self.root_ppn.into());
-        //     // 刷新页表缓存
-        //     asm::sfence_vma_all();
-        // }
-        // satp的0..=43位为页号，44..=59位为地址空间编号，高 4 位为模式，8 表示 Sv39
-        let root_ppn: usize = self.root_ppn.into();
+        use riscv::register::satp::{self, Mode};
         let asid = asid.into_inner();
-        let new_satp = root_ppn | (asid << 44) | (8 << 60);
-        unsafe { asm!(
-            // 将 new_satp 的值写到 satp 寄存器
-            "csrw satp, {satp}",
+        unsafe {
+            // 将新的ppn和asid值写到satp寄存器
+            satp::set(Mode::Sv39, asid, self.root_ppn.into());
             // 刷新页表。rs1=x0、rs2=asid，说明刷新与这个地址空间有关的所有地址
-            "sfence.vma x0, {asid}", 
-            satp = in(reg) new_satp,
-            asid = in(reg) asid
-        ) };
+            asm!("sfence.vma x0, {asid}", asid = in(reg) asid);
+        }
     }
 }
 
