@@ -64,33 +64,4 @@ impl Executor {
             }
         }
     }
-
-    pub fn block_on<F: Fn() -> TaskResult>(pop_task: F) {
-        let task = pop_task();
-        match task {
-            TaskResult::Task(handle) => {
-                // 在相同的地址空间里面，不用切换上下文
-                let task: Arc<KernelTask> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
-                // 下面这个步骤应该可以不做
-                task.mark_sleep();
-
-                // create a waker for the task
-                let waker = waker_ref(&task);
-
-                // poll the future and give it a waker
-                let mut context = Context::from_waker(&*waker);
-                loop {
-                    let mut future = task.future.lock();
-                    if let Poll::Ready(_) = future.as_mut().poll(&mut context) {
-                        break;
-                    }
-                }
-            },
-            TaskResult::ShouldYield => {
-                // 地址空间改变，应该切换上下文
-                todo!("切换到目的地址空间")
-            },
-            TaskResult::Finished => {} // do nothing
-        }
-    }
 }

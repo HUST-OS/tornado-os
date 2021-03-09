@@ -103,8 +103,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         || unsafe { process::shared_pop_task(shared_scheduler) },
         |handle| unsafe { process::shared_add_task(shared_scheduler, handle) }
     );
-    
-    process::Executor::block_on(|| unsafe { process::shared_pop_task(shared_scheduler)});
 
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
     unsafe { hart::KernelHartInfo::unload_hart() };
