@@ -110,17 +110,21 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     sbi::shutdown()
 }
 
-async fn task_1() {
+fn spawn(future: impl Future<Output = ()> + 'static + Send + Sync) {
     unsafe { 
         // 创建一个新的任务
         // 在用户层，这里应该使用系统调用，一次性获得一个资源分配的令牌，代替“进程”结构体，复用这个令牌获得资源
         let process = hart::KernelHartInfo::current_process().unwrap();
         // 新建一个任务
-        let new_task = process::KernelTask::new(task_2(), process);
+        let new_task = process::KernelTask::new(future, process);
         // 加入调度器
         let shared_scheduler = process::shared_scheduler();
         process::shared_add_task(shared_scheduler, new_task.shared_task_handle());
     }
+}
+
+async fn task_1() {
+    spawn(task_2());
     println!("hello world from 1!");
 }
 
