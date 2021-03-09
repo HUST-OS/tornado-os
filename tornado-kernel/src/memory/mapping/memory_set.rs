@@ -78,7 +78,7 @@ impl MemorySet {
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize),
-                flags: Flags::READABLE | Flags::EXECUTABLE // todo: remove READABLE
+                flags: Flags::EXECUTABLE
             },
             // 剩余内存空间，rw-
             Segment {
