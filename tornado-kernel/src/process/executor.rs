@@ -34,9 +34,11 @@ impl Executor {
             if let TaskResult::Task(handle) = task {
                 let task: Arc<KernelTask> = unsafe { Arc::from_raw(handle.task_ptr as *mut _) };
                 if task.is_sleeping() {
+                    drop(Arc::into_raw(task));
                     push_task(handle);
                     continue
                 }
+                drop(Arc::into_raw(task));
             }
             match task {
                 TaskResult::Task(handle) => {
@@ -53,8 +55,9 @@ impl Executor {
                     let ret = task.future.lock().as_mut().poll(&mut context);
                     println!("Ret = {:?}", ret);
                     if let Poll::Pending = ret {
+                        drop(Arc::into_raw(task));
                         push_task(handle);
-                    }
+                    } // else drop(task)
                 },
                 TaskResult::ShouldYield => todo!("转让到目的的地址空间中"),
                 TaskResult::Finished => break
