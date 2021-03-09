@@ -15,6 +15,9 @@ type SharedScheduler = spin::Mutex<SameAddrSpaceScheduler<SharedTaskHandle, 500>
 #[link_section = ".shared_data"]
 pub static SHARED_SCHEDULER: SharedScheduler = spin::Mutex::new(SameAddrSpaceScheduler::new());
 
+/// 得到共享的调度器指针
+///
+/// 可以在共享的添加任务、弹出下一个任务中使用
 pub fn shared_scheduler() -> NonNull<()> {
     NonNull::new(&SHARED_SCHEDULER as *const _ as *mut ()).expect("create non null pointer")
 }
@@ -49,6 +52,9 @@ impl ScheduledItem for SharedTaskHandle {
 pub static SHARED_RAW_TABLE: (unsafe fn(NonNull<()>, SharedTaskHandle) -> Option<SharedTaskHandle>, unsafe fn(NonNull<()>) -> TaskResult)
     = (shared_add_task, shared_pop_task);
 
+/// 共享的添加新任务
+///
+/// 在内核态和用户态都可以调用，访问的是shared_scheduler对应的同一块内存
 #[link_section = ".shared_text"]
 pub unsafe fn shared_add_task(shared_scheduler: NonNull<()>, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
     let s: NonNull<SharedScheduler> = shared_scheduler.cast();
@@ -57,19 +63,27 @@ pub unsafe fn shared_add_task(shared_scheduler: NonNull<()>, handle: SharedTaskH
     scheduler.add_task(handle)
 }
 
+/// 共享的弹出下一个任务
+///
+/// 在内核态和用户态都可以调用，访问的是shared_scheduler对应的同一块内存
 #[link_section = ".shared_text"]
 pub unsafe fn shared_pop_task(shared_scheduler: NonNull<()>) -> TaskResult {
+    // 得到共享调度器的引用
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
     if let Some(task) = scheduler.peek_next_task() {
-        if task.should_switch() {
+        // 还有任务，尝试运行这个任务
+        if task.should_switch() { // 如果需要跳转到其它的地址空间，就不弹出任务，提示需要切换地址空间
             return TaskResult::ShouldYield
         }
+        // 是本地址空间的任务，从调度器拿出这个任务
         // note(unwrap): 前面peek已经返回Some了
         let next_task = scheduler.next_task().unwrap();
-        drop(scheduler);
+        drop(scheduler); // 释放锁
+        // 返回这个任务，以便当前地址空间的执行器运行
         TaskResult::Task(next_task)
     } else {
+        // 没有任务了，返回已完成
         TaskResult::Finished
     }
 }

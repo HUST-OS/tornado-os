@@ -5,7 +5,7 @@ use woke::{waker_ref, Woke};
 use alloc::sync::Arc;
 use core::{future, mem, task::{Poll, Context}};
 
-/// 运行任务的处理器
+/// 运行任务的执行器
 #[derive(Default)]
 pub struct Executor {
     // /// 当前正在执行的任务
