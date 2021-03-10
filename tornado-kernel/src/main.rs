@@ -99,7 +99,10 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         task::shared_add_task(shared_scheduler, task_3.shared_task_handle());
         task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
     }
-    unsafe { riscv::register::sstatus::set_sie() }; // todo 允许被特权级中断打断
+    unsafe { 
+        riscv::register::sscratch::write(0); // todo 寄存器sscratch
+        riscv::register::sstatus::set_sie()   // todo 允许被特权级中断打断
+    };
     task::Executor::run_until_idle(
         || unsafe { task::shared_pop_task(shared_scheduler) },
         |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }

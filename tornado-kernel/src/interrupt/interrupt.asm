@@ -14,7 +14,6 @@
 .endm
 
 .macro SAVE_CONTEXT
-	# csrrw	sp, sscratch, sp
 	addi	sp, sp, -8*34
 	SAVE	x1, 1
 	addi	x1, sp, 8*34
@@ -25,8 +24,8 @@
         .set    n, n + 1
     .endr
 	csrr 	t0, sstatus
-	SAVE	t0, 32
 	csrr 	t1, sepc
+	SAVE	t0, 32
 	SAVE	t1, 33
 .endm
 
@@ -54,11 +53,28 @@ interrupt_reserved:
 
 	.pushsection .text 
 supervisor_timer:
+	csrrw	sp, sscratch, sp
+	csrr	sp, sscratch
+
 	SAVE_CONTEXT
+
 	mv		a0, sp
 	jal 	rust_supervisor_timer
 	mv		sp, a0
-	RESTORE_CONTEXT
+	
+	LOAD	t0, 32
+	LOAD	t1, 33
+	csrw 	sstatus, t0
+	csrw	sepc, t1
+
+	LOAD	x1, 1
+    .set    n, 3
+    .rept   29
+        LOAD_N  %n
+        .set    n, n + 1
+    .endr
+	LOAD	sp, 2
+
 	sret
 	.popsection
 
