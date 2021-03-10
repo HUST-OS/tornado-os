@@ -88,7 +88,7 @@ trap_exception:
 	sret
 	.popsection
 
-    .pushsection .text
+    .pushsection .text # 不能是rodata段，页表里没法执行
     .global trap_vector_table
 	.p2align 2
 trap_vector_table:
