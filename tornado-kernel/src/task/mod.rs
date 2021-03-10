@@ -3,11 +3,12 @@ mod process;
 mod executor;
 mod lock;
 mod shared;
+mod switch;
 
 pub use lock::Lock;
 pub use kernel_task::{KernelTask, TaskId};
 pub use process::{Process, ProcessId};
-pub use executor::Executor;
+pub use executor::run_until_idle;
 pub use shared::{SharedTaskHandle, shared_scheduler, shared_add_task, shared_pop_task};
 
 /// 共享调度器返回的结果

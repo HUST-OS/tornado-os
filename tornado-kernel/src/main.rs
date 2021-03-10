@@ -103,7 +103,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         riscv::register::sscratch::write(0); // todo 寄存器sscratch
         riscv::register::sstatus::set_sie()   // todo 允许被特权级中断打断
     };
-    task::Executor::run_until_idle(
+    task::run_until_idle(
         || unsafe { task::shared_pop_task(shared_scheduler) },
         |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }
     );
