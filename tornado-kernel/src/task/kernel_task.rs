@@ -3,7 +3,7 @@ use spin::Mutex;
 use core::ops::Range;
 use core::future::Future;
 use alloc::boxed::Box;
-use crate::{hart::KernelHartInfo, interrupt::TrapFrame, memory::VirtualAddress};
+use crate::{hart::KernelHartInfo, trap::TrapFrame, memory::VirtualAddress};
 use crate::task::{Process, SharedTaskHandle};
 use core::pin::Pin;
 use core::fmt;

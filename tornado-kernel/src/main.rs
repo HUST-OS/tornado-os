@@ -13,7 +13,7 @@ mod console;
 mod algorithm;
 mod panic;
 mod sbi;
-mod interrupt;
+mod trap;
 mod memory;
 mod task;
 mod hart;
@@ -26,7 +26,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("booted");
 
     memory::init();
-    interrupt::init();
+    trap::init();
 
     unsafe {
         llvm_asm!("ebreak"::::"volatile");
