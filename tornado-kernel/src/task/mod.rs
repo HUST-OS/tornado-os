@@ -9,7 +9,8 @@ pub use lock::Lock;
 pub use kernel_task::{KernelTask, TaskId};
 pub use process::{Process, ProcessId};
 pub use executor::run_until_idle;
-pub use shared::{SharedTaskHandle, shared_scheduler, shared_add_task, shared_pop_task};
+pub use shared::{SharedTaskHandle, shared_scheduler, current_task, shared_add_task, shared_pop_task};
+pub use switch::ContextTable;
 
 /// 共享调度器返回的结果
 #[derive(Debug)]

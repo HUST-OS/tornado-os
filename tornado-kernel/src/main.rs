@@ -23,6 +23,21 @@ global_asm!(include_str!("entry.asm"));
 
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
+    extern "C" {
+        static mut _sbss: u32;
+        static mut _ebss: u32;
+
+        static mut _sdata: u32;
+        static mut _edata: u32;
+
+        static _sidata: u32;
+    }
+
+    unsafe { 
+        r0::zero_bss(&mut _sbss, &mut _ebss);
+        r0::init_data(&mut _sdata, &mut _edata, &_sidata);
+    }
+
     println!("booted");
 
     memory::init();

@@ -25,7 +25,10 @@ SECTIONS
     }
 
     .data : ALIGN(4K) {
+    _sidata = LOADADDR(.data);
         _sdata = .;
+        PROVIDE(__global_pointer$ = . + 0x800);
+        *(.sdata .sdata.* .sdata2 .sdata2.*);
         *(.data .data.*)
         _edata = .;
     }

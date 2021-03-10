@@ -5,6 +5,7 @@ use core::ptr;
 /// 先进先出轮转任务调度器
 pub struct RingFifoScheduler<T, const N: usize> {
     ring: RingQueue<T, N>,
+    current: Option<T>,
 }
 
 impl<T, const N: usize> RingFifoScheduler<T, N> {
@@ -12,6 +13,7 @@ impl<T, const N: usize> RingFifoScheduler<T, N> {
     pub const fn new() -> Self {
         Self {
             ring: RingQueue::new(),
+            current: None,
         }
     }
 }
@@ -29,11 +31,16 @@ impl<T: ScheduledItem + Clone + PartialEq, const N: usize> Scheduler<T> for Ring
     }
     fn next_task(&mut self) -> Option<T> {
         // 从头部取出
-        self.ring.pop_front()
+        let ans = self.ring.pop_front();
+        self.current = ans.clone();
+        ans
     }
     fn peek_next_task(&self) -> Option<&T> {
         // 拿出头部的引用
         self.ring.front()
+    }
+    fn current_task(&self) -> Option<T> {
+        self.current.clone()
     }
     fn remove_task(&mut self, task: &T) {
         // 移除相应的线程并且确认恰移除一个线程

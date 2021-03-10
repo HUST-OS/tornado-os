@@ -39,6 +39,13 @@ type SharedScheduler = lock::Lock<SameAddrSpaceScheduler<SharedTaskHandle, 500>>
 #[link_section = ".shared_data"]
 pub static SHARED_SCHEDULER: SharedScheduler = lock::Lock::new(SameAddrSpaceScheduler::new());
 
+/// 得到当前正在运行的任务，以备保存上下文
+///
+/// 只供内核中断使用，不需要和用户层共享代码
+pub fn current_task() -> Option<SharedTaskHandle> {
+    SHARED_SCHEDULER.lock().current_task()
+}
+
 /// 得到共享的调度器指针
 ///
 /// 可以在共享的添加任务、弹出下一个任务中使用
@@ -47,7 +54,7 @@ pub fn shared_scheduler() -> NonNull<()> {
 }
 
 /// 共享的包含Future在用户空间的地址
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct SharedTaskHandle {
     /// 运行此任务的硬件线程编号

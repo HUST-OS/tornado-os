@@ -1,5 +1,6 @@
-use riscv::register::{stvec, sstatus::{self, SPP, Sstatus}, sepc, scause::{self, Trap, Exception}};
-use crate::println;
+use riscv::register::{stvec, sstatus::{self, SPP, Sstatus}, sepc, scause::{self, Trap, Exception}, stval};
+use crate::{hart::KernelHartInfo, println};
+use crate::task::current_task;
 
 use super::timer;
 
@@ -16,7 +17,7 @@ pub fn init() {
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TrapFrame {
     x: [usize; 32],
     sstatus: Sstatus,
@@ -67,7 +68,13 @@ impl fmt::Display for TrapFrame {
 #[export_name = "rust_supervisor_timer"]
 pub extern "C" fn supervisor_timer(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     // panic!("Supervisor timer: {:08x}", sepc::read());
-    timer::tick();
+    timer::tick(); // 设置下一个时钟中断时间
+    // 保存当前任务的上下文
+    if let Some(handle) = current_task() {
+        KernelHartInfo::save_task_context(handle, trap_frame);
+        panic!("Current task: {:x?}", handle);
+    }
+
     trap_frame
 }
 
@@ -86,7 +93,7 @@ pub extern "C" fn trap_exception(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     match scause::read().cause() {
         Trap::Exception(Exception::Breakpoint) => breakpoint(trap_frame),
         Trap::Exception(e) => 
-            panic!("Exception! {:?}, sepc: {:#08x}, trap_frame: {}", e, sepc::read(), trap_frame),
+            panic!("Exception! {:?}, sepc: {:#08x}, stval: {:#08x}, trap_frame: {}", e, sepc::read(), stval::read(), trap_frame),
         Trap::Interrupt(_) => unreachable!("SBI or CPU design fault")
     }
 }

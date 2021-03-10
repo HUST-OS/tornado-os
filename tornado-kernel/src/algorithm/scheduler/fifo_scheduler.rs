@@ -4,6 +4,7 @@ use alloc::collections::LinkedList;
 /// 先进先出任务调度器
 pub struct FifoScheduler<T> {
     pool: LinkedList<T>,
+    prev_task: Option<T>,
 }
 
 impl<T> FifoScheduler<T> {
@@ -12,6 +13,7 @@ impl<T> FifoScheduler<T> {
     pub const fn new() -> Self {
         Self {
             pool: LinkedList::new(),
+            prev_task: None
         }
     }
 }
@@ -26,7 +28,12 @@ impl<T: ScheduledItem + Clone + PartialEq> Scheduler<T> for FifoScheduler<T> {
     }
     fn next_task(&mut self) -> Option<T> {
         // 从头部取出
-        self.pool.pop_front()
+        let ans = self.pool.pop_front();
+        self.prev_task = ans.clone(); // 保存到上一个任务中
+        ans
+    }
+    fn current_task(&self) -> Option<T> {
+        self.prev_task.clone()
     }
     fn peek_next_task(&self) -> Option<&T> {
         // 拿出头部的引用
