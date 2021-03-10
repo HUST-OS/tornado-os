@@ -14,7 +14,7 @@ pub struct LockGuard<'a, T> {
 
 impl<T> Lock<T> {
     /// 创建一个新对象
-    pub fn new(obj: T) -> Self {
+    pub const fn new(obj: T) -> Self {
         Self(Mutex::new(obj))
     }
 

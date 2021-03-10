@@ -27,16 +27,17 @@ use crate::memory::AddressSpaceId;
 use crate::hart::KernelHartInfo;
 use core::ptr::NonNull;
 use super::TaskResult;
+use super::lock;
 
 /// 共享调度器的类型
 // type SharedScheduler = spin::Mutex<RingFifoScheduler<SharedTaskHandle, 500>>;
-type SharedScheduler = spin::Mutex<SameAddrSpaceScheduler<SharedTaskHandle, 500>>;
+type SharedScheduler = lock::Lock<SameAddrSpaceScheduler<SharedTaskHandle, 500>>;
 
 /// 所有任务的调度器
 ///
 /// 注意：所有.shared_data段内的数据不应该分配堆空间
 #[link_section = ".shared_data"]
-pub static SHARED_SCHEDULER: SharedScheduler = spin::Mutex::new(SameAddrSpaceScheduler::new());
+pub static SHARED_SCHEDULER: SharedScheduler = lock::Lock::new(SameAddrSpaceScheduler::new());
 
 /// 得到共享的调度器指针
 ///
