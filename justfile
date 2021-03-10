@@ -8,6 +8,7 @@ kernel-elf := build-path + "tornado-kernel"
 kernel-bin := build-path + "tornado-kernel.bin"
 
 objdump := "riscv64-unknown-elf-objdump"
+gdb := "riscv64-unknown-elf-gdb"
 size := "rust-size"
 
 threads := "1"
@@ -44,4 +45,4 @@ debug: build
             -gdb tcp::1234 -S
             
 gdb: 
-    @gdb --eval-command="file {{kernel-elf}}" --eval-command="target remote localhost:1234"
+    @{{gdb}} --eval-command="file {{kernel-elf}}" --eval-command="target remote localhost:1234"

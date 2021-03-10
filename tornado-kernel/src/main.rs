@@ -99,6 +99,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         task::shared_add_task(shared_scheduler, task_3.shared_task_handle());
         task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
     }
+    unsafe { riscv::register::sstatus::set_sie() }; // todo 允许被特权级中断打断
     task::Executor::run_until_idle(
         || unsafe { task::shared_pop_task(shared_scheduler) },
         |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }
@@ -129,7 +130,8 @@ async fn task_1() {
 }
 
 async fn task_2() {
-    println!("hello world from 2!")
+    println!("hello world from 2!; this will block current hart");
+    loop { } // 模拟用户长时间占用硬件线程的情况
 }
 
 struct FibonacciFuture {

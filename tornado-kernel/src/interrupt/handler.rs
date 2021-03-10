@@ -66,8 +66,8 @@ impl fmt::Display for TrapFrame {
 
 #[export_name = "rust_supervisor_timer"]
 pub extern "C" fn supervisor_timer(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
-    // panic!("Supervisor timer: {:08x}", sepc::read());
-    timer::tick();
+    panic!("Supervisor timer: {:08x}", sepc::read());
+    // timer::tick();
     trap_frame
 }
 

@@ -1,15 +1,12 @@
-#![allow(unused)] // todo：协作式调度写完后移除
 use crate::sbi::set_timer;
 use riscv::register::{time, sie};
 
 /// 初始化时钟中断
 pub fn init() {
-    // todo: 先写协作式调度
-
-    // unsafe {
-    //     sie::set_stimer(); // 允许时钟中断
-    // }
-    // set_next_timeout(); // 设置下一次时钟中断
+    unsafe {
+        sie::set_stimer(); // 允许时钟中断
+    }
+    set_next_timeout(); // 设置下一次时钟中断
 }
 
 static INTERVAL: usize = 100000;

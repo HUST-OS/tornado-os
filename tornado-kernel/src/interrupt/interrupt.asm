@@ -88,7 +88,7 @@ trap_exception:
 	sret
 	.popsection
 
-    .pushsection .rodata
+    .pushsection .text
     .global trap_vector_table
 	.p2align 2
 trap_vector_table:
