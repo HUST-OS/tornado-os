@@ -44,7 +44,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     trap::init();
 
     unsafe {
-        llvm_asm!("ebreak"::::"volatile");
+        asm!("ebreak");
     };
 
     // 动态内存分配测试

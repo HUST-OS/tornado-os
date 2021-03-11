@@ -3,7 +3,7 @@ use spin::Mutex;
 use core::ops::Range;
 use core::future::Future;
 use alloc::boxed::Box;
-use crate::{hart::KernelHartInfo, trap::TrapFrame, memory::VirtualAddress};
+use crate::{hart::KernelHartInfo, memory::VirtualAddress};
 use crate::task::{Process, SharedTaskHandle};
 use core::pin::Pin;
 use core::fmt;
@@ -46,8 +46,6 @@ pub struct TaskInner {
     ///
     /// 内核任务复用执行器的栈。用户任务占有一个栈，下一个任务复用此栈。强制中断暂停时，下一个任务使用新分配的栈。
     pub stack: Option<Range<VirtualAddress>>,
-    /// 任务的执行上下文；仅当遇到中断强制暂停时，这里是Some
-    pub context: Option<TrapFrame>,
     /// 任务是否正在休眠
     pub sleeping: bool,
     /// 任务是否已经结束
@@ -68,7 +66,6 @@ impl KernelTask {
             process,
             inner: Mutex::new(TaskInner {
                 stack: None,
-                context: None,
                 sleeping: false,
                 ended: false,
             }),
@@ -129,7 +126,6 @@ impl fmt::Debug for KernelTask {
             .field("task id", &self.id)
             .field("address space id", &self.process.address_space_id())
             .field("stack", &inner.stack)
-            .field("context", &inner.context)
             .field("is_sleeping", &inner.sleeping)
             .field("is_ended", &inner.ended)
             .finish()
