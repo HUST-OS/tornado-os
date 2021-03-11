@@ -7,21 +7,17 @@ use crate::task::ContextTable;
 use crate::memory::AddressSpaceId;
 
 /// 写一个指针到上下文指针
+#[inline]
 pub unsafe fn write_tp(tp: usize) {
     asm!("mv tp, {}", in(reg) tp, options(nostack));
 }
 
+/// 从tp寄存器读上下文指针
+#[inline]
 pub fn read_tp() -> usize {
-    match () {
-        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-        () => {
-            let tp: usize;
-            unsafe { asm!("mv {}, tp", out(reg) tp, options(nomem, nostack)); }; // rust-lang/rust#82753 Thank you amanieu :)
-            tp
-        },
-        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-        () => unimplemented!(),
-    }
+    let tp: usize;
+    unsafe { asm!("mv {}, tp", out(reg) tp, options(nomem, nostack)); }; // rust-lang/rust#82753 Thank you @Amanieu :)
+    tp
 }
 
 // 用户层将定义自己的tp寄存器意义
