@@ -30,6 +30,8 @@ where
                 // poll our future and give it a waker
                 let mut context = Context::from_waker(&*waker);
                 // println!("Poll begin");
+                
+                crate::trap::set_next_timeout(); // 开始计时，如果运行超时，切换上下文
                 let ret = task.future.lock().as_mut().poll(&mut context);
                 // println!("Ret = {:?}", ret);
                 if let Poll::Pending = ret {
