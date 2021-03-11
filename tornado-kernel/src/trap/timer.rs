@@ -11,7 +11,7 @@ pub fn init() {
 
 static INTERVAL: usize = 100000;
 
-pub fn set_next_timeout() {
+fn set_next_timeout() {
     set_timer(time::read() + INTERVAL);
 }
 
