@@ -21,9 +21,18 @@ use crate::trap;
 /// 内核态和用户态切换时需要保存的上下文
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct Context {
+pub struct Context<S, T> {
+    // 页表基址
     satp: usize,
+    // tp寄存器，内核中 tp 寄存器指向 `KernelHartInfo`
     tp: usize,
+    // 栈顶
     sp: usize,
-    trapframe: TrapFrame
+    trapframe: TrapFrame,
+    // 共享调度器指针
+    shared_scheduler: *mut S,
+    // 共享调度函数表
+    // 包括添加新任务，弹出下一个任务
+    shared_raw_table: *mut T,
 }
+
