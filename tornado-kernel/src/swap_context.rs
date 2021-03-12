@@ -22,25 +22,15 @@ use crate::trap::TrapFrame;
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SwapContext {
-    // 根页表的物理页号
-    root_ppn: usize, // 0
-    // x[32]: 8 - 256
     trap_frame: TrapFrame,
-    // 地址空间编号
-    // todo: u16
-    asid: usize, // 264
-    // // 共享调度器指针
-    // shared_scheduler: *mut (), // 272
-    // // 共享调度函数表
-    // // 包括添加新任务，弹出下一个任务
-    // shared_raw_table: *mut (), // 280
+    // 根页表的物理页号
+    root_ppn: usize,
 }
 
 impl SwapContext {
     // 新建一个用户态的 `SwapContext`，用于切换到用户态
     pub fn new_user(
         root_ppn: usize,
-        asid: usize,
         pc: usize, // 将会被设置到 TrapFrame.sepc, sret 的时候会读取这个值
         tp: usize, // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
         stack_top: usize // 用户栈顶
@@ -49,19 +39,11 @@ impl SwapContext {
         Self {
             root_ppn,
             trap_frame,
-            asid,
-            // todo: 下面两项是否可以通过系统调用完成？
+            // todo: 下面几两项是否可以通过系统调用完成？
+            // asid,
             // shared_scheduler: &SHARED_SCHEDULER as *const _ as *mut (),  // 指向共享调度器的指针
             // shared_raw_table: &SHARED_RAW_TABLE as *const _ as *mut ()   // 指向共享调度函数表的指针
         }
-    }
-    // 设置上下文的根页表
-    pub fn set_root_ppn(&mut self, root_ppn: usize) {
-        self.root_ppn = root_ppn;
-    }
-    // 设置 TrapFrame
-    pub fn set_trap_frame(&mut self, trap_frame: TrapFrame) {
-        self.trap_frame = trap_frame;
     }
 }
 
@@ -72,25 +54,28 @@ impl SwapContext {
 // 在 RISC-V 标准里面 a0 和 a1 是函数返回值
 // 因此尝试将共享调度器和共享调度函数表的地址通过这两个寄存器返回给用户态
 // a1：新的 satp 寄存器的值，用于切换地址空间
+
+// trap_frame作为ctx?
 unsafe extern "C" fn enter_user(ctx: usize, satp: usize) -> ! {
     asm!("
     csrw satp, {satp}
-    sfence.vma  # 刷新页表",
+    sfence.vma", // 刷新页表
     // // 将 shared_scheduler 的值暂时保存在 sscratch 寄存器中
     // "ld t0, 272({ctx})
     // csrw sscratch, t0", // todo: 可以用系统调用返回共享调度器吗？
     // 从 SwapContext 中恢复用户的上下文
     "
-    ld x1, 16({ctx})
-    ld x2, 24({ctx})
-    ld x3, 32({ctx})
-    ld x4, 40({ctx})
-    ld x5, 48({ctx})
-    ld x6, 56({ctx})
-    ld x7, 64({ctx})
-    ld x8, 72({ctx})
-    ld x9, 80({ctx})
-    ld x11, 280({ctx}) # shared_raw_table: *mut ()
+    ld x1, 8({ctx})
+    ld x2, 16({ctx})
+    ld x3, 24({ctx})
+    ld x4, 32({ctx})
+    ld x5, 40({ctx})
+    ld x6, 48({ctx})
+    ld x7, 56({ctx})
+    ld x8, 64({ctx})
+    ld x9, 72({ctx})
+    ld x10, 80({ctx})
+    ld x11, 88({ctx})
     ld x12, 96({ctx})
     ld x13, 104({ctx})
     ld x14, 112({ctx})
