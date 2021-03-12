@@ -33,10 +33,6 @@ impl MemorySet {
             fn _eshared_data();
             fn _sshared_text();
             fn _eshared_text();
-            fn _sswap_data();
-            fn _eswap_data();
-            fn _sswap_text();
-            fn _eswap_text();
         }
         
         // println!("text:   {:x?}", VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize));
@@ -45,8 +41,6 @@ impl MemorySet {
         // println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
         // println!("shared_data: {:x?}", VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize));
         // println!("shared_text: {:x?}", VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize));
-        // println!("swap_data: {:x?}", VirtualAddress(_sswap_data as usize)..VirtualAddress(_eswap_data as usize));
-        // println!("swap_text: {:x?}", VirtualAddress(_sswap_text as usize)..VirtualAddress(_eswap_text as usize));
         // println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
 
         // 建立字段
@@ -84,17 +78,6 @@ impl MemorySet {
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize),
-                flags: Flags::EXECUTABLE // 没有READABLE
-            },
-            // .swap 段的内核映射
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_sswap_data as usize)..VirtualAddress(_eswap_data as usize),
-                flags: Flags::READABLE | Flags::WRITABLE
-            },
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_sswap_text as usize)..VirtualAddress(_eswap_text as usize),
                 flags: Flags::EXECUTABLE // 没有READABLE
             },
             // 剩余内存空间，rw-

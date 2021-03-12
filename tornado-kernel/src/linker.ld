@@ -50,18 +50,6 @@ SECTIONS
         *(.shared_text .shared_text.*)
         _eshared_text = .;
     }
-    
-    .swap_data : ALIGN(4K) {
-        _sswap_data = .;
-        *(.swap_data .swap_data.*)
-        _eswap_data = .;
-    }
-
-    .swap_text : ALIGN(4K) {
-        _sswap_text = .;
-        *(.swap_text .swap_text.*)
-        _eswap_text = .;
-    }
 
     . = ALIGN(4K);
     free_memory_start = .;
