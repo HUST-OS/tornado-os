@@ -8,7 +8,7 @@
 /// 上面思路的一个实现方法是，在链接脚本里面添加一个段（类似于 shared_data），S 和 U 态切换的上下文和初始化函数保存在这个段里面。
 /// 然后用户态地址空间和内核态地址空间都映射到这个位置，每次 S 态和 U 态切换的时候，都会从这里读取上下文并且运行这里的初始化函数。
 /// 
-/// 貌似共享内存的位置也可以通过这个方法在内核态和用户态之间共享。
+/// 在 RISC-V 中， a0 和 a1 这两个寄存器用于函数返回值，尝试通过这两个寄存器告诉用户态共享调度器和共享调度函数表的位置
 /// 
 /// 这样会有安全性问题，目前先把雏形搓出来，安全问题后面再考虑。
 
@@ -68,12 +68,17 @@ impl<S, T> SwapContext<S, T> {
 #[no_mangle]
 /// 进入用户态
 pub fn enter_user() -> ! {
+    extern "C" {
+        fn user2supervisor();
+        fn supervisor2user();
+    }
+    
     todo!()
 }
 
 global_asm!(
     "
-    .section .trap_swap
+    .section .swap_text
     .globl user2supervisor
     .globl supervisor2user
     .align 4
