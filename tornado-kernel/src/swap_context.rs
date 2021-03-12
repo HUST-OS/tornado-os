@@ -13,121 +13,110 @@
 /// 这样会有安全性问题，目前先把雏形搓出来，安全问题后面再考虑。
 
 use crate::trap::TrapFrame;
-use crate::task::{SHARED_SCHEDULER, SHARED_RAW_TABLE};
+// use crate::task::{SHARED_SCHEDULER, SHARED_RAW_TABLE};
+
+// todo: 只需要恢复TrapFrame、设置root_ppn？
+// 地址空间编号、共享调度器由系统调用返回
 
 /// 内核态和用户态切换时需要保存的上下文
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct SwapContext<S, T> {
+pub struct SwapContext {
     // 根页表的物理页号
-    pagetable: usize, // 0
+    root_ppn: usize, // 0
     // x[32]: 8 - 256
-    trapframe: TrapFrame,
+    trap_frame: TrapFrame,
     // 地址空间编号
     // todo: u16
     asid: usize, // 264
-    // 共享调度器指针
-    shared_scheduler: *mut S, // 272
-    // 共享调度函数表
-    // 包括添加新任务，弹出下一个任务
-    shared_raw_table: *mut T, // 280
+    // // 共享调度器指针
+    // shared_scheduler: *mut (), // 272
+    // // 共享调度函数表
+    // // 包括添加新任务，弹出下一个任务
+    // shared_raw_table: *mut (), // 280
 }
 
-impl<S, T> SwapContext<S, T> {
+impl SwapContext {
     // 新建一个用户态的 `SwapContext`，用于切换到用户态
-    #[allow(unused)]
     pub fn new_user(
-        pagetable: usize,
+        root_ppn: usize,
         asid: usize,
         pc: usize, // 将会被设置到 TrapFrame.sepc, sret 的时候会读取这个值
         tp: usize, // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
         stack_top: usize // 用户栈顶
     ) -> Self {
-        let trapframe = TrapFrame::new_task_context(true, pc, tp, stack_top);
+        let trap_frame = TrapFrame::new_task_context(true, pc, tp, stack_top);
         Self {
-            pagetable,
-            trapframe,
+            root_ppn,
+            trap_frame,
             asid,
-            shared_scheduler: &SHARED_SCHEDULER as *const _ as *mut S,  // 指向共享调度器的指针
-            shared_raw_table: &SHARED_RAW_TABLE as *const _ as *mut T   // 指向共享调度函数表的指针
+            // todo: 下面两项是否可以通过系统调用完成？
+            // shared_scheduler: &SHARED_SCHEDULER as *const _ as *mut (),  // 指向共享调度器的指针
+            // shared_raw_table: &SHARED_RAW_TABLE as *const _ as *mut ()   // 指向共享调度函数表的指针
         }
     }
     // 设置上下文的根页表
-    #[allow(unused)]
-    pub fn set_pagetable(&mut self, root_ppn: usize) {
-        self.pagetable = root_ppn;
+    pub fn set_root_ppn(&mut self, root_ppn: usize) {
+        self.root_ppn = root_ppn;
     }
     // 设置 TrapFrame
-    #[allow(unused)]
-    pub fn set_trapframe(&mut self, trapframe: TrapFrame) {
-        self.trapframe = trapframe;
+    pub fn set_trap_frame(&mut self, trap_frame: TrapFrame) {
+        self.trap_frame = trap_frame;
     }
-
 }
 
-#[no_mangle]
-/// 进入用户态
-pub fn enter_user() -> ! {
-    // TODO
-    unsafe { supervisor2user() }
-}
-
-#[export_name = "_supervisor2user"]
-#[link_section = ".swap_text"]
-unsafe extern "C" fn supervisor2user() -> ! {
-    asm!(
-        "
-# 内核态切换到用户态最后通过这里
-# 该函数有两个参数：
-# a0：用户态 SwapContext 的裸指针
-# 这个裸指针指向的 SwapContext 中的 trapframe 成员里面会保存返回用户态时候的 a0 和 a1 寄存器
-# 在 RISC-V 标准里面 a0 和 a1 是函数返回值
-# 因此尝试将共享调度器和共享调度函数表的地址通过这两个寄存器返回给用户态
-# a1：新的 satp 寄存器的值，用于切换地址空间
-supervisor2user:
-    csrw satp, a1
-    sfence.vma  # 刷新页表
-    # 将 shared_scheduler 的值暂时保存在 sscratch 寄存器中
-    ld t0, 272(a0)
-    csrw sscratch, t0
-    
-    # 从 SwapContext 中恢复用户的上下文
-    ld x1, 16(a0)
-    ld x2, 24(a0)
-    ld x3, 32(a0)
-    ld x4, 40(a0)
-    ld x5, 48(a0)
-    ld x6, 56(a0)
-    ld x7, 64(a0)
-    ld x8, 72(a0)
-    ld x9, 80(a0)
-    ld x11, 280(a0) # shared_raw_table: *mut T
-    ld x12, 96(a0)
-    ld x13, 104(a0)
-    ld x14, 112(a0)
-    ld x15, 120(a0)
-    ld x16, 128(a0)
-    ld x17, 136(a0)
-    ld x18, 144(a0)
-    ld x19, 152(a0)
-    ld x20, 160(a0)
-    ld x21, 168(a0)
-    ld x22, 176(a0)
-    ld x23, 184(a0)
-    ld x24, 192(a0)
-    ld x25, 200(a0)
-    ld x26, 208(a0)
-    ld x27, 216(a0)
-    ld x28, 224(a0)
-    ld x29, 232(a0)
-    ld x30, 240(a0)
-    ld x31, 248(a0)
-
-    # 交换 sccratch 和 a0 的值，这个值变成了共享调度器的地址
-
-    # 返回到用户态
-    sret
-        ",
+// 内核态切换到用户态最后通过这里
+// 该函数有两个参数：
+// a0：用户态 SwapContext 的裸指针
+// 这个裸指针指向的 SwapContext 中的 trapframe 成员里面会保存返回用户态时候的 a0 和 a1 寄存器
+// 在 RISC-V 标准里面 a0 和 a1 是函数返回值
+// 因此尝试将共享调度器和共享调度函数表的地址通过这两个寄存器返回给用户态
+// a1：新的 satp 寄存器的值，用于切换地址空间
+unsafe extern "C" fn enter_user(ctx: usize, satp: usize) -> ! {
+    asm!("
+    csrw satp, {satp}
+    sfence.vma  # 刷新页表",
+    // // 将 shared_scheduler 的值暂时保存在 sscratch 寄存器中
+    // "ld t0, 272({ctx})
+    // csrw sscratch, t0", // todo: 可以用系统调用返回共享调度器吗？
+    // 从 SwapContext 中恢复用户的上下文
+    "
+    ld x1, 16({ctx})
+    ld x2, 24({ctx})
+    ld x3, 32({ctx})
+    ld x4, 40({ctx})
+    ld x5, 48({ctx})
+    ld x6, 56({ctx})
+    ld x7, 64({ctx})
+    ld x8, 72({ctx})
+    ld x9, 80({ctx})
+    ld x11, 280({ctx}) # shared_raw_table: *mut ()
+    ld x12, 96({ctx})
+    ld x13, 104({ctx})
+    ld x14, 112({ctx})
+    ld x15, 120({ctx})
+    ld x16, 128({ctx})
+    ld x17, 136({ctx})
+    ld x18, 144({ctx})
+    ld x19, 152({ctx})
+    ld x20, 160({ctx})
+    ld x21, 168({ctx})
+    ld x22, 176({ctx})
+    ld x23, 184({ctx})
+    ld x24, 192({ctx})
+    ld x25, 200({ctx})
+    ld x26, 208({ctx})
+    ld x27, 216({ctx})
+    ld x28, 224({ctx})
+    ld x29, 232({ctx})
+    ld x30, 240({ctx})
+    ld x31, 248({ctx})",
+    //  交换 sccratch 和 a0 的值，这个值变成了共享调度器的地址
+    "", // todo
+    // 返回到用户态
+    "sret",
+    ctx = in(reg) ctx,
+    satp = in(reg) satp,
     options(noreturn)
     )
 }
