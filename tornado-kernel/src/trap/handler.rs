@@ -72,7 +72,7 @@ pub extern "C" fn supervisor_timer(trap_frame: &mut TrapFrame) -> *mut TrapFrame
     // 保存当前任务的上下文
     if let Some(handle) = current_task() {
         KernelHartInfo::save_task_context(handle, trap_frame);
-        println!("Current task: {:x?}", handle);
+        // println!("Current task: {:x?}", handle);
     }
 
     trap_frame

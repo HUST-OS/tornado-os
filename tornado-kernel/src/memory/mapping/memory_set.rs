@@ -45,6 +45,8 @@ impl MemorySet {
         // println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
         // println!("shared_data: {:x?}", VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize));
         // println!("shared_text: {:x?}", VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize));
+        // println!("swap_data: {:x?}", VirtualAddress(_sswap_data as usize)..VirtualAddress(_eswap_data as usize));
+        // println!("swap_text: {:x?}", VirtualAddress(_sswap_text as usize)..VirtualAddress(_eswap_text as usize));
         // println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
 
         // 建立字段
