@@ -17,6 +17,7 @@ mod trap;
 mod memory;
 mod task;
 mod hart;
+mod context;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));

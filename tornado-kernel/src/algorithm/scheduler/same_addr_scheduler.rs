@@ -44,6 +44,7 @@ impl<T, const N: usize> Scheduler<T> for SameAddrSpaceScheduler<T, N>
                 return Some(task);
             }
         }
+        self.current = None; // 没有相同地址空间的任务，设置当前任务为 None
         None
     }
     /// 尝试获取下一个当前地址空间的任务的引用  

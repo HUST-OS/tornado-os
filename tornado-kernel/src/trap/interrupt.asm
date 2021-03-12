@@ -13,6 +13,10 @@
     LOAD  x\n, \n
 .endm
 
+# 保存上下文
+# x0~x31
+# sstatus
+# sepc
 .macro SAVE_CONTEXT
 	addi	sp, sp, -8*34
 	SAVE	x1, 1
@@ -29,6 +33,7 @@
 	SAVE	t1, 33
 .endm
 
+# 恢复上下文
 .macro RESTORE_CONTEXT
 	LOAD	t1, 33
 	csrw	sepc, t1
@@ -58,9 +63,10 @@ supervisor_timer:
 
 	SAVE_CONTEXT
 
+	# rust_supervisor_timer 接受一个 &mut TrapFrame, 返回一个 *mut TrapFrame
 	mv		a0, sp
 	jal 	rust_supervisor_timer
-	mv		sp, a0
+	mv		sp, a0	# a0 是返回的 *mut TrapFrame
 	
 	LOAD	t0, 32
 	LOAD	t1, 33
