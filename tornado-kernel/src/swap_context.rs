@@ -46,24 +46,18 @@ impl SwapContext {
     }
 }
 
-
-global_asm!(
+// 该函数的指针在从内核态返回到用户态之前被写到 stvec 寄存器里面去
+// 用户态从这里开始陷入内核态
+// 但目前的页表还是用户态的页表
+// 先保存 SwapContext,然后切换到内核的地址空间
+#[naked]
+#[link_section = ".swap"]
+unsafe extern "C" fn user2supervisor() -> ! {
+    asm!(
+    // 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
+    "csrrw a0, sscratch, a0",
+    //开始保存 SwapContext
     "
-    .section swap
-.globl swapoline
-swapoline:
-.align 2
-.globl user2supervisor
-user2supervisor:
-    # 该函数的指针在从内核态返回到用户态之前被写到 stvec 寄存器里面去
-    # 用户态从这里开始陷入内核态
-    # 但目前的页表还是用户态的页表
-    # 先保存 SwapContext,然后切换到内核的地址空间
-
-    # 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
-    csrrw a0, sscratch, a0
-
-    # 开始保存 SwapContext
     sd ra, 40(a0)
     sd sp, 48(a0)
     sd gp, 56(a0)
@@ -94,30 +88,30 @@ user2supervisor:
     sd t4, 264(a0)
     sd t5, 272(a0)
     sd t6, 280(a0)
+    ",
+    //保存用户的 a0 寄存器
+    "csrr t0, sscratch
+    sd t0, 112(a0)",
 
-    # 保存用户的 a0 寄存器
-    csrr t0, sscratch
-    sd t0, 112(a0)
+    // 保存用户栈顶指针
+    "ld sp, 8(a0)",
 
-    # 保存用户栈顶指针
-    ld sp, 8(a0)
+    // 恢复内核态 tp 寄存器
+    "ld tp, 32(a0)",
 
-    # 恢复内核态 tp 寄存器
-    ld tp, 32(a0)
+    // 将用户中断处理函数指针放到 t0 寄存器
+    "ld t0, 16(a0)",
 
-    # 将用户中断处理函数指针放到 t0 寄存器
-    ld t0, 16(a0)
+    // 恢复内核页表
+    "ld t1, 0(a0)
+    csrw satp, t1",
 
-    # 恢复内核页表
-    ld t1, 0(a0)
-    csrw satp, t1
+    "sfence.vma",
 
-    sfence.vma
-
-    # 跳转到中断处理函数
-    jr t0
-    "
-);
+    // 跳转到中断处理函数
+    "jr t0"
+    , options(noreturn));
+}
 
 // 内核态切换到用户态最后通过这里
 // 该函数有两个参数：
@@ -125,7 +119,7 @@ user2supervisor:
 // a1：新的 satp 寄存器的值，用于切换地址空间
 
 // trap_frame作为ctx?
-#[link_section = "swap"]
+#[link_section = ".swap"]
 unsafe extern "C" fn supervisor2user(ctx: usize, satp: usize) -> ! {
     asm!("
     csrw satp, {satp}
