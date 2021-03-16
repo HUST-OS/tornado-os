@@ -52,7 +52,7 @@ impl Mapping {
     }
 
     /// 插入一项虚拟页号对物理页号的映射关系，Some表示成功
-    fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
+    pub fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
         // 先找到页表项
         let entry_mut = self.find_or_insert_entry(vpn)?;
         // 要插入映射关系，页表项必须是空的
@@ -130,6 +130,7 @@ impl Mapping {
         }
         Some(allocated_pairs) // todo!
     }
+
     /// 把当前的映射保存到satp寄存器
     pub fn activate(&self, asid: AddressSpaceId) {
         use riscv::register::satp::{self, Mode};

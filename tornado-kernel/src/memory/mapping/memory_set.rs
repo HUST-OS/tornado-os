@@ -1,7 +1,9 @@
-use crate::memory::config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE};
-use crate::memory::{Mapping, MapType, Segment, Flags, VirtualAddress, VirtualPageNumber, FrameTracker, AddressSpaceId};
+use crate::memory::{KERNEL_MAP_OFFSET, PhysicalPageNumber, config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA}};
+use crate::memory::{Mapping, MapType, Segment, Flags, VirtualAddress, VirtualPageNumber, PhysicalAddress, FrameTracker, AddressSpaceId};
 use alloc::vec::Vec;
 use core::ops::Range;
+
+use super::mapping;
 
 /// 一个地址空间中，所有与内存空间有关的信息
 #[derive(Debug)]
@@ -33,6 +35,7 @@ impl MemorySet {
             fn _eshared_data();
             fn _sshared_text();
             fn _eshared_text();
+            fn _swap_frame();
         }
         
         // println!("text:   {:x?}", VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize));
@@ -41,6 +44,7 @@ impl MemorySet {
         // println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
         // println!("shared_data: {:x?}", VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize));
         // println!("shared_text: {:x?}", VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize));
+        // println!("swap frame: {:x?}", VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize));
         // println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
 
         // 建立字段
@@ -95,6 +99,14 @@ impl MemorySet {
         for segment in segments.iter() {
             mapping.map_segment(segment, None)?;
         }
+
+        // 映射 .swap 段
+        let swap_vpn = VirtualPageNumber::floor(VirtualAddress(SWAP_FRAME_VA));
+        let swap_pa = (_swap_frame as usize).wrapping_sub(KERNEL_MAP_OFFSET);
+        let swap_ppn = PhysicalPageNumber::floor(PhysicalAddress(swap_pa));
+        // println!("map _swap_frame: swap vpn: {:#x?}, swap ppn: {:#x?}", usize::from(swap_vpn), usize::from(swap_ppn));
+        mapping.map_one(swap_vpn, Some(swap_ppn), Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE);
+        
         let address_space_id = AddressSpaceId::kernel();
         Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
     }    

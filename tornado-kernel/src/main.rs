@@ -33,9 +33,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
         static _sidata: u32;
 
-        fn _swap_frame();
-        fn _user2supervisor();
-        fn _supervisor2user();
+        // fn _swap_frame();
+        // fn _user2supervisor();
+        // fn _supervisor2user();
     }
 
     unsafe { 
@@ -86,8 +86,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         };
         println!("Test #{}: {:?} and {:?}", i, frame_0.start_address(), frame_1.start_address());
     }
-    println!("swap frame: {:#x}, user2supervisor: {:#x}, supervisor2user: {:#x}",
-        _swap_frame as usize, _user2supervisor as usize, _supervisor2user as usize);
+    
     // let executor = task::Executor::default();
 
     // executor.spawn(async {

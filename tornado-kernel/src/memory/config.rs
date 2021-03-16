@@ -20,3 +20,11 @@ pub const KERNEL_MAP_OFFSET: usize = 0xffff_ffff_4000_0000;
 
 /// 每个线程的运行栈大小 512 KB
 pub const STACK_SIZE: usize = 0x8_0000;
+
+/// .swap 段的虚拟地址，用户和内核在该地址上有相同的映射关系
+/// 映射关系的虚拟地址是地址空间的最高处（不管是用户还是内核）
+pub const SWAP_FRAME_VA: usize = usize::MAX - PAGE_SIZE + 1;
+
+/// 用户态和内核态切换时上下文保存的地址
+/// 用户和内核在该地址上同样有相同的映射关系
+pub const SWAP_CONTEXT_VA: usize = SWAP_FRAME_VA - PAGE_SIZE;

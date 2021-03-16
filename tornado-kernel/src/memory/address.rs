@@ -17,6 +17,34 @@ impl PhysicalAddress {
     }
 }
 
+impl core::ops::Add<usize> for PhysicalAddress {
+    type Output = PhysicalAddress;
+    fn add(self, rhs: usize) -> Self::Output {
+        // 物理地址和偏移回环相加，得到物理地址
+        PhysicalAddress(self.0.wrapping_add(rhs))
+    }
+}
+
+impl core::ops::AddAssign<usize> for PhysicalAddress {
+    fn add_assign(&mut self, rhs: usize) {
+        self.0 = self.0.wrapping_add(rhs)
+    }
+}
+
+impl core::ops::Sub<PhysicalAddress> for PhysicalAddress {
+    type Output = usize;
+    fn sub(self, rhs: PhysicalAddress) -> Self::Output {
+        // 物理地址回环相减，得到地址的偏移
+        self.0.wrapping_sub(rhs.0)
+    }
+}
+
+impl From<PhysicalAddress> for usize {
+    fn from(src: PhysicalAddress) -> usize {
+        src.0
+    }
+}
+
 /// 物理页号
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysicalPageNumber(usize);
@@ -136,5 +164,31 @@ impl VirtualPageNumber {
             self.0.get_bits(9..18),
             self.0.get_bits(0..9),
         ]
+    }
+}
+
+impl core::ops::Add<usize> for VirtualPageNumber {
+    type Output = VirtualPageNumber;
+    fn add(self, rhs: usize) -> Self::Output {
+        VirtualPageNumber(self.0 + rhs)
+    }
+}
+
+impl core::ops::Sub<VirtualPageNumber> for VirtualPageNumber {
+    type Output = usize;
+    fn sub(self, rhs: VirtualPageNumber) -> Self::Output {
+        self.0.wrapping_sub(rhs.0) // todo
+    }
+}
+
+impl From<VirtualPageNumber> for usize {
+    fn from(src: VirtualPageNumber) -> usize {
+        src.0
+    }
+}
+
+impl From<usize> for VirtualPageNumber {
+    fn from(src: usize) -> VirtualPageNumber {
+        VirtualPageNumber(src)
     }
 }
