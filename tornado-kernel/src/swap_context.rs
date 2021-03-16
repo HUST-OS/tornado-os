@@ -16,6 +16,8 @@
 // todo: 只需要恢复TrapFrame、设置root_ppn？
 // 地址空间编号、共享调度器由系统调用返回
 
+use riscv::register::sstatus::{self, set_spp, SPP};
+use bit_field::BitField;
 /// 内核态和用户态切换时需要保存的上下文
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -25,7 +27,7 @@ pub struct SwapContext {
     /// 内核栈指针
     kernel_stack: usize, // 8
     /// 陷入内核时候需要跳转到的函数指针
-    user2kernel_trap: usize, // 16
+    user_stvec: usize, // 16
     /// sepc 寄存器
     epc: usize, // 24
     /// 内核 tp 寄存器的值
@@ -37,12 +39,31 @@ pub struct SwapContext {
 impl SwapContext {
     // 新建一个用户态的 `SwapContext`，用于切换到用户态
     pub fn new_user(
-        root_ppn: usize,
-        pc: usize, // 将会被设置到 TrapFrame.sepc, sret 的时候会读取这个值
+        kernel_satp: usize,
+        user_entry: usize, // 将会被写到 sepc, sret 的时候会读取这个值
         tp: usize, // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
-        stack_top: usize // 用户栈顶
+        kernel_stack: usize, // 内核态指针
+        user_stack: usize, // 用户栈指针
+        // 将会被写到 stvec 寄存器中返回到用户态
+        // 用户态需要陷入内核的时候掉转到这个地址
+        user_stvec: usize
     ) -> Self {
-        todo!()
+        let mut sstatus = sstatus::read();
+        sstatus.set_spp(SPP::User);
+        let mut swap_context = Self {
+            kernel_satp,
+            kernel_stack,
+            user_stvec,
+            epc: user_entry,
+            kernel_tp: tp,
+            x: [0; 31]
+        };
+        swap_context.set_sp(user_stack);
+        swap_context
+    }
+    pub fn set_sp(&mut self, sp: usize) -> &mut Self{
+        self.x[2] = sp;
+        self
     }
 }
 
@@ -94,10 +115,10 @@ unsafe extern "C" fn user2supervisor() -> ! {
     "csrr t0, sscratch
     sd t0, 112(a0)",
 
-    // 保存用户栈顶指针
+    // 恢复内核栈指针
     "ld sp, 8(a0)",
 
-    // 恢复内核态 tp 寄存器
+    // todo: 如何处理 tp 寄存器
     "ld tp, 32(a0)",
 
     // 将用户中断处理函数指针放到 t0 寄存器
