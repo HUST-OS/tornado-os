@@ -16,8 +16,12 @@
 // todo: 只需要恢复TrapFrame、设置root_ppn？
 // 地址空间编号、共享调度器由系统调用返回
 
-use riscv::register::sstatus::{self, set_spp, SPP};
-use bit_field::BitField;
+use riscv::register::{
+    sstatus::{self, set_spp, SPP},
+    stvec::{self, TrapMode},
+};
+
+use crate::memory::{SWAP_CONTEXT_VA, SWAP_FRAME_VA};
 /// 内核态和用户态切换时需要保存的上下文
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -27,6 +31,7 @@ pub struct SwapContext {
     /// 内核栈指针
     kernel_stack: usize, // 8
     /// 陷入内核时候需要跳转到的函数指针
+    /// todo: 这个是否可以不保存？
     user_stvec: usize, // 16
     /// sepc 寄存器
     epc: usize, // 24
@@ -48,8 +53,6 @@ impl SwapContext {
         // 用户态需要陷入内核的时候掉转到这个地址
         user_stvec: usize
     ) -> Self {
-        let mut sstatus = sstatus::read();
-        sstatus.set_spp(SPP::User);
         let mut swap_context = Self {
             kernel_satp,
             kernel_stack,
@@ -66,6 +69,40 @@ impl SwapContext {
         self
     }
 }
+
+/// 上升到用户态
+#[no_mangle]
+#[allow(unreachable_code)]
+pub fn rise2user() -> ! {
+    extern "C" {
+        fn _user2supervisor();
+        fn _supervisor2user();
+    }
+    // 关中断
+    unsafe { sstatus::clear_sie(); }
+    
+    let user_trap_va = SWAP_FRAME_VA as usize;
+    let jmp_va = _supervisor2user as usize - _user2supervisor as usize + SWAP_FRAME_VA;
+    
+    // 设置用户态陷入内核时需要跳转的地址
+    unsafe { stvec::write(user_trap_va, TrapMode::Direct); }
+
+    // 设置 sstatus.SPP 的值为 User
+    unsafe { set_spp(SPP::User); }
+
+    // todo: 将 SwapContext.epc 写到 sepc 寄存器
+    // todo: 如何处理 tp 寄存器
+
+    // 用户 satp 寄存器
+    // 需要获取当前任务的页表
+    let user_satp = todo!();
+    unsafe {
+        llvm_asm!("fence.i" :::: "volatile");
+        llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(SWAP_CONTEXT_VA), "{a1}"(user_satp) :: "volatile");
+    }
+    unreachable!()
+}
+
 
 // 该函数的指针在从内核态返回到用户态之前被写到 stvec 寄存器里面去
 // 用户态从这里开始陷入内核态
