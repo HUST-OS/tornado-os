@@ -20,8 +20,8 @@
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SwapContext {
-    /// 内核的根页表的物理页号
-    kernel_root_ppn: usize, // 0
+    /// 内核的根页表的satp寄存器值，包括根页号、地址空间编号和页表模式
+    kernel_satp: usize, // 0
     /// 内核栈指针
     kernel_stack: usize, // 8
     /// 陷入内核时候需要跳转到的函数指针
