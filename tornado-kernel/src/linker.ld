@@ -16,9 +16,9 @@ SECTIONS
         *(.text.entry)
         *(.text .text.*)
         . = ALIGN(4K);
-        _swap_seg = .;
+        _swap_frame = .;
         *(.swap)
-        ASSERT(. - _swap_seg <= 4K, "swap segment larger than one page");
+        ASSERT(. - _swap_frame <= 4K, "swap frame larger than one page");
         _etext = .;
     }
 

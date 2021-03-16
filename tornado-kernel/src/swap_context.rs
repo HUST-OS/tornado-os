@@ -52,6 +52,7 @@ impl SwapContext {
 // 先保存 SwapContext,然后切换到内核的地址空间
 #[naked]
 #[link_section = ".swap"]
+#[export_name = "_user2supervisor"]
 unsafe extern "C" fn user2supervisor() -> ! {
     asm!(
     // 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
@@ -120,6 +121,7 @@ unsafe extern "C" fn user2supervisor() -> ! {
 
 // trap_frame作为ctx?
 #[link_section = ".swap"]
+#[export_name = "_supervisor2user"]
 unsafe extern "C" fn supervisor2user(ctx: usize, satp: usize) -> ! {
     asm!("
     csrw satp, {satp}
