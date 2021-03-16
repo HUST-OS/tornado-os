@@ -32,6 +32,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         static mut _edata: u32;
 
         static _sidata: u32;
+
+        fn _swap_seg();
     }
 
     unsafe { 
@@ -82,7 +84,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         };
         println!("Test #{}: {:?} and {:?}", i, frame_0.start_address(), frame_1.start_address());
     }
-    
+    println!("swap segment: {:#x}", _swap_seg as usize);
     // let executor = task::Executor::default();
 
     // executor.spawn(async {

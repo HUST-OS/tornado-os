@@ -50,8 +50,8 @@ impl SwapContext {
 global_asm!(
     "
     .section swap
-.globl swap_segment
-swap_segment:
+.globl swapoline
+swapoline:
 .align 2
 .globl user2supervisor
 user2supervisor:
@@ -125,6 +125,7 @@ user2supervisor:
 // a1：新的 satp 寄存器的值，用于切换地址空间
 
 // trap_frame作为ctx?
+#[link_section = "swap"]
 unsafe extern "C" fn supervisor2user(ctx: usize, satp: usize) -> ! {
     asm!("
     csrw satp, {satp}
