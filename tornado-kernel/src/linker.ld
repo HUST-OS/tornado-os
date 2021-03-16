@@ -15,11 +15,10 @@ SECTIONS
         _stext = .;
         *(.text.entry)
         *(.text .text.*)
-        . = ALIGN(0x1000);
+        . = ALIGN(4K);
         _swap_seg = .;
-        *(swap)
-        . = ALIGN(0x1000);
-        ASSERT(. - _swap_seg == 0x1000, "swap segment larger than one page");
+        *(.swap)
+        ASSERT(. - _swap_seg <= 4K, "swap segment larger than one page");
         _etext = .;
     }
 
