@@ -4,6 +4,7 @@ mod executor;
 mod lock;
 mod shared;
 mod switch;
+mod user_task;
 
 pub use lock::Lock;
 pub use kernel_task::{KernelTask, TaskId};
