@@ -30,9 +30,8 @@ pub struct SwapContext {
     kernel_satp: usize, // 0
     /// 内核栈指针
     kernel_stack: usize, // 8
-    /// 陷入内核时候需要跳转到的函数指针
-    /// todo: 这个是否可以不保存？
-    user_stvec: usize, // 16
+    /// 陷入内核时的处理函数
+    user_trap_handler: usize, // 16
     /// sepc 寄存器
     epc: usize, // 24
     /// 内核 tp 寄存器的值
@@ -50,13 +49,13 @@ impl SwapContext {
         kernel_stack: usize, // 内核态指针
         user_stack: usize, // 用户栈指针
         // 将会被写到 stvec 寄存器中返回到用户态
-        // 用户态需要陷入内核的时候掉转到这个地址
-        user_stvec: usize
+        // 用户态发生 Trap 时将会进入的处理函数
+        user_trap_handler: usize
     ) -> Self {
         let mut swap_context = Self {
             kernel_satp,
             kernel_stack,
-            user_stvec,
+            user_trap_handler,
             epc: user_entry,
             kernel_tp: tp,
             x: [0; 31]
