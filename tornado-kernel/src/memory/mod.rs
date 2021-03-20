@@ -17,23 +17,12 @@ pub fn init() {
 pub struct AddressSpaceId(u16); // in Sv39, [0, 2^16)
 
 impl AddressSpaceId {
-    /// 得到内核的地址空间编号
-    pub fn kernel() -> AddressSpaceId {
-        AddressSpaceId(0)
-    }
     pub(crate) unsafe fn from_raw(asid: usize) -> AddressSpaceId {
         AddressSpaceId(asid as u16)
     }
     pub(crate) fn into_inner(self) -> usize {
         self.0 as usize
     }
-}
-
-use alloc::vec::Vec;
-
-lazy_static::lazy_static! {
-    static ref ADDRESS_SPACE_ID_COUNTER: spin::Mutex<(Vec<usize>, usize)> = 
-        spin::Mutex::new((Vec::new(), 0)); // 剩余的空间；
 }
 
 pub fn max_asid() -> AddressSpaceId {
@@ -52,10 +41,3 @@ pub fn max_asid() -> AddressSpaceId {
     #[cfg(target_pointer_width = "32")]
     return AddressSpaceId(((val >> 22) & ((1 << 9) - 1)) as u16);
 }
-
-// fn next_address_space_id() -> AddressSpaceId {
-//     let mut pid = ADDRESS_SPACE_ID_COUNTER.lock();
-//     let ans = *pid;
-//     *pid += 1;
-//     AddressSpaceId(ans)
-// }

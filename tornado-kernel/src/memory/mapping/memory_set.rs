@@ -38,21 +38,21 @@ impl MemorySet {
             fn _swap_frame();
         }
         
-        // println!("text:   {:x?}", VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize));
-        // println!("rodata: {:x?}", VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize));
-        // println!("data:   {:x?}", VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize));
-        // println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
-        // println!("shared_data: {:x?}", VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize));
-        // println!("shared_text: {:x?}", VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize));
-        // println!("swap frame: {:x?}", VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize));
-        // println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
+        println!("text:   {:x?}", VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize));
+        println!("rodata: {:x?}", VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize));
+        println!("data:   {:x?}", VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize));
+        println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
+        println!("shared_data: {:x?}", VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize));
+        println!("shared_text: {:x?}", VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize));
+        println!("swap frame: {:x?}", VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize));
+        println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
 
         // 建立字段
         let segments = vec![
             // .text 段，r-x
             Segment {
                 map_type: MapType::Linear,
-                range: VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize),
+                range: VirtualAddress(_stext as usize)..VirtualAddress(_swap_frame as usize),
                 flags: Flags::READABLE | Flags::EXECUTABLE,
             },
             // .rodata 段，r--
@@ -101,15 +101,63 @@ impl MemorySet {
         }
 
         // 映射 .swap 段
-        let swap_vpn = VirtualPageNumber::floor(VirtualAddress(SWAP_FRAME_VA));
-        let swap_pa = (_swap_frame as usize).wrapping_sub(KERNEL_MAP_OFFSET);
-        let swap_ppn = PhysicalPageNumber::floor(PhysicalAddress(swap_pa));
-        // println!("map _swap_frame: swap vpn: {:#x?}, swap ppn: {:#x?}", usize::from(swap_vpn), usize::from(swap_ppn));
-        mapping.map_one(swap_vpn, Some(swap_ppn), Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE);
-        
-        let address_space_id = AddressSpaceId::kernel();
+        let swap_frame_va = VirtualAddress(_swap_frame as usize);
+        println!("map _swap_frame: swap_frame_va: {:x?}", swap_frame_va);
+        mapping.map_segment(&Segment {
+            map_type: MapType::Linear,
+            range: swap_frame_va..swap_frame_va + PAGE_SIZE,
+            flags: Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE,
+        }, None)?;
+        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
+        println!("Kernel new asid = {:?}", address_space_id);
         Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
     }    
+    /// 创建一个用户进程
+    pub fn new_user() -> Option<MemorySet> { 
+        // 各个字段的起始和结束点，在链接器脚本中给出
+        extern "C" {
+            fn _stext(); fn _etext(); fn _srodata(); fn _erodata();
+            fn _sdata(); fn _edata(); fn _sbss(); fn _ebss();
+            fn _swap_frame();
+        }
+        // 建立字段
+        let segments = vec![
+            Segment { // .text 段，r-x
+                map_type: MapType::Linear,
+                range: VirtualAddress(_stext as usize)..VirtualAddress(_swap_frame as usize),
+                flags: Flags::READABLE | Flags::EXECUTABLE,
+            },
+            Segment { // .rodata 段，r--
+                map_type: MapType::Linear,
+                range: VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize),
+                flags: Flags::READABLE,
+            },
+            Segment { // .data 段，rw-
+                map_type: MapType::Linear,
+                range: VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize),
+                flags: Flags::READABLE | Flags::WRITABLE,
+            },
+            Segment { // .bss 段，rw-
+                map_type: MapType::Linear,
+                range: VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize),
+                flags: Flags::READABLE | Flags::WRITABLE,
+            },
+        ];
+        let mut mapping = Mapping::new_alloc()?;
+        let allocated_pairs = Vec::new();
+        for segment in segments.iter() {
+            mapping.map_segment(segment, None)?;
+        }
+        let swap_frame_va = VirtualAddress(_swap_frame as usize);
+        mapping.map_segment(&Segment {
+            map_type: MapType::Linear,
+            range: swap_frame_va..swap_frame_va + PAGE_SIZE,
+            flags: Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE,
+        }, None)?;
+        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
+        println!("New asid = {:?}", address_space_id);
+        Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
+    }
     /// 检测一段内存区域和已有的是否存在重叠区域
     pub fn overlap_with(&self, range: Range<VirtualPageNumber>) -> bool {
         fn range_overlap<T: core::cmp::Ord>(a: &Range<T>, b: &Range<T>) -> bool {

@@ -52,7 +52,7 @@ impl Mapping {
     }
 
     /// 插入一项虚拟页号对物理页号的映射关系，Some表示成功
-    pub fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
+    fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
         // 先找到页表项
         let entry_mut = self.find_or_insert_entry(vpn)?;
         // 要插入映射关系，页表项必须是空的

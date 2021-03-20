@@ -1,4 +1,4 @@
-use super::{Scheduler, ScheduledItem};
+use super::Scheduler;
 use alloc::collections::LinkedList;
 
 /// 先进先出任务调度器
@@ -18,7 +18,7 @@ impl<T> FifoScheduler<T> {
     }
 }
 
-impl<T: ScheduledItem + Clone + PartialEq> Scheduler<T> for FifoScheduler<T> {
+impl<T: Clone + PartialEq> Scheduler<T> for FifoScheduler<T> {
     type Priority = ();
     fn add_task(&mut self, task: T) -> Option<T> {
         // 加入链表尾部

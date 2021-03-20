@@ -36,7 +36,7 @@ impl KernelHartInfo {
     pub unsafe fn load_hart(hart_id: usize) {
         let hart_info = Box::new(KernelHartInfo {
             hart_id,
-            current_address_space_id: AddressSpaceId::kernel(),
+            current_address_space_id: AddressSpaceId::from_raw(0),
             current_process: None,
             hart_max_asid: crate::memory::max_asid(),
             asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用

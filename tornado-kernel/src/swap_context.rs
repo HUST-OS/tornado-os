@@ -22,52 +22,6 @@ use riscv::register::{
 };
 
 use crate::memory::{SWAP_CONTEXT_VA, SWAP_FRAME_VA};
-/// 内核态和用户态切换时需要保存的上下文
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct SwapContext {
-    /// 内核的根页表的satp寄存器值，包括根页号、地址空间编号和页表模式
-    kernel_satp: usize, // 0
-    /// 内核栈指针
-    kernel_stack: usize, // 8
-    /// 陷入内核时的处理函数
-    user_trap_handler: usize, // 16
-    /// sepc 寄存器
-    epc: usize, // 24
-    /// 内核 tp 寄存器的值
-    kernel_tp: usize, // 32
-    /// 31 个通用寄存器，x0 被硬编码为 0 因此不用保存
-    x: [usize; 31] // 40-280
-}
-
-impl SwapContext {
-    // 新建一个用户态的 `SwapContext`，用于切换到用户态
-    pub fn new_user(
-        kernel_satp: usize,
-        user_entry: usize, // 将会被写到 sepc, sret 的时候会读取这个值
-        tp: usize, // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
-        kernel_stack: usize, // 内核态指针
-        user_stack: usize, // 用户栈指针
-        // 将会被写到 stvec 寄存器中返回到用户态
-        // 用户态发生 Trap 时将会进入的处理函数
-        user_trap_handler: usize
-    ) -> Self {
-        let mut swap_context = Self {
-            kernel_satp,
-            kernel_stack,
-            user_trap_handler,
-            epc: user_entry,
-            kernel_tp: tp,
-            x: [0; 31]
-        };
-        swap_context.set_sp(user_stack);
-        swap_context
-    }
-    pub fn set_sp(&mut self, sp: usize) -> &mut Self{
-        self.x[2] = sp;
-        self
-    }
-}
 
 /// 上升到用户态
 #[no_mangle]

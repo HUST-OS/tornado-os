@@ -70,9 +70,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     
     println!("heap test passed");
     println!("Max asid = {:?}", memory::max_asid());
-    let remap = memory::MemorySet::new_kernel().unwrap();
-    remap.activate();
-    println!("kernel remapped");
+    // let remap = memory::MemorySet::new_kernel().unwrap();
+    // remap.activate();
+    // println!("kernel remapped");
 
     // 物理页分配
     for i in 0..2 {
@@ -102,7 +102,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("Current hart: {}", hart::KernelHartInfo::hart_id());
 
     // todo: 这里要有个地方往tp里写东西，目前会出错
-    let process = task::Process::new_kernel().expect("create process 1");
+    let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
+    let process = task::Process::new(kernel_memory).expect("create process 1");
     // let stack_handle = process.alloc_stack().expect("alloc initial stack");
 
     let task_1 = task::KernelTask::new(task_1(), process.clone());
@@ -115,7 +116,12 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     let shared_scheduler = task::shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
+
+    let user_1_memory = memory::MemorySet::new_user().expect("create user 1 memory set");
+    let process_2 = task::Process::new(user_1_memory).expect("create process 2");
+    let task_4 = task::user_task::UserTask::new(user_task_1(), process_2);
     unsafe { 
+        task::shared_add_task(shared_scheduler, task_4.shared_task_handle()); // 用户任务
         task::shared_add_task(shared_scheduler, task_3.shared_task_handle());
         task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
     }
@@ -154,7 +160,13 @@ async fn task_1() {
 
 async fn task_2() {
     println!("hello world from 2!; this will block current hart");
-    loop { } // 模拟用户长时间占用硬件线程的情况
+    // loop { } // 模拟用户长时间占用硬件线程的情况
+}
+
+async fn user_task_1() {
+    println!("From user level!");
+    loop {}
+    // todo: 退出进程 
 }
 
 struct FibonacciFuture {

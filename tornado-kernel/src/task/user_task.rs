@@ -84,7 +84,7 @@ impl UserTask {
     /// 危险：创建了一个没有边界的生命周期
     pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
         SharedTaskHandle {
-            hart_id: KernelHartInfo::hart_id(),
+            hart_id: KernelHartInfo::hart_id(), 
             address_space_id: self.process.address_space_id(),
             task_ptr: Arc::into_raw(self) as usize
         }

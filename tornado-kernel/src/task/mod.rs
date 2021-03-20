@@ -4,7 +4,7 @@ mod executor;
 mod lock;
 mod shared;
 mod switch;
-mod user_task;
+pub mod user_task; // todo：删除这个模块
 
 pub use lock::Lock;
 pub use kernel_task::{KernelTask, TaskId};

@@ -24,15 +24,15 @@ pub struct ProcessInner {
 }
 
 impl Process {
-    /// 创建一个内核进程
+    /// 创建一个进程
     ///
     /// 如果内存分配失败，返回None
-    pub fn new_kernel() -> Option<Arc<Self>> {
+    pub fn new(memory_set: MemorySet) -> Option<Arc<Self>> {
         let process = Arc::new(Process {
             id: next_process_id(),
             is_user: false,
             inner: Mutex::new(ProcessInner {
-                memory_set: MemorySet::new_kernel()?,
+                memory_set
             })
         });
         unsafe { 

@@ -1,4 +1,4 @@
-use super::{Scheduler, ScheduledItem};
+use super::Scheduler;
 use super::ring_fifo_scheduler::RingQueue;
 
 /// 尽量调度相同地址空间的调度器
@@ -8,7 +8,6 @@ pub struct SameAddrSpaceScheduler<T, const N: usize> {
 }
 
 impl<T, const N: usize> SameAddrSpaceScheduler<T, N> {
-    #[allow(unused)]
     pub const fn new() -> Self {
         Self {
             tasks: RingQueue::new(),
@@ -17,9 +16,12 @@ impl<T, const N: usize> SameAddrSpaceScheduler<T, N> {
     }
 }
 
-impl<T, const N: usize> Scheduler<T> for SameAddrSpaceScheduler<T, N>
-    where T: ScheduledItem + Clone + PartialEq
+pub trait WithAddressSpace {
+    fn should_switch(&self) -> bool;
+}
 
+impl<T, const N: usize> Scheduler<T> for SameAddrSpaceScheduler<T, N>
+    where T: Clone + PartialEq + WithAddressSpace
 {
     type Priority = ();
     /// 添加任务到调度队列  
@@ -36,7 +38,7 @@ impl<T, const N: usize> Scheduler<T> for SameAddrSpaceScheduler<T, N>
         while self.tasks.front().is_some() && count < len {
             // note(unwrap): 前面 self.tasks.front().is_some() 返回 Some
             let task = self.tasks.pop_front().unwrap();
-            if task.need_switch() {
+            if task.should_switch() {
                 self.tasks.push_back(task);
                 count += 1;
             } else {
@@ -55,7 +57,7 @@ impl<T, const N: usize> Scheduler<T> for SameAddrSpaceScheduler<T, N>
         loop {
             let task = iter.next();
             if task.is_some() {
-                if !task.as_ref().unwrap().need_switch() {
+                if !task.as_ref().unwrap().should_switch() {
                     return task;
                 }
             } else {

@@ -24,7 +24,7 @@
 /// 如果具体的处理核上没有实现这种硬件优化，我们只用软件给出“地址空间”的概念，而不在硬件上利用它们。
 
 #[allow(unused_imports)]
-use crate::algorithm::{Scheduler, ScheduledItem, RingFifoScheduler, SameAddrSpaceScheduler};
+use crate::algorithm::{Scheduler, RingFifoScheduler, SameAddrSpaceScheduler};
 use crate::memory::AddressSpaceId;
 use crate::hart::KernelHartInfo;
 use core::ptr::NonNull;
@@ -75,8 +75,8 @@ impl SharedTaskHandle {
     }
 }
 
-impl ScheduledItem for SharedTaskHandle {
-    fn need_switch(&self) -> bool {
+impl crate::algorithm::WithAddressSpace for SharedTaskHandle {
+    fn should_switch(&self) -> bool {
         self.should_switch()
     }
 }
