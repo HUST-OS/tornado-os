@@ -58,6 +58,11 @@ impl Process {
         flags |= Flags::VALID;
         self.inner.lock().memory_set.alloc_page_range(STACK_SIZE, flags)
     }
+    /// 得到进程对应的satp寄存器值
+    pub fn satp(&self) -> usize {
+        let asid = self.inner.lock().memory_set.address_space_id;
+        self.inner.lock().memory_set.mapping.get_satp(asid)
+    }
 }
 
 /// 进程的编号

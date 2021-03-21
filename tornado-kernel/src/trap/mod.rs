@@ -236,7 +236,7 @@ use crate::memory::{SWAP_FRAME_VA, SWAP_CONTEXT_VA};
 
 /// 上升到用户态
 /// 目前让这个函数接收一个 SwapContext 参数和用户的页表，测试使用
-pub fn switch_to_user(context: SwapContext, satp: usize) -> ! {
+pub fn switch_to_user(context: &SwapContext, satp: usize) -> ! {
     use riscv::register::{sstatus::{self, SPP}, stvec::{self, TrapMode}};
     // 关中断
     unsafe { sstatus::clear_sie(); }
@@ -257,7 +257,7 @@ pub fn switch_to_user(context: SwapContext, satp: usize) -> ! {
     riscv::register::sepc::write(context.epc);
 
     // todo: 如何处理 tp 寄存器
-
+        
     // 用户 satp 寄存器
     // 需要获取当前任务的页表
     let user_satp: usize = satp;

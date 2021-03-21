@@ -142,6 +142,20 @@ impl Mapping {
             asm!("sfence.vma x0, {asid}", asid = in(reg) asid);
         }
     }
+
+    /// 获取当前映射的satp寄存器值
+    pub fn get_satp(&self, asid: AddressSpaceId) -> usize {
+        // 60..64 mode
+        // 44..60 asid
+        // 0..44 ppn
+        use riscv::register::satp::Mode;
+        use bit_field::BitField;
+        let mut bits = 0usize;
+        bits.set_bits(60..64, Mode::Sv39 as usize);
+        bits.set_bits(44..60, asid.into_inner());
+        bits.set_bits(0..44, self.root_ppn.into());
+        bits
+    }
 }
 
 // 找到包含虚拟地址段的所有虚拟页
