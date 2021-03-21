@@ -33,6 +33,10 @@ impl PageTableEntry {
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
+    /// 是否有效
+    pub fn is_valid(&self) -> bool {
+        (self.flags() & Flags::VALID) != Flags::empty()
+    }
 }
 
 impl core::fmt::Debug for PageTableEntry {

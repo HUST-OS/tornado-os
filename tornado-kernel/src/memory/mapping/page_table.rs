@@ -13,6 +13,7 @@ impl PageTable {
     pub fn clear(&mut self) {
         self.entries = [Default::default(); PAGE_SIZE / 8];
     }
+    
 }
 
 #[derive(Debug)]
