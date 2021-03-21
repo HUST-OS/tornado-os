@@ -109,6 +109,7 @@ impl SwapContext {
 // 但目前的页表还是用户态的页表
 // 先保存 SwapContext,然后切换到内核的地址空间
 #[link_section = ".swap"]
+#[export_name = "_user_to_supervisor"]
 pub unsafe extern "C" fn user_to_supervisor() -> ! {
     asm!(
     // 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
@@ -175,6 +176,7 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
 // a0：用户态 SwapContext 的裸指针
 // a1：新的 satp 寄存器的值，用于切换地址空间
 #[link_section = ".swap"]
+#[export_name = "_supervisor_to_user"]
 pub unsafe extern "C" fn supervisor_to_user(ctx: *mut SwapContext, satp: usize) -> ! {
     asm!("
     csrw satp, {satp}
