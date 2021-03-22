@@ -17,7 +17,6 @@ mod trap;
 mod memory;
 mod task;
 mod hart;
-mod swap_context;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -33,9 +32,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
         static _sidata: u32;
 
-        // fn _swap_frame();
-        // fn _user2supervisor();
-        // fn _supervisor2user();
+        fn _swap_frame();
+        fn _user_to_supervisor();
+        fn _supervisor_to_user();
     }
 
     unsafe { 
@@ -87,6 +86,10 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         println!("Test #{}: {:?} and {:?}", i, frame_0.start_address(), frame_1.start_address());
     }
     
+    println!("_swap_frame: {:#x}", _swap_frame as usize);
+    println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
+    println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
+
     // let executor = task::Executor::default();
 
     // executor.spawn(async {
@@ -129,6 +132,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         riscv::register::sscratch::write(0); // todo 寄存器sscratch
         riscv::register::sstatus::set_sie()   // todo 允许被特权级中断打断
     };
+
     task::run_until_idle(
         || unsafe { task::shared_pop_task(shared_scheduler) },
         |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }
@@ -202,4 +206,8 @@ impl Future for FibonacciFuture {
             Poll::Pending
         }
     }
+}
+
+fn try_enter_user() -> ! {
+
 }

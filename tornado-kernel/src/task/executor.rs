@@ -45,7 +45,7 @@ where
             },
             TaskResult::ShouldYield => {
                 //todo
-                crate::trap::switch_to_user()
+                // crate::trap::switch_to_user()
             },
             TaskResult::Finished => break
         }

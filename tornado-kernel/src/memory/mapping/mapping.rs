@@ -50,7 +50,30 @@ impl Mapping {
         // 解引用结束，entry位于最后一级页表
         Some(entry)
     }
-
+    /// 找到虚拟页号对应的页表项，如果不存在则返回 None
+    pub fn find_pte(&self, vpn: VirtualPageNumber) -> Option<&mut PageTableEntry> {
+        let root_table_pa = self.root_ppn.start_address();
+        let root_table: &mut PageTable = unsafe { root_table_pa.deref_linear_static() };
+        let mut entry = &mut root_table.entries[vpn.levels()[0]];
+        for vpn_i in &vpn.levels()[1..] {
+            // 如果没有页表或者页表无效
+            if entry.is_empty() || !entry.is_valid() {
+                return None;
+            }
+            // 进入下一级页表
+            let next_table_pa = entry.start_address();
+            let next_table: &mut PageTable = unsafe { next_table_pa.deref_linear_static() };
+            entry = &mut next_table.entries[*vpn_i];
+        }
+        // 解引用结束，entry 位于最后一级页表
+        Some(entry)
+    }
+    /// 地址转换
+    pub fn translate(&self, vpn: VirtualPageNumber) -> Option<PageTableEntry> {
+        self.find_pte(vpn).map(
+            |pte| {pte.clone()}
+        )
+    }
     /// 插入一项虚拟页号对物理页号的映射关系，Some表示成功
     fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
         // 先找到页表项
@@ -61,7 +84,6 @@ impl Mapping {
         *entry_mut = PageTableEntry::new(ppn, flags);
         Some(())
     }
-
     /// 插入并映射一个段
     pub fn map_segment(
         &mut self, segment: &Segment, init_data: Option<&[u8]>
@@ -79,7 +101,6 @@ impl Mapping {
             ),
         }
     }
-
     // 插入和映射线性的段
     fn map_range_linear(
         &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
@@ -95,7 +116,6 @@ impl Mapping {
         }
         Some(Vec::new())
     }
-
     // 插入和映射按帧分页的段
     fn map_range_framed(
         &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
@@ -130,7 +150,6 @@ impl Mapping {
         }
         Some(allocated_pairs) // todo!
     }
-
     /// 把当前的映射保存到satp寄存器
     pub fn activate(&self, asid: AddressSpaceId) {
         use riscv::register::satp::{self, Mode};
@@ -141,6 +160,19 @@ impl Mapping {
             // 刷新页表。rs1=x0、rs2=asid，说明刷新与这个地址空间有关的所有地址
             asm!("sfence.vma x0, {asid}", asid = in(reg) asid);
         }
+    }
+    /// 获取当前映射的satp寄存器值
+    pub fn get_satp(&self, asid: AddressSpaceId) -> usize {
+        // 60..64 mode
+        // 44..60 asid
+        // 0..44 ppn
+        use riscv::register::satp::Mode;
+        use bit_field::BitField;
+        let mut bits = 0usize;
+        bits.set_bits(60..64, Mode::Sv39 as usize);
+        bits.set_bits(44..60, asid.into_inner());
+        bits.set_bits(0..44, self.root_ppn.into());
+        bits
     }
 }
 
