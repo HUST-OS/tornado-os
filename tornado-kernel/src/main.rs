@@ -209,5 +209,5 @@ impl Future for FibonacciFuture {
 }
 
 fn try_enter_user() -> ! {
-
+    todo!()
 }
