@@ -55,6 +55,18 @@ SECTIONS
         _eshared_text = .;
     }
 
+    .user_data : ALIGN(4K) {
+        _suser_data = .;
+        *(.user_data .user_data.*)
+        _euser_data = .;
+    }
+
+    .user_text : ALIGN(4K) {
+        _suser_text = .;
+        *(.user_text .user_text.*)
+        _euser_text = .;
+    }
+    
     . = ALIGN(4K);
     free_memory_start = .;
 
