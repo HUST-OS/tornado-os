@@ -112,8 +112,10 @@ impl SwapContext {
 #[export_name = "_user_to_supervisor"]
 pub unsafe extern "C" fn user_to_supervisor() -> ! {
     asm!(
+    
     // 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
     "csrrw a0, sscratch, a0",
+    
     //开始保存 SwapContext
     "
     sd ra, 40(a0)
@@ -165,7 +167,7 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
     csrw satp, t1",
 
     "sfence.vma",
-
+    
     // 跳转到中断处理函数
     "jr t0"
     , options(noreturn));
@@ -177,57 +179,55 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
 // a1：新的 satp 寄存器的值，用于切换地址空间
 #[link_section = ".swap"]
 #[export_name = "_supervisor_to_user"]
-pub unsafe extern "C" fn supervisor_to_user(ctx: *mut SwapContext, satp: usize) -> ! {
-    asm!("
-    csrw satp, {satp}
+pub unsafe extern "C" fn supervisor_to_user() -> ! {
+    asm!(
+    "csrw satp, a1
     sfence.vma", // 刷新页表
 
     // 从 SwapContext 中恢复用户的上下文
     // 将用户的 a0 寄存器保存在 sscratch 寄存器中，
     // 这样子可以在最后一步将它和 a0（ctx） 进行交换
     "
-    ld t0, 112({ctx})
+    ld t0, 112(a0)
     csrw sscratch, t0
     ",
     // 恢复通用寄存器的上下文
     "
-    ld ra, 40({ctx})
-    ld sp, 48({ctx})
-    ld gp, 56({ctx})
-    ld tp, 64({ctx})
-    ld t0, 72({ctx})
-    ld t1, 80({ctx})
-    ld t2, 88({ctx})
-    ld s0, 96({ctx})
-    ld s1, 104({ctx})
-    ld a1, 120({ctx})
-    ld a2, 128({ctx})
-    ld a3, 136({ctx})
-    ld a4, 144({ctx})
-    ld a5, 152({ctx})
-    ld a6, 160({ctx})
-    ld a7, 168({ctx})
-    ld s2, 176({ctx})
-    ld s3, 184({ctx})
-    ld s4, 192({ctx})
-    ld s5, 200({ctx})
-    ld s6, 208({ctx})
-    ld s7, 216({ctx})
-    ld s8, 224({ctx})
-    ld s9, 232({ctx})
-    ld s10, 240({ctx})
-    ld s11, 248({ctx})
-    ld t3, 256({ctx})
-    ld t4, 264({ctx})
-    ld t5, 272({ctx})
-    ld t6, 280({ctx})
+    ld ra, 40(a0)
+    ld sp, 48(a0)
+    ld gp, 56(a0)
+    ld tp, 64(a0)
+    ld t0, 72(a0)
+    ld t1, 80(a0)
+    ld t2, 88(a0)
+    ld s0, 96(a0)
+    ld s1, 104(a0)
+    ld a1, 120(a0)
+    ld a2, 128(a0)
+    ld a3, 136(a0)
+    ld a4, 144(a0)
+    ld a5, 152(a0)
+    ld a6, 160(a0)
+    ld a7, 168(a0)
+    ld s2, 176(a0)
+    ld s3, 184(a0)
+    ld s4, 192(a0)
+    ld s5, 200(a0)
+    ld s6, 208(a0)
+    ld s7, 216(a0)
+    ld s8, 224(a0)
+    ld s9, 232(a0)
+    ld s10, 240(a0)
+    ld s11, 248(a0)
+    ld t3, 256(a0)
+    ld t4, 264(a0)
+    ld t5, 272(a0)
+    ld t6, 280(a0)
     ",
     // 恢复用户的 a0 寄存器，并且保存交换栈顶在 sscratch 寄存器中
-    "csrrw a0, sscratch, a0", 
+    "csrrw a0, sscratch, a0",
     // 返回到用户态
     "sret",
-    ctx = in(reg) ctx,
-    satp = in(reg) satp,
     options(noreturn)
     )
 }
@@ -236,14 +236,18 @@ use crate::memory::{SWAP_FRAME_VA, SWAP_CONTEXT_VA};
 
 /// 上升到用户态
 /// 目前让这个函数接收一个 SwapContext 参数和用户的页表，测试使用
-pub fn switch_to_user(context: &SwapContext, satp: usize) -> ! {
+#[no_mangle]
+pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
     use riscv::register::{sstatus::{self, SPP}, stvec::{self, TrapMode}};
     // 关中断
     unsafe { sstatus::clear_sie(); }
     extern "C" {
         fn _swap_frame();
+        fn _supervisor_to_user();
     }
+    // 用户态发生中断时 pc 将会被设置成此值
     let user_trap_va = SWAP_FRAME_VA as usize;
+    // 该函数最后应该跳转的虚拟地址
     let jmp_va = supervisor_to_user as usize - _swap_frame as usize + SWAP_FRAME_VA;
     println!("jmp_va = {:#x}", jmp_va);
     
@@ -254,23 +258,38 @@ pub fn switch_to_user(context: &SwapContext, satp: usize) -> ! {
     unsafe { sstatus::set_spp(SPP::User); }
 
     // 将 SwapContext.epc 写到 sepc 寄存器
+    // 这个是用户程序入口
+    println!("sepc: {:#x}", context.epc);
     riscv::register::sepc::write(context.epc);
 
     // todo: 如何处理 tp 寄存器
         
     // 用户 satp 寄存器
     // 需要获取当前任务的页表
-    let user_satp: usize = satp;
+    print_satp(user_satp);
+    // riscv::register::satp::write(user_satp);
+    // unsafe {
+    //     asm!(
+    //         "fence.i",
+    //         "li     a0, {}",
+    //         "mv     a1, {}",
+    //         "jr     {}",
+    //         const SWAP_CONTEXT_VA,
+    //         in(reg) user_satp,
+    //         in(reg) jmp_va,
+    //         options(noreturn)
+    //     );
+    // }
+    // 上面这样写生产出的汇编好像不太对，因此改为下面这样写
     unsafe {
-        asm!(
-            "fence.i",
-            "li     a0, {}",
-            "mv     a1, {}",
-            "jr     {}",
-            const SWAP_CONTEXT_VA,
-            in(reg) user_satp,
-            in(reg) jmp_va,
-        );
+        llvm_asm!("fence.i" :::: "volatile");
+        llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(SWAP_CONTEXT_VA), "{a1}"(user_satp) :: "volatile");
     }
     unreachable!()
+}
+
+// 打印 satp 寄存器
+fn print_satp(satp: usize) {
+    use bit_field::BitField;
+    println!("root ppn: {:#x}", &satp.get_bits(0..44));
 }

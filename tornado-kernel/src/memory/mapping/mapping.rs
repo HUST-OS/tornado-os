@@ -1,6 +1,6 @@
-use crate::memory::{AddressSpaceId, PhysicalPageNumber, VirtualAddress, VirtualPageNumber, config::PAGE_SIZE, frame::FrameTracker, frame_alloc};
+use crate::memory::{AddressSpaceId, PhysicalPageNumber, PhysicalAddress, VirtualAddress, VirtualPageNumber, config::PAGE_SIZE, frame::FrameTracker, frame_alloc};
 use super::{Flags, MapType, Segment, page_table::{PageTable, PageTableTracker}, page_table_entry::PageTableEntry};
-use alloc::{collections::VecDeque, vec::Vec};
+use alloc::{collections::{VecDeque, binary_heap::IntoIter}, vec::Vec};
 use core::ops::Range;
 use core::ptr::slice_from_raw_parts_mut;
 
@@ -26,6 +26,7 @@ impl Mapping {
             mapped_pairs: VecDeque::new(),
         })
     }
+
     /// 软件找到虚拟页号对应最终的页表项。这个页表项合上偏移地址，就是物理地址了
     pub fn find_or_insert_entry(&mut self, vpn: VirtualPageNumber) -> Option<&mut PageTableEntry> {
         let root_table_pa = self.root_ppn.start_address();
@@ -75,7 +76,7 @@ impl Mapping {
         )
     }
     /// 插入一项虚拟页号对物理页号的映射关系，Some表示成功
-    fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
+    pub fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
         // 先找到页表项
         let entry_mut = self.find_or_insert_entry(vpn)?;
         // 要插入映射关系，页表项必须是空的
@@ -99,6 +100,30 @@ impl Mapping {
                 segment.flags,
                 init_data.map(|slice| (slice, segment.range.clone()))
             ),
+        }
+    }
+    /// 自由映射一个段
+    pub fn map_defined(
+        &mut self, va_range: &Range<VirtualAddress>, pa_range: &Range<PhysicalAddress>, flags: Flags
+    ) {
+        let vpn_range = range_vpn_contains_va(va_range.clone());
+        let ppn_range = range_vpn_contains_pa(pa_range.clone());
+        self.map_range(vpn_range, ppn_range, flags);
+    }
+    // 映射指定的虚拟页号和物理页号
+    // 不能指定初始数据
+    fn map_range(
+        &mut self,
+        vpn_range: Range<VirtualPageNumber>,
+        ppn_range: Range<PhysicalPageNumber>,
+        flags: Flags
+    ) {
+        let mut vpn_iter = vpn_step_iter(vpn_range);
+        let mut ppn_iter = ppn_step_iter(ppn_range);
+        assert_eq!(vpn_iter.len(), ppn_iter.len());
+        // todo: 这里应该味 (VpnRangeIter, VpnRangeIter) 实现迭代器
+        while let (Some(vpn), Some(ppn)) = (vpn_iter.next(), ppn_iter.next()) {
+            self.map_one(vpn, Some(ppn), flags);
         }
     }
     // 插入和映射线性的段
@@ -185,12 +210,22 @@ fn range_vpn_contains_va(src: Range<VirtualAddress>) -> Range<VirtualPageNumber>
     VirtualPageNumber::floor(src.start)..VirtualPageNumber::ceil(src.end)
 }
 
+fn range_vpn_contains_pa(src: Range<PhysicalAddress>) -> Range<PhysicalPageNumber> {
+    PhysicalPageNumber::floor(src.start)..PhysicalPageNumber::ceil(src.end)
+}
+
 // 一个虚拟页号段区间的迭代器
 struct VpnRangeIter {
     // 区间结束，不包含
     end_addr: usize,
     // 区间开始，包含
     current_addr: usize,
+}
+
+impl VpnRangeIter {
+    pub fn len(&self) -> usize {
+        self.end_addr - self.current_addr
+    }
 }
 
 impl Iterator for VpnRangeIter {
@@ -207,6 +242,34 @@ impl Iterator for VpnRangeIter {
     }
 }
 
+// 一个物理页号段区间的迭代器
+struct PpnRangeIter {
+    // 区间结束，不包含
+    end_addr: usize,
+    // 区间开始，包含
+    current_addr: usize,
+}
+
+impl PpnRangeIter {
+    pub fn len(&self) -> usize {
+        self.end_addr - self.current_addr
+    }
+}
+
+impl Iterator for PpnRangeIter {
+    type Item = PhysicalPageNumber;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_addr == self.end_addr {
+            return None;
+        }
+        // 这里只要右移12位即可，ceil和floor区别不大
+        let current_ppn = PhysicalPageNumber::ceil(PhysicalAddress(self.current_addr));
+        let next_addr = self.current_addr.wrapping_add(PAGE_SIZE);
+        self.current_addr = next_addr;
+        Some(current_ppn)
+    }
+}
+
 // 等到Step trait稳定之后，可以用trait Step的迭代器实现
 // 目前先自己实现迭代器
 fn vpn_step_iter(src: Range<VirtualPageNumber>) -> VpnRangeIter {
@@ -215,3 +278,27 @@ fn vpn_step_iter(src: Range<VirtualPageNumber>) -> VpnRangeIter {
         current_addr: src.start.start_address().0,
     }
 }
+
+fn ppn_step_iter(src: Range<PhysicalPageNumber>) -> PpnRangeIter {
+    PpnRangeIter {
+        end_addr: src.end.start_address().0,
+        current_addr: src.start.start_address().0,
+    }
+}
+
+// impl Iterator for (VpnRangeIter, PpnRangeIter) {
+//     type Item = (VirtualPageNumber, PhysicalPageNumber);
+//     // todo: 这里语法应该更严格一点
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.0.current_addr == self.0.end_addr || self.1.current_addr == self.1.end_addr {
+//             return None;
+//         }
+//         let current_vpn = VirtualPageNumber::ceil(VirtualAddress(self.0.current_addr));
+//         let next_va = self.0.current_addr.wrapping_add(PAGE_SIZE);
+//         self.0.current_addr = next_va;
+//         let current_ppn = PhysicalPageNumber::ceil(PhysicalAddress(self.1.current_addr));
+//         let next_pa = self.1.current_addr.wrapping_add(PAGE_SIZE);
+//         self.1.current_addr = next_pa;
+//         Some(current_vpn, current_ppn)
+//     }
+// }
