@@ -249,7 +249,7 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
     let user_trap_va = SWAP_FRAME_VA as usize;
     // 该函数最后应该跳转的虚拟地址
     let jmp_va = supervisor_to_user as usize - _swap_frame as usize + SWAP_FRAME_VA;
-    println!("jmp_va = {:#x}", jmp_va);
+    // println!("jmp_va = {:#x}", jmp_va);
     
     // 设置用户态陷入内核时需要跳转的地址
     unsafe { stvec::write(user_trap_va, TrapMode::Direct); }
@@ -259,15 +259,11 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
 
     // 将 SwapContext.epc 写到 sepc 寄存器
     // 这个是用户程序入口
-    println!("sepc: {:#x}", context.epc);
+    // println!("sepc: {:#x}", context.epc);
     riscv::register::sepc::write(context.epc);
 
     // todo: 如何处理 tp 寄存器
         
-    // 用户 satp 寄存器
-    // 需要获取当前任务的页表
-    print_satp(user_satp);
-    // riscv::register::satp::write(user_satp);
     // unsafe {
     //     asm!(
     //         "fence.i",
@@ -289,6 +285,7 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
 }
 
 // 打印 satp 寄存器
+#[allow(unused)]
 fn print_satp(satp: usize) {
     use bit_field::BitField;
     println!("root ppn: {:#x}", &satp.get_bits(0..44));

@@ -57,42 +57,42 @@ impl MemorySet {
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_stext as usize)..VirtualAddress(_swap_frame as usize),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
+                flags: Flags::READABLE | Flags::EXECUTABLE
             },
             // .rodata 段，r--
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
+                flags: Flags::READABLE
             },
             // .data 段，rw-
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
+                flags: Flags::READABLE | Flags::WRITABLE
             },
             // .bss 段，rw-
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
+                flags: Flags::READABLE | Flags::WRITABLE
             },
             // 共享段的内核映射部分
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE
+                flags: Flags::READABLE | Flags::WRITABLE
             },
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE
+                flags: Flags::EXECUTABLE // 没有READABLE
             },
             // 用户段映射部分
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_suser_data as usize)..VirtualAddress(_euser_data as usize),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE
+                flags: Flags::READABLE | Flags::WRITABLE
             },
             Segment {
                 map_type: MapType::Linear,
@@ -103,7 +103,7 @@ impl MemorySet {
             Segment {
                 map_type: MapType::Linear,
                 range: *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear(),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
+                flags: Flags::READABLE | Flags::WRITABLE,
             },
         ];
         let mut mapping = Mapping::new_alloc()?;
@@ -166,7 +166,7 @@ impl MemorySet {
         mapping.map_segment(&Segment {
             map_type: MapType::Framed,
             range: swap_cx_va..swap_cx_va + PAGE_SIZE,
-            flags: Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE,
+            flags: Flags::READABLE | Flags::WRITABLE,
         }, None)?;
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New asid = {:?}", address_space_id);
