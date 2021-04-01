@@ -33,10 +33,12 @@ impl MemorySet {
             fn _eshared_data();
             fn _sshared_text();
             fn _eshared_text();
+            /* 暂时使用，等文件系统完工后移除 */
             fn _suser_data();
             fn _euser_data();
             fn _suser_text();
             fn _euser_text();
+            /* 以上在文件系统完工后移除 */
             fn _swap_frame();
         }
         
@@ -89,6 +91,7 @@ impl MemorySet {
                 flags: Flags::EXECUTABLE // 没有READABLE
             },
             // 用户段映射部分
+            /* 暂时使用，等文件系统完工后移除 */
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_suser_data as usize)..VirtualAddress(_euser_data as usize),
@@ -232,7 +235,7 @@ impl MemorySet {
     /// 如果当前页表就是自身，则不会替换，但仍然会刷新 TLB。
     pub fn activate(&self) {
         println!("Activating memory set in asid {:?}", self.address_space_id);
-        self.mapping.activate(self.address_space_id)
+        self.mapping.activate_on(self.address_space_id)
     }
 
 }

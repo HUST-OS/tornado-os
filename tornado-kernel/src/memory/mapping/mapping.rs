@@ -1,6 +1,6 @@
 use crate::memory::{AddressSpaceId, PhysicalPageNumber, PhysicalAddress, VirtualAddress, VirtualPageNumber, config::PAGE_SIZE, frame::FrameTracker, frame_alloc};
 use super::{Flags, MapType, Segment, page_table::{PageTable, PageTableTracker}, page_table_entry::PageTableEntry};
-use alloc::{collections::{VecDeque, binary_heap::IntoIter}, vec::Vec};
+use alloc::{collections::VecDeque, vec::Vec};
 use core::ops::Range;
 use core::ptr::slice_from_raw_parts_mut;
 
@@ -121,7 +121,8 @@ impl Mapping {
         let mut vpn_iter = vpn_step_iter(vpn_range);
         let mut ppn_iter = ppn_step_iter(ppn_range);
         assert_eq!(vpn_iter.len(), ppn_iter.len());
-        // todo: 这里应该味 (VpnRangeIter, VpnRangeIter) 实现迭代器
+        // todo: 这里应该为 (VpnRangeIter, VpnRangeIter) 实现迭代器
+        // 不对，这语义太复杂，可能两个区间不相同，这样就会出现问题--luojia65
         while let (Some(vpn), Some(ppn)) = (vpn_iter.next(), ppn_iter.next()) {
             self.map_one(vpn, Some(ppn), flags);
         }
@@ -176,7 +177,7 @@ impl Mapping {
         Some(allocated_pairs) // todo!
     }
     /// 把当前的映射保存到satp寄存器
-    pub fn activate(&self, asid: AddressSpaceId) {
+    pub fn activate_on(&self, asid: AddressSpaceId) {
         use riscv::register::satp::{self, Mode};
         let asid = asid.into_inner();
         unsafe {
@@ -286,6 +287,7 @@ fn ppn_step_iter(src: Range<PhysicalPageNumber>) -> PpnRangeIter {
     }
 }
 
+// 我觉得应当换一种方式，而不是用这种迭代方法 --luojia65
 // impl Iterator for (VpnRangeIter, PpnRangeIter) {
 //     type Item = (VirtualPageNumber, PhysicalPageNumber);
 //     // todo: 这里语法应该更严格一点

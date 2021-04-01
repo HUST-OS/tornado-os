@@ -42,9 +42,9 @@ pub fn try_enter_user() -> ! {
     // for code in read_user_va {
     //     println!("{:#x}", &code);
     // }
-    let process = task::Process::new(user_memory).unwrap();
     // 获取用户的satp寄存器
-    let user_satp = process.satp();
+    let user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
+    let process = task::Process::new(user_memory).unwrap();
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 

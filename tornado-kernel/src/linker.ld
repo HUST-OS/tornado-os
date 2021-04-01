@@ -55,12 +55,13 @@ SECTIONS
         _eshared_text = .;
     }
 
+    /* 暂时使用，等文件系统完工后移除 */
     .user_data : ALIGN(4K) {
         _suser_data = .;
         *(.user_data .user_data.*)
         _euser_data = .;
     }
-
+    /* 暂时使用，等文件系统完工后移除 */
     .user_text : ALIGN(4K) {
         _suser_text = .;
         *(.user_text .user_text.*)

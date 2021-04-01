@@ -45,7 +45,7 @@ impl Process {
     // pub fn process_id(&self) -> ProcessId {
     //     self.id
     // }
-    /// 得到进程对应的地址空间编号
+    /// 得到进程*所在*的地址空间编号。进程不*对应*地址空间编号
     pub fn address_space_id(&self) -> AddressSpaceId {
         self.inner.lock().memory_set.address_space_id
     }
@@ -58,11 +58,8 @@ impl Process {
         flags |= Flags::VALID;
         self.inner.lock().memory_set.alloc_page_range(STACK_SIZE, flags)
     }
-    /// 得到进程对应的satp寄存器值
-    pub fn satp(&self) -> usize {
-        let asid = self.inner.lock().memory_set.address_space_id;
-        self.inner.lock().memory_set.mapping.get_satp(asid)
-    }
+
+    // 进程和satp值没有一一对应关系，地址空间对应satp值
 }
 
 /// 进程的编号
