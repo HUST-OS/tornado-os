@@ -17,6 +17,7 @@ mod trap;
 mod memory;
 mod task;
 mod hart;
+mod user;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -103,45 +104,48 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // 这之后就可以分配地址空间了，这之前只能用内核的地址空间
 
     println!("Current hart: {}", hart::KernelHartInfo::hart_id());
-
+    
     // todo: 这里要有个地方往tp里写东西，目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
+    kernel_memory.activate();
     let process = task::Process::new(kernel_memory).expect("create process 1");
-    // let stack_handle = process.alloc_stack().expect("alloc initial stack");
+    let _stack_handle = process.alloc_stack().expect("alloc initial stack");
+    // 尝试进入用户态
+    user::try_enter_user()
 
-    let task_1 = task::KernelTask::new(task_1(), process.clone());
-    let task_2 = task::KernelTask::new(task_2(), process.clone());
-    let task_3 = task::KernelTask::new(FibonacciFuture::new(5), process);
+    // let task_1 = task::KernelTask::new(task_1(), process.clone());
+    // let task_2 = task::KernelTask::new(task_2(), process.clone());
+    // let task_3 = task::KernelTask::new(FibonacciFuture::new(5), process);
     
-    println!("task_1: {:?}", task_1);
-    println!("task_2: {:?}", task_2);
-    println!("task_3: {:?}", task_3);
+    // println!("task_1: {:?}", task_1);
+    // println!("task_2: {:?}", task_2);
+    // println!("task_3: {:?}", task_3);
 
-    let shared_scheduler = task::shared_scheduler();
-    println!("Shared scheduler: {:?}", shared_scheduler);
+    // let shared_scheduler = task::shared_scheduler();
+    // println!("Shared scheduler: {:?}", shared_scheduler);
 
-    let user_1_memory = memory::MemorySet::new_user().expect("create user 1 memory set");
-    let process_2 = task::Process::new(user_1_memory).expect("create process 2");
-    let task_4 = task::user_task::UserTask::new(user_task_1(), process_2);
-    unsafe { 
-        task::shared_add_task(shared_scheduler, task_4.shared_task_handle()); // 用户任务
-        task::shared_add_task(shared_scheduler, task_3.shared_task_handle());
-        task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
-    }
-    unsafe { 
-        riscv::register::sscratch::write(0); // todo 寄存器sscratch
-        riscv::register::sstatus::set_sie()   // todo 允许被特权级中断打断
-    };
+    // let user_1_memory = memory::MemorySet::new_user().expect("create user 1 memory set");
+    // let process_2 = task::Process::new(user_1_memory).expect("create process 2");
+    // let task_4 = task::user_task::UserTask::new(user_task_1(), process_2);
+    // unsafe { 
+    //     task::shared_add_task(shared_scheduler, task_4.shared_task_handle()); // 用户任务
+    //     task::shared_add_task(shared_scheduler, task_3.shared_task_handle());
+    //     task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
+    // }
+    // unsafe { 
+    //     riscv::register::sscratch::write(0); // todo 寄存器sscratch
+    //     riscv::register::sstatus::set_sie()   // todo 允许被特权级中断打断
+    // };
 
-    task::run_until_idle(
-        || unsafe { task::shared_pop_task(shared_scheduler) },
-        |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }
-    );
+    // task::run_until_idle(
+    //     || unsafe { task::shared_pop_task(shared_scheduler) },
+    //     |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }
+    // );
 
-    // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
-    unsafe { hart::KernelHartInfo::unload_hart() };
-    // 没有任务了，关机
-    sbi::shutdown()
+    // // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
+    // unsafe { hart::KernelHartInfo::unload_hart() };
+    // // 没有任务了，关机
+    // sbi::shutdown()
 }
 
 fn spawn(future: impl Future<Output = ()> + 'static + Send + Sync) {
@@ -189,6 +193,7 @@ use core::future::Future;
 use core::task::{Context, Poll};
 use core::pin::Pin;
 
+
 impl Future for FibonacciFuture {
     type Output = ();
 
@@ -206,8 +211,4 @@ impl Future for FibonacciFuture {
             Poll::Pending
         }
     }
-}
-
-fn try_enter_user() -> ! {
-    todo!()
 }

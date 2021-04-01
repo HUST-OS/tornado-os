@@ -2,6 +2,7 @@ use crate::memory::{PhysicalAddress, PhysicalPageNumber};
 use bit_field::BitField;
 
 #[derive(Copy, Clone, Default)]
+#[repr(C)]
 pub struct PageTableEntry(usize);
 
 const FLAG_RANGE: core::ops::Range<usize> = 0..8;
