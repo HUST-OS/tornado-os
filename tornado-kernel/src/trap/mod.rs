@@ -1,18 +1,3 @@
-mod handler;
-mod timer;
-
-pub use handler::TrapFrame;
-
-/// 初始化中断相关的子模块
-/// 
-/// - [`handler::init`]
-/// - [`timer::init`]
-pub fn init() {
-    handler::init();
-    timer::init();
-    println!("mod interrupt initialized");
-}
-
 #[cfg(target_pointer_width = "64")]
 macro_rules! define_load_store {
     () => {
@@ -30,6 +15,21 @@ macro_rules! define_load_store {
             LOAD  x\\n, \\n
         .endm"
     };
+}
+
+mod handler;
+mod timer;
+
+pub use handler::TrapFrame;
+
+/// 初始化中断相关的子模块
+/// 
+/// - [`handler::init`]
+/// - [`timer::init`]
+pub fn init() {
+    handler::init();
+    timer::init();
+    println!("mod interrupt initialized");
 }
 
 // 这个函数里不包含写satp的过程，需要别的函数先写satp和刷新页表
