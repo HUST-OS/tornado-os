@@ -1,6 +1,6 @@
 /// 临时的用户态程序和数据
 
-use crate::memory;
+use crate::memory::{self, PAGE_SIZE};
 use crate::trap;
 use crate::task;
 
@@ -51,7 +51,7 @@ pub fn try_enter_user() -> ! {
     // 往 SwapContext 写东西
     // _test_user_entry 由虚拟地址 0 映射到真实物理地址
     *swap_cx = trap::SwapContext::new_to_user(
-        kernel_satp, 0, 0, 0, 0, _test_user_trap as usize);
+        kernel_satp, 0, 0, 0, memory::USER_STACK_BOTTOM_VA + PAGE_SIZE - 4, _test_user_trap as usize);
     // println!("swap_cx.epc: {:#x}", swap_cx.epc);
     // println!("swap_cx.trap_handler: {:#x}", swap_cx.user_trap_handler);
     trap::switch_to_user(swap_cx, user_satp)
@@ -70,3 +70,8 @@ pub extern "C" fn test_user_trap() {
 pub extern "C" fn test_user_entry() {
     loop {}
 }
+
+// 用户态栈
+#[export_name = "_user_stack_bottom"]
+#[link_section = ".user_data"]
+static _USER_STACK: [usize; PAGE_SIZE / 8] = [1; PAGE_SIZE / 8];

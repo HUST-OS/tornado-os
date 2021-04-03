@@ -36,6 +36,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         fn _swap_frame();
         fn _user_to_supervisor();
         fn _supervisor_to_user();
+        fn _user_stack_bottom();
     }
 
     unsafe { 
@@ -90,6 +91,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("_swap_frame: {:#x}", _swap_frame as usize);
     println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
     println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
+    println!("_user_stack_bottom: {:#x}", _user_stack_bottom as usize);
 
     // let executor = task::Executor::default();
 

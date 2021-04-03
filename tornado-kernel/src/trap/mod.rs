@@ -81,7 +81,7 @@ impl SwapContext {
         kernel_satp: usize,
         user_entry: usize, // 将会被写到 sepc, sret 的时候会读取这个值
         tp: usize, // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
-        kernel_stack: usize, // 内核态指针
+        kernel_stack: usize, // 内核栈指针
         user_stack: usize, // 用户栈指针
         // 将会被写到 stvec 寄存器中返回到用户态
         // 用户态发生 Trap 时将会进入的处理函数
@@ -99,7 +99,7 @@ impl SwapContext {
         swap_context
     }
     pub fn set_sp(&mut self, sp: usize) -> &mut Self{
-        self.x[2] = sp;
+        self.x[1] = sp;
         self
     }
 }

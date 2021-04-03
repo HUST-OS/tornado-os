@@ -1,4 +1,4 @@
-use crate::memory::{KERNEL_MAP_OFFSET, PhysicalPageNumber, SWAP_CONTEXT_VA, config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA}};
+use crate::memory::{KERNEL_MAP_OFFSET, PhysicalPageNumber, SWAP_CONTEXT_VA, config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA, USER_STACK_BOTTOM_VA}};
 use crate::memory::{Mapping, MapType, Segment, Flags, VirtualAddress, VirtualPageNumber, PhysicalAddress, FrameTracker, AddressSpaceId};
 use alloc::vec::Vec;
 use core::ops::Range;
@@ -151,11 +151,18 @@ impl MemorySet {
         
         let mut mapping = Mapping::new_alloc()?;
         let allocated_pairs = Vec::new();
-        // 暂时不映射 .user_data 段，映射 .user_text 段
+        // 映射 .user_text 段
         let user_text_len = _euser_text as usize - _suser_text as usize;
         let va_range = VirtualAddress(0)..VirtualAddress(user_text_len);
         let pa_range = PhysicalAddress((_suser_text as usize).wrapping_sub(KERNEL_MAP_OFFSET))..PhysicalAddress((_euser_text as usize).wrapping_sub(KERNEL_MAP_OFFSET));
         mapping.map_defined(&va_range, &pa_range, Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE | Flags::USER);
+        
+        // 映射 .user_data 段，目前这里作为用户态的栈使用
+        let user_stack_len = _euser_data as usize - _suser_data as usize;
+        assert_eq!(user_stack_len, PAGE_SIZE);
+        let va_range = VirtualAddress(USER_STACK_BOTTOM_VA)..VirtualAddress(USER_STACK_BOTTOM_VA + user_stack_len);
+        let pa_range = PhysicalAddress((_suser_data as usize).wrapping_sub(KERNEL_MAP_OFFSET))..PhysicalAddress((_euser_data as usize).wrapping_sub(KERNEL_MAP_OFFSET));
+        mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::USER);
         
         // 映射 _swap_frame
         let swap_frame_va = VirtualAddress(SWAP_FRAME_VA);
