@@ -1,5 +1,3 @@
-use core::borrow::BorrowMut;
-
 /// 临时的用户态程序和数据
 
 use crate::memory::{self, PAGE_SIZE, MemorySet};
