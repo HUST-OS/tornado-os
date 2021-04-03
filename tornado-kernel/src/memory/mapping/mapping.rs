@@ -1,6 +1,7 @@
 use crate::memory::{AddressSpaceId, PhysicalPageNumber, PhysicalAddress, VirtualAddress, VirtualPageNumber, config::PAGE_SIZE, frame::FrameTracker, frame_alloc};
 use super::{Flags, MapType, Segment, page_table::{PageTable, PageTableTracker}, page_table_entry::PageTableEntry};
 use alloc::{collections::VecDeque, vec::Vec};
+use bit_field::BitField;
 use core::ops::Range;
 use core::ptr::slice_from_raw_parts_mut;
 
@@ -51,6 +52,7 @@ impl Mapping {
         // 解引用结束，entry位于最后一级页表
         Some(entry)
     }
+
     /// 找到虚拟页号对应的页表项，如果不存在则返回 None
     pub fn find_pte(&self, vpn: VirtualPageNumber) -> Option<&mut PageTableEntry> {
         let root_table_pa = self.root_ppn.start_address();

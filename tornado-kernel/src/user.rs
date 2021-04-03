@@ -1,11 +1,13 @@
+use core::borrow::BorrowMut;
+
 /// 临时的用户态程序和数据
 
-use crate::memory::{self, PAGE_SIZE};
+use crate::memory::{self, PAGE_SIZE, MemorySet};
 use crate::trap;
 use crate::task;
 
 // 尝试进入用户态
-pub fn try_enter_user() -> ! {
+pub fn try_enter_user(kernel_stack_top: usize) -> ! {
     extern {
         // 用户陷入内核时候的中断处理函数
         fn _test_user_trap();
@@ -16,6 +18,7 @@ pub fn try_enter_user() -> ! {
    
     // 创建一个用户态映射
     let user_memory = memory::MemorySet::new_user().unwrap();
+    
     // 存放用户特权级切换上下文的虚拟地址
     let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
     // 存放用户特权级切换上下文的虚拟页号
@@ -37,21 +40,21 @@ pub fn try_enter_user() -> ! {
         .unwrap()
         .page_number();
     println!("user_entry_ppn: {:x?}", user_entry_ppn);
-    // let read_user_va: &mut [u16; 2] = unsafe {user_entry_ppn.start_address().deref_linear_static() };
-    // println!("code in user text:");
-    // for code in read_user_va {
-    //     println!("{:#x}", &code);
-    // }
     // 获取用户的satp寄存器
     let user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
-    let process = task::Process::new(user_memory).unwrap();
+    let process = task::Process::new_user(user_memory).unwrap();
+    // 用户态栈
+    let user_stack_handle = process.alloc_stack().expect("alloc user stack");
+    // 这里减 4 是因为映射的时候虚拟地址的右半边是不包含的
+    let user_stack_top = user_stack_handle.end.0 - 4;
+    println!("kernel stack top: {:#x}, user stack top: {:#x}", kernel_stack_top, user_stack_top);
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 
     // 往 SwapContext 写东西
     // _test_user_entry 由虚拟地址 0 映射到真实物理地址
     *swap_cx = trap::SwapContext::new_to_user(
-        kernel_satp, 0, 0, 0, memory::USER_STACK_BOTTOM_VA + PAGE_SIZE - 4, _test_user_trap as usize);
+        kernel_satp, 0, 0, kernel_stack_top, user_stack_top, _test_user_trap as usize);
     // println!("swap_cx.epc: {:#x}", swap_cx.epc);
     // println!("swap_cx.trap_handler: {:#x}", swap_cx.user_trap_handler);
     trap::switch_to_user(swap_cx, user_satp)
@@ -71,7 +74,7 @@ pub extern "C" fn test_user_entry() {
     loop {}
 }
 
-// 用户态栈
-#[export_name = "_user_stack_bottom"]
+// 用户态数据，这里是为了占位
+#[export_name = "_user_data"]
 #[link_section = ".user_data"]
 static _USER_STACK: [usize; PAGE_SIZE / 8] = [1; PAGE_SIZE / 8];
