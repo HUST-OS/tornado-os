@@ -138,7 +138,7 @@ impl MemorySet {
         println!("Kernel new asid = {:?}", address_space_id);
         Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
     }    
-    /// 创建一个用户进程
+    /// 创建一个用户态映射
     pub fn new_user() -> Option<MemorySet> { 
         // 各个字段的起始和结束点，在链接器脚本中给出
         extern "C" {
@@ -223,6 +223,38 @@ impl MemorySet {
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New asid = {:?}", address_space_id);
         // 这里暂时不管 segment 字段
+        Some(MemorySet { mapping, segments: Vec::new(), allocated_pairs, address_space_id })
+    }
+    /// 通过一个 bin 文件创建用户态映射
+    /// 
+    /// 目前该用户 bin 文件在 qemu 中的位置写死为 0x87000000
+    pub fn new_bin() -> Option<MemorySet> {
+        extern "C" {
+            fn _swap_frame();
+        }
+        let mut mapping = Mapping::new_alloc()?;
+        let allocated_pairs = Vec::new();
+        
+        let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE);
+        let pa_range = PhysicalAddress(0x87000000)..PhysicalAddress(0x87000000 + PAGE_SIZE);
+        mapping.map_defined(&va_range, &pa_range, Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE | Flags::USER);
+        
+        // 映射 _swap_frame
+        let swap_frame_va = VirtualAddress(SWAP_FRAME_VA);
+        let swap_frame_vpn = VirtualPageNumber::floor(swap_frame_va);
+        let swap_frame_pa = VirtualAddress(_swap_frame as usize).physical_address_linear();
+        let swap_frame_ppn = PhysicalPageNumber::floor(swap_frame_pa);
+        mapping.map_one(swap_frame_vpn, Some(swap_frame_ppn), Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE);
+
+        // 映射 SwapContext
+        let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
+        mapping.map_segment(&Segment {
+            map_type: MapType::Framed,
+            range: swap_cx_va..swap_cx_va + PAGE_SIZE,
+            flags: Flags::READABLE | Flags::WRITABLE,
+        }, None)?;
+        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
+        println!("New asid = {:?}", address_space_id);
         Some(MemorySet { mapping, segments: Vec::new(), allocated_pairs, address_space_id })
     }
     /// 检测一段内存区域和已有的是否存在重叠区域

@@ -14,10 +14,11 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
         // 用户程序入口点
         fn _test_user_entry();
     }
-    println!("_test_user_trap: {:#x}, _test_user_entry: {:#x}", _test_user_trap as usize, _test_user_entry as usize);
+    // println!("_test_user_trap: {:#x}, _test_user_entry: {:#x}", _test_user_trap as usize, _test_user_entry as usize);
    
     // 创建一个用户态映射
-    let user_memory = memory::MemorySet::new_user().unwrap();
+    // 用户态程序目前写死在 0x87000000 处
+    let user_memory = memory::MemorySet::new_bin().unwrap();
     
     // 存放用户特权级切换上下文的虚拟地址
     let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
