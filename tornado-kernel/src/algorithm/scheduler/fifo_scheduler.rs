@@ -9,7 +9,7 @@ pub struct FifoScheduler<T> {
 
 impl<T> FifoScheduler<T> {
     /// 创建一个空的调度器
-    #[allow(unused)]
+    
     pub const fn new() -> Self {
         Self {
             pool: LinkedList::new(),

@@ -17,6 +17,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use super::SharedTaskHandle;
 
 /// 临时的用户态任务实现
+
 pub struct UserTask {
     /// 任务的编号
     pub id: UserTaskId,
@@ -43,6 +44,7 @@ pub struct UserTaskInner {
 pub struct UserTaskId(usize);
 
 impl UserTaskId {
+    
     pub(crate) fn generate() -> UserTaskId {
         // 任务编号计数器，任务编号自增
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -57,6 +59,7 @@ impl UserTaskId {
 
 impl UserTask {
     /// 创建一个用户态任务
+    
     pub fn new(
         future: impl Future<Output = ()> + 'static + Send + Sync,
         process: Arc<Process>
@@ -79,12 +82,14 @@ impl UserTask {
     }
 
     /// 给用户态任务分配一个栈
+    
     pub fn set_user_stack(&mut self, stack: Range<VirtualAddress>) {
         self.inner.lock().stack = Some(stack);
     }
 
     /// 转换到共享的任务编号
     /// 危险：创建了一个没有边界的生命周期
+    
     pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
         SharedTaskHandle {
             hart_id: KernelHartInfo::hart_id(), 

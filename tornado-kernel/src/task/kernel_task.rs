@@ -28,6 +28,7 @@ pub struct KernelTask {
 pub struct TaskId(usize);
 
 impl TaskId {
+    
     pub(crate) fn generate() -> TaskId {
         // 任务编号计数器，任务编号自增
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -54,6 +55,7 @@ pub struct TaskInner {
 
 impl KernelTask {
     /// 创建一个任务，将会复用执行器的栈
+    
     pub fn new(
         future: impl Future<Output = ()> + 'static + Send + Sync,
         process: Arc<Process>,
@@ -76,6 +78,7 @@ impl KernelTask {
     /// 转换到共享的任务编号
     ///
     /// note(unsafe): 创建了一个没有边界的生命周期
+    
     pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
         SharedTaskHandle {
             hart_id: KernelHartInfo::hart_id(),

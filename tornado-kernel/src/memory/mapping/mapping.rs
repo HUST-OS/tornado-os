@@ -149,7 +149,7 @@ impl Mapping {
     fn map_range_framed(
         &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
     ) -> Option<Vec<(VirtualPageNumber, FrameTracker)>> {
-        let mut allocated_pairs = Vec::new();
+        let mut _allocated_pairs = Vec::new();
         for vpn in vpn_step_iter(vpn_range) {
             // 新页面的内容
             let mut page_data = [0u8; PAGE_SIZE];
@@ -177,7 +177,7 @@ impl Mapping {
             // 保存帧跟踪器，否则会被释放
             self.mapped_pairs.push_back((vpn, frame));
         }
-        Some(allocated_pairs) // todo!
+        Some(_allocated_pairs) // todo!
     }
     /// 把当前的映射保存到satp寄存器
     pub fn activate_on(&self, asid: AddressSpaceId) {
@@ -196,7 +196,6 @@ impl Mapping {
         // 44..60 asid
         // 0..44 ppn
         use riscv::register::satp::Mode;
-        use bit_field::BitField;
         let mut bits = 0usize;
         bits.set_bits(60..64, Mode::Sv39 as usize);
         bits.set_bits(44..60, asid.into_inner());

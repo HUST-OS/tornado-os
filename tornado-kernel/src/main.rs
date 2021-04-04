@@ -4,7 +4,6 @@
 #![feature(drain_filter)]
 #![feature(maybe_uninit_uninit_array, maybe_uninit_ref)]
 #![feature(naked_functions)]
-
 #[macro_use]
 extern crate alloc;
 
@@ -186,6 +185,7 @@ struct FibonacciFuture {
 }
 
 impl FibonacciFuture {
+    
     fn new(cnt: usize) -> FibonacciFuture {
         FibonacciFuture { a: 0, b: 1, i: 0, cnt }
     }

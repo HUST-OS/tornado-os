@@ -2,7 +2,7 @@ use riscv::register::scause::{self, Trap, Interrupt};
 use riscv::register::sepc;
 /// 临时的用户态程序和数据
 
-use crate::memory::{self, PAGE_SIZE, MemorySet};
+use crate::memory::{self, PAGE_SIZE};
 use crate::trap;
 use crate::task;
 

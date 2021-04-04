@@ -18,6 +18,7 @@ impl ContextTable {
     }
 
     #[inline]
+    
     pub fn remove(&mut self, handle: SharedTaskHandle) -> Option<TrapFrame> {
         self.inner.remove(&handle)
     }
