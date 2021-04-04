@@ -21,7 +21,7 @@ build:
 build-user:
     @just -f "tornado-user/justfile" build
     
-qemu: build
+qemu: build build-user
     @qemu-system-riscv64 \
             -machine virt \
             -nographic \
