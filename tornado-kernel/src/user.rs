@@ -1,3 +1,5 @@
+use riscv::register::scause::{self, Trap, Interrupt};
+use riscv::register::sepc;
 /// 临时的用户态程序和数据
 
 use crate::memory::{self, PAGE_SIZE, MemorySet};
@@ -61,14 +63,22 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
 // 测试用的中断处理函数，用户态发生中断会陷入到这里
 #[export_name = "_test_user_trap"]
 pub extern "C" fn test_user_trap() {
-    println!("trap from user");
-    loop {}
+    match scause::read().cause() {
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            println!("s mode timer!");
+            // 目前遇到时钟中断先让系统退出，等把内核进程队列完善好了再来处理
+            crate::sbi::shutdown();
+        },
+        _ => todo!("scause: {:?}, sepc: {:#x}", scause::read().cause(), sepc::read())
+    }
 }
 
 // 测试用的用户程序入口
 #[export_name = "_test_user_entry"]
 #[link_section = ".user_text"]
 pub extern "C" fn test_user_entry() {
+    let mut data = [0usize; 500];
+    data.iter_mut().for_each(|i| *i += 1);
     loop {}
 }
 

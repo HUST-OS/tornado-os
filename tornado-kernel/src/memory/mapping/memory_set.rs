@@ -126,12 +126,12 @@ impl MemorySet {
         println!("swap_frame_vpn: {:x?}, swap_frame_ppn: {:x?}", swap_frame_vpn, swap_frame_ppn);
         mapping.map_one(swap_frame_vpn, Some(swap_frame_ppn), Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE)?;
 
-        // // 映射 SwapContext
+        // 映射 SwapContext
         // let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
         // mapping.map_segment(&Segment {
-        //     map_type: MapType::Linear,
+        //     map_type: MapType::Framed,
         //     range: swap_cx_va..swap_cx_va + PAGE_SIZE,
-        //     flags: Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE,
+        //     flags: Flags::READABLE | Flags::WRITABLE,
         // }, None)?;
         
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
@@ -142,6 +142,14 @@ impl MemorySet {
     pub fn new_user() -> Option<MemorySet> { 
         // 各个字段的起始和结束点，在链接器脚本中给出
         extern "C" {
+            fn _stext();
+            fn _etext();
+            fn _srodata();
+            fn _erodata();
+            fn _sdata();
+            fn _edata();
+            fn _sbss();
+            fn _ebss();
             fn _suser_text();
             fn _euser_text();
             fn _suser_data();
@@ -151,6 +159,38 @@ impl MemorySet {
         
         let mut mapping = Mapping::new_alloc()?;
         let allocated_pairs = Vec::new();
+
+        let segments = vec![
+            // .text 段，r-x
+            Segment {
+                map_type: MapType::Linear,
+                range: VirtualAddress(_stext as usize)..VirtualAddress(_swap_frame as usize),
+                flags: Flags::READABLE | Flags::EXECUTABLE
+            },
+            // .rodata 段，r--
+            Segment {
+                map_type: MapType::Linear,
+                range: VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize),
+                flags: Flags::READABLE
+            },
+            // .data 段，rw-
+            Segment {
+                map_type: MapType::Linear,
+                range: VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize),
+                flags: Flags::READABLE | Flags::WRITABLE
+            },
+            // .bss 段，rw-
+            Segment {
+                map_type: MapType::Linear,
+                range: VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize),
+                flags: Flags::READABLE | Flags::WRITABLE
+            },
+        ];
+        // 映射这些段是为了用户态可以使用 Rust 语言项的一些东西
+        for segment in segments.iter() {
+            mapping.map_segment(segment, None)?;
+        }
+
         // 映射 .user_text 段
         let user_text_len = _euser_text as usize - _suser_text as usize;
         let va_range = VirtualAddress(0)..VirtualAddress(user_text_len);

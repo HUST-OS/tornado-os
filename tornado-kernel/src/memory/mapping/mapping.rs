@@ -125,6 +125,7 @@ impl Mapping {
         assert_eq!(vpn_iter.len(), ppn_iter.len());
         // todo: 这里应该为 (VpnRangeIter, VpnRangeIter) 实现迭代器
         // 不对，这语义太复杂，可能两个区间不相同，这样就会出现问题--luojia65
+        // 收到，这里后续会进一步考虑如何修改--hustccc
         while let (Some(vpn), Some(ppn)) = (vpn_iter.next(), ppn_iter.next()) {
             self.map_one(vpn, Some(ppn), flags);
         }
