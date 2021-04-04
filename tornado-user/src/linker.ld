@@ -8,36 +8,23 @@ SECTIONS
 
     user_start = .;
 
-    .text : ALIGN(4K) {
-        _stext = .;
+    .text : {
         *(.text.entry)
         *(.text .text.*)
-        . = ALIGN(4K);
-        _etext = .;
     }
-
-    .rodata : ALIGN(4K) {
-        _srodata = .;
+    . = ALIGN(4K);
+    .rodata : {
         *(.rodata .rodata.*)
-        _erodata = .;
     }
-
-    .data : ALIGN(4K) {
-        _sidata = LOADADDR(.data);
-        _sdata = .;
-        PROVIDE(__global_pointer$ = . + 0x800);
-        *(.sdata .sdata.* .sdata2 .sdata2.*);
+    . = ALIGN(4K);
+    .data : {
         *(.data .data.*)
-        _edata = .;
     }
-
-    .bss (NOLOAD) : ALIGN(4K)  {
-        _sbss = .;
-        *(.sbss .bss .bss.*)
-        _ebss = .;
+    .bss : {
+        *(.bss .bss.*)
     }
-
     /DISCARD/ : {
         *(.eh_frame)
+        *(.debug*)
     }
 }

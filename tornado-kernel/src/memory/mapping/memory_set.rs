@@ -235,8 +235,8 @@ impl MemorySet {
         let mut mapping = Mapping::new_alloc()?;
         let allocated_pairs = Vec::new();
         
-        let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE);
-        let pa_range = PhysicalAddress(0x87000000)..PhysicalAddress(0x87000000 + PAGE_SIZE);
+        let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE * 20);
+        let pa_range = PhysicalAddress(0x87000000)..PhysicalAddress(0x87000000 + PAGE_SIZE * 20);
         mapping.map_defined(&va_range, &pa_range, Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE | Flags::USER);
         
         // 映射 _swap_frame

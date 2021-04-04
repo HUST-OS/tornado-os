@@ -1,5 +1,5 @@
 use riscv::register::scause::{self, Trap, Interrupt};
-use riscv::register::sepc;
+use riscv::register::{sepc, stval};
 /// 临时的用户态程序和数据
 
 use crate::memory::{self, PAGE_SIZE};
@@ -70,7 +70,15 @@ pub extern "C" fn test_user_trap() {
             // 目前遇到时钟中断先让系统退出，等把内核进程队列完善好了再来处理
             crate::sbi::shutdown();
         },
-        _ => todo!("scause: {:?}, sepc: {:#x}", scause::read().cause(), sepc::read())
+        Trap::Exception(scause::Exception::Breakpoint) => {
+            println!("user mode panic!");
+            crate::sbi::shutdown();
+        },
+        Trap::Exception(scause::Exception::UserEnvCall) => {
+            println!("user mode exit.");
+            crate::sbi::shutdown();
+        }
+        _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}", scause::read().cause(), sepc::read(), stval::read())
     }
 }
 
