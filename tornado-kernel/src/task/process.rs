@@ -41,6 +41,23 @@ impl Process {
         };
         Some(process)
     }
+    /// 创建一个用户进程
+    ///
+    /// 暂时和创建内核进程无太大区别，后续会思考这部分设计
+    pub fn new_user(memory_set: MemorySet) -> Option<Arc<Self>> {
+        let process = Arc::new(Process {
+            id: next_process_id(),
+            is_user: true,
+            inner: Mutex::new(ProcessInner {
+                memory_set
+            })
+        });
+        unsafe { 
+            KernelHartInfo::load_address_space_id(process.address_space_id());
+            KernelHartInfo::load_process(process.clone());
+        };
+        Some(process)
+    }
     // /// 得到进程编号
     // pub fn process_id(&self) -> ProcessId {
     //     self.id

@@ -1,6 +1,7 @@
 use crate::memory::{AddressSpaceId, PhysicalPageNumber, PhysicalAddress, VirtualAddress, VirtualPageNumber, config::PAGE_SIZE, frame::FrameTracker, frame_alloc};
 use super::{Flags, MapType, Segment, page_table::{PageTable, PageTableTracker}, page_table_entry::PageTableEntry};
 use alloc::{collections::VecDeque, vec::Vec};
+use bit_field::BitField;
 use core::ops::Range;
 use core::ptr::slice_from_raw_parts_mut;
 
@@ -51,6 +52,7 @@ impl Mapping {
         // 解引用结束，entry位于最后一级页表
         Some(entry)
     }
+
     /// 找到虚拟页号对应的页表项，如果不存在则返回 None
     pub fn find_pte(&self, vpn: VirtualPageNumber) -> Option<&mut PageTableEntry> {
         let root_table_pa = self.root_ppn.start_address();
@@ -123,6 +125,7 @@ impl Mapping {
         assert_eq!(vpn_iter.len(), ppn_iter.len());
         // todo: 这里应该为 (VpnRangeIter, VpnRangeIter) 实现迭代器
         // 不对，这语义太复杂，可能两个区间不相同，这样就会出现问题--luojia65
+        // 收到，这里后续会进一步考虑如何修改--hustccc
         while let (Some(vpn), Some(ppn)) = (vpn_iter.next(), ppn_iter.next()) {
             self.map_one(vpn, Some(ppn), flags);
         }
@@ -146,7 +149,7 @@ impl Mapping {
     fn map_range_framed(
         &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
     ) -> Option<Vec<(VirtualPageNumber, FrameTracker)>> {
-        let mut allocated_pairs = Vec::new();
+        let mut _allocated_pairs = Vec::new();
         for vpn in vpn_step_iter(vpn_range) {
             // 新页面的内容
             let mut page_data = [0u8; PAGE_SIZE];
@@ -174,7 +177,7 @@ impl Mapping {
             // 保存帧跟踪器，否则会被释放
             self.mapped_pairs.push_back((vpn, frame));
         }
-        Some(allocated_pairs) // todo!
+        Some(_allocated_pairs) // todo!
     }
     /// 把当前的映射保存到satp寄存器
     pub fn activate_on(&self, asid: AddressSpaceId) {
@@ -193,7 +196,6 @@ impl Mapping {
         // 44..60 asid
         // 0..44 ppn
         use riscv::register::satp::Mode;
-        use bit_field::BitField;
         let mut bits = 0usize;
         bits.set_bits(60..64, Mode::Sv39 as usize);
         bits.set_bits(44..60, asid.into_inner());

@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "tornado-kernel"
+    "tornado-kernel",
+    "tornado-user"
 ]
 
 [profile.dev]

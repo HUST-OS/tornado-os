@@ -35,6 +35,7 @@ macro_rules! define_load_store {
 // 这个函数里不包含写satp的过程，需要别的函数先写satp和刷新页表
 #[naked]
 #[link_section = ".text"]
+
 unsafe extern "C" fn supervisor_restore(_target_frame: *mut TrapFrame) -> ! {
     asm!(define_load_store!(), "
         mv      sp, a0
@@ -285,7 +286,7 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
 }
 
 // 打印 satp 寄存器
-#[allow(unused)]
+
 fn print_satp(satp: usize) {
     use bit_field::BitField;
     println!("root ppn: {:#x}", &satp.get_bits(0..44));
