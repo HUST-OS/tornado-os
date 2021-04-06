@@ -2,6 +2,7 @@ use riscv::register::{stvec, sstatus::{self, SPP, Sstatus}, sepc, scause::{self,
 use core::fmt;
 use crate::{hart::KernelHartInfo, println};
 use crate::task::current_task;
+use crate::syscall::{SyscallResult, syscall as do_syscall};
 use super::timer;
 
 macro_rules! save_non_switch {
@@ -222,10 +223,7 @@ pub extern "C" fn rust_supervisor_timer(trap_frame: &mut TrapFrame) -> *mut Trap
     // panic!("Supervisor timer: {:08x}", sepc::read());
     timer::tick(); // 设置下一个时钟中断时间
     // 保存当前任务的上下文
-    if let Some(handle) = current_task() {
-        KernelHartInfo::save_task_context(handle, trap_frame);
-        // println!("Current task: {:x?}", handle);
-    }
+    // todo
 
     trap_frame
 }
@@ -256,6 +254,7 @@ pub unsafe extern "C" fn trap_exception() {
 pub extern "C" fn rust_trap_exception(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     match scause::read().cause() {
         Trap::Exception(Exception::Breakpoint) => breakpoint(trap_frame),
+        Trap::Exception(Exception::UserEnvCall) => syscall(trap_frame),
         Trap::Exception(e) => 
             panic!("Exception! {:?}, sepc: {:#08x}, stval: {:#08x}, trap_frame: {}", e, sepc::read(), stval::read(), trap_frame),
         Trap::Interrupt(_) => unreachable!("SBI or CPU design fault")
@@ -266,6 +265,20 @@ fn breakpoint(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     println!("Breakpoint at {:#08x}", trap_frame.sepc);
     trap_frame.sepc = trap_frame.sepc.wrapping_add(2);
     trap_frame
+}
+
+fn syscall(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
+    println!("Syscall at {:#08x}", trap_frame.sepc);
+    let param = [trap_frame.x[10], trap_frame.x[11]]; // a0, a1
+    match do_syscall(param, trap_frame.x[16], trap_frame.x[17]) { // a6, a7
+        SyscallResult::Procceed { code, extra } => {
+            trap_frame.x[10] = code; // a0
+            trap_frame.x[11] = extra; // a1
+            trap_frame.sepc = trap_frame.sepc.wrapping_add(4); // skip `ecall` instruction
+            trap_frame
+        }
+        SyscallResult::Retry => trap_frame // don't skip
+    }
 }
 
 /// 强制陷入内核时需要保存的上下文

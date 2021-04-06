@@ -3,7 +3,6 @@ use alloc::collections::LinkedList;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use crate::{task::{Process, SharedTaskHandle}, trap::TrapFrame};
-use crate::task::ContextTable;
 use crate::memory::AddressSpaceId;
 
 /// 写一个指针到上下文指针
@@ -29,7 +28,6 @@ pub struct KernelHartInfo {
     current_process: Option<Arc<Process>>,
     hart_max_asid: AddressSpaceId,
     asid_alloc: (LinkedList<usize>, usize), // 空余的编号回收池；目前已分配最大的编号
-    context_table: ContextTable,
 }
 
 impl KernelHartInfo {
@@ -41,7 +39,6 @@ impl KernelHartInfo {
             current_process: None,
             hart_max_asid: crate::memory::max_asid(),
             asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
-            context_table: ContextTable::new()
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
@@ -107,14 +104,6 @@ impl KernelHartInfo {
             } else {
                 free.push_back(asid.into_inner())
             }
-        });
-    } 
-
-    /// 保存一个运行任务的上下文
-    pub fn save_task_context(handle: SharedTaskHandle, context: &TrapFrame) {
-        use_tp_box(|b| {
-            b.context_table.insert(handle, context.clone());
-            // println!("{:?}", b.context_table);
         });
     }
 }

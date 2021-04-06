@@ -3,7 +3,6 @@ mod process;
 mod executor;
 mod lock;
 mod shared;
-mod switch;
 pub mod user_task; // todo：删除这个模块
 
 pub use lock::Lock;
@@ -16,7 +15,6 @@ pub use shared::{
     current_task, shared_add_task,
     shared_pop_task
 };
-pub use switch::ContextTable;
 
 /// 共享调度器返回的结果
 #[derive(Debug)]

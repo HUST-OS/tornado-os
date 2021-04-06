@@ -17,6 +17,7 @@ mod memory;
 mod task;
 mod hart;
 mod user;
+mod syscall;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
