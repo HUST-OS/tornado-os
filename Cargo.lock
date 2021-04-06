@@ -176,6 +176,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tornado-user"
+version = "0.1.0"
+dependencies = [
+ "buddy_system_allocator",
+ "lazy_static",
+ "spin 0.5.2",
+ "woke",
+]
+
+[[package]]
 name = "woke"
 version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
