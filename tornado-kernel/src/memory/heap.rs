@@ -8,7 +8,7 @@ static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 #[global_allocator]
 static HEAP: LockedHeap = LockedHeap::empty();
 
-#[allow(unused)]
+
 #[cfg_attr(not(test), alloc_error_handler)]
 fn alloc_error_handler(layout: Layout) -> ! {
     panic!("alloc error for layout {:?}", layout)

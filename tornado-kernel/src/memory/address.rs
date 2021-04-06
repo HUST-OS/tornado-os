@@ -58,6 +58,10 @@ impl PhysicalPageNumber {
     pub const fn ceil(address: PhysicalAddress) -> Self {
         Self(address.0 / PAGE_SIZE + (address.0 % PAGE_SIZE != 0) as usize)
     }
+    /// 从 satp 寄存器中取出根页表物理页号
+    pub fn from_satp(satp: usize) -> Self {
+        Self(satp.get_bits(0..44))
+    }
     /// 得到物理页的起始地址
     pub fn start_address(&self) -> PhysicalAddress {
         PhysicalAddress(self.0 << 12)

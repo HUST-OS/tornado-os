@@ -130,6 +130,32 @@ macro_rules! restore_switch {
         LOAD	sp, 2"
     };
 }
+  
+impl TrapFrame {
+    // 新建任务时，构建它的上下文
+    
+    pub fn new_task_context(is_user: bool, pc: usize, tp: usize, stack_top: usize) -> TrapFrame {
+        // 设置sstatus的特权级
+        if is_user {    
+            unsafe { sstatus::set_spp(SPP::User) };
+        } else {
+            unsafe { sstatus::set_spp(SPP::Supervisor) };
+        }
+        // sret到用户线程后，开启中断
+        unsafe { sstatus::set_spie() };
+        let sstatus = sstatus::read();
+        let mut ans = TrapFrame {
+            x: [0; 32],
+            sstatus,
+            sepc: pc
+        };
+        // 设置栈顶
+        ans.x[2] = stack_top;
+        // 设置线程指针
+        ans.x[4] = tp;
+        ans
+    }
+}
 
 #[naked]
 #[link_section = ".text"]

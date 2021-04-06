@@ -28,3 +28,7 @@ pub const SWAP_FRAME_VA: usize = usize::MAX - PAGE_SIZE + 1;
 /// 用户态和内核态切换时上下文保存的地址
 /// 用户和内核在该地址上同样有相同的映射关系
 pub const SWAP_CONTEXT_VA: usize = SWAP_FRAME_VA - PAGE_SIZE;
+
+/// 用户态栈的虚拟地址
+/// 放在切换时保存的上下文下面
+pub const USER_STACK_BOTTOM_VA: usize = SWAP_CONTEXT_VA - PAGE_SIZE;

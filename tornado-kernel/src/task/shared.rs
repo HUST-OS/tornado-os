@@ -51,6 +51,7 @@ pub fn current_task() -> Option<SharedTaskHandle> {
 /// 得到共享的调度器指针
 ///
 /// 可以在共享的添加任务、弹出下一个任务中使用
+
 pub fn shared_scheduler() -> NonNull<()> {
     NonNull::new(&SHARED_SCHEDULER as *const _ as *mut ()).expect("create non null pointer")
 }
@@ -81,7 +82,7 @@ impl crate::algorithm::WithAddressSpace for SharedTaskHandle {
     }
 }
 
-#[allow(unused)] // todo: 用上 -- luojia65
+ // todo: 用上 -- luojia65
 pub static SHARED_RAW_TABLE: (unsafe fn(NonNull<()>, SharedTaskHandle) -> Option<SharedTaskHandle>, unsafe fn(NonNull<()>) -> TaskResult)
     = (shared_add_task, shared_pop_task);
 

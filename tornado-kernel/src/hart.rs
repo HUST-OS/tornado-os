@@ -25,6 +25,7 @@ pub fn read_tp() -> usize {
 pub struct KernelHartInfo {
     hart_id: usize,
     current_address_space_id: AddressSpaceId,
+    
     current_process: Option<Arc<Process>>,
     hart_max_asid: AddressSpaceId,
     asid_alloc: (LinkedList<usize>, usize), // 空余的编号回收池；目前已分配最大的编号
@@ -47,6 +48,7 @@ impl KernelHartInfo {
     }
 
     /// 热加载/热卸载处理核，释放这个核占用的内存资源
+    
     pub unsafe fn unload_hart() {
         let addr = read_tp();
         let bx: Box<KernelHartInfo> = Box::from_raw(addr as *mut _);
@@ -71,6 +73,7 @@ impl KernelHartInfo {
         use_tp_box(|b| b.current_process = Some(process.clone()));
     }
 
+    
     pub fn current_process() -> Option<Arc<Process>> {
         use_tp_box(|b| b.current_process.clone())
     }
@@ -94,6 +97,7 @@ impl KernelHartInfo {
     }
 
     /// 释放地址空间编号
+    
     pub fn free_address_space_id(asid: AddressSpaceId) {
         use_tp_box(|b| {
             let (free, max) = &mut b.asid_alloc;
