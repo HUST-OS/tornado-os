@@ -3,12 +3,12 @@
 #![feature(llvm_asm)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
-
-mod excutor;
 extern crate alloc;
 
+mod excutor;
+
 use buddy_system_allocator::LockedHeap;
-use alloc::{vec, vec::Vec};
+use alloc::vec;
 use core::future::Future;
 use core::task::{Context, Poll};
 use core::pin::Pin;
@@ -21,12 +21,15 @@ static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 static HEAP: LockedHeap = LockedHeap::empty();
 
 #[cfg_attr(not(test), panic_handler)]
-fn panic_handler(_panic_info: &core::panic::PanicInfo) -> ! {
+pub fn panic_handler(_panic_info: &core::panic::PanicInfo) -> ! {
+    // todo: 直接传给系统调用
     unsafe { llvm_asm!("ebreak"); }
     unreachable!()
 }
+
 #[cfg_attr(not(test), alloc_error_handler)]
 pub fn handle_alloc_error(_layout: core::alloc::Layout) -> ! {
+    // todo: 直接传给系统调用
     unsafe { llvm_asm!("ebreak"); }
     unreachable!()
 }
@@ -43,24 +46,25 @@ fn main() -> ! {
     test_v.iter_mut().for_each(|x| *x += 1);
     assert_eq!(test_v, vec![2, 3, 4, 5, 6]);
 
-    let fib = Fib::new(6);
+    let fib = FibonacciFuture::new(6);
     excutor::spawn(fib);
     let ret = excutor::try_join();
     assert_eq!(ret, Some(8));
+    // todo: 退出进程的系统调用
     unsafe { llvm_asm!("ecall"); }
     unreachable!()
 }
 
-struct Fib {
+struct FibonacciFuture {
     a: usize,
     b: usize,
     i: usize,
     cnt: usize
 }
 
-impl Fib {
-    fn new(cnt: usize) -> Fib {
-        Fib {
+impl FibonacciFuture {
+    fn new(cnt: usize) -> FibonacciFuture {
+        FibonacciFuture {
             a: 0,
             b: 1,
             i: 0,
@@ -68,7 +72,8 @@ impl Fib {
         }
     }
 }
-impl Future for Fib {
+
+impl Future for FibonacciFuture {
     type Output = usize;
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.i == self.cnt {

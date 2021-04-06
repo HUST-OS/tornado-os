@@ -1,5 +1,3 @@
-#![no_std]
-extern crate alloc;
 use lazy_static::*;
 use {
     alloc::{boxed::Box, collections::vec_deque::VecDeque, sync::Arc},
