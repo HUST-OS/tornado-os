@@ -20,10 +20,10 @@ threads := "1"
 build:
     @just -f "tornado-kernel/justfile" build
 
-build-user:
-    @just -f "tornado-user/justfile" build
+build-user app:
+    @just -f "tornado-user/justfile" build {{app}}
 
-qemu: build build-user
+qemu: build # todo: build user
     @qemu-system-riscv64 \
             -machine virt \
             -nographic \
@@ -38,7 +38,7 @@ run: build qemu
 asm: build
     @{{objdump}} -D {{kernel-elf}} | less
 
-asm-user: build-user
+asm-user app: (build-user app)
     @{{objdump}} -D {{user-elf}} | less
 
 size: build
@@ -46,7 +46,7 @@ size: build
     @{{size}} -A -x {{user-elf}} 
 
 
-debug: build build-user
+debug app: build (build-user app)
     @qemu-system-riscv64 \
             -machine virt \
             -nographic \
