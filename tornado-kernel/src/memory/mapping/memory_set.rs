@@ -1,5 +1,28 @@
-use crate::memory::{KERNEL_MAP_OFFSET, PhysicalPageNumber, SWAP_CONTEXT_VA, config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA, USER_STACK_BOTTOM_VA}};
-use crate::memory::{Mapping, MapType, Segment, Flags, VirtualAddress, VirtualPageNumber, PhysicalAddress, FrameTracker, AddressSpaceId};
+use crate::memory::{
+    KERNEL_MAP_OFFSET,
+    PhysicalPageNumber,
+    SWAP_CONTEXT_VA,
+    config::{
+        FREE_MEMORY_START,
+        MEMORY_END_ADDRESS,
+        PAGE_SIZE,
+        SWAP_FRAME_VA,
+        USER_STACK_BOTTOM_VA,
+        USER_SHARED_DATA_VA,
+        USER_SHARED_TEXT_VA
+    }
+};
+use crate::memory::{
+    Mapping,
+    MapType,
+    Segment,
+    Flags,
+    VirtualAddress,
+    VirtualPageNumber,
+    PhysicalAddress,
+    FrameTracker,
+    AddressSpaceId
+};
 use alloc::vec::Vec;
 use core::ops::Range;
 
@@ -231,6 +254,10 @@ impl MemorySet {
     pub fn new_bin() -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
+            fn _sshared_data();
+            fn _eshared_data();
+            fn _sshared_text();
+            fn _eshared_text();
         }
         let mut mapping = Mapping::new_alloc()?;
         let allocated_pairs = Vec::new();
@@ -253,6 +280,21 @@ impl MemorySet {
             range: swap_cx_va..swap_cx_va + PAGE_SIZE,
             flags: Flags::READABLE | Flags::WRITABLE,
         }, None)?;
+
+        // 映射共享数据段
+        let shared_data_len = _eshared_data as usize - _sshared_data as usize;
+        let va_range = VirtualAddress(USER_SHARED_DATA_VA)..VirtualAddress(USER_SHARED_DATA_VA + shared_data_len);
+        let pa_range =
+            VirtualAddress(_sshared_data as usize).physical_address_linear()..VirtualAddress(_eshared_data as usize).physical_address_linear();
+        mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::USER);
+
+        // 映射共享代码段
+        let shared_text_len = _eshared_text as usize - _sshared_text as usize;
+        let va_range = VirtualAddress(USER_SHARED_TEXT_VA)..VirtualAddress(USER_SHARED_TEXT_VA + shared_text_len);
+        let pa_range =
+            VirtualAddress(_sshared_text as usize).physical_address_linear()..VirtualAddress(_eshared_text as usize).physical_address_linear();
+        mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE | Flags::USER);
+
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New asid = {:?}", address_space_id);
         Some(MemorySet { mapping, segments: Vec::new(), allocated_pairs, address_space_id })

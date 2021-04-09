@@ -90,6 +90,7 @@ pub static SHARED_RAW_TABLE: (unsafe fn(NonNull<()>, SharedTaskHandle) -> Option
 ///
 /// 在内核态和用户态都可以调用，访问的是shared_scheduler对应的同一块内存
 #[link_section = ".shared_text"]
+#[no_mangle]
 pub unsafe fn shared_add_task(shared_scheduler: NonNull<()>, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
     let s: NonNull<SharedScheduler> = shared_scheduler.cast();
     // println!("Add task: scheduler = {:?}, handle = {:x?}", s, handle);
@@ -101,6 +102,7 @@ pub unsafe fn shared_add_task(shared_scheduler: NonNull<()>, handle: SharedTaskH
 ///
 /// 在内核态和用户态都可以调用，访问的是shared_scheduler对应的同一块内存
 #[link_section = ".shared_text"]
+#[no_mangle]
 pub unsafe fn shared_pop_task(shared_scheduler: NonNull<()>) -> TaskResult {
     // 得到共享调度器的引用
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();

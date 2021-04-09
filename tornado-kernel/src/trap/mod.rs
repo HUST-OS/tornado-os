@@ -20,7 +20,7 @@ macro_rules! define_load_store {
 mod handler;
 mod timer;
 
-pub use handler::TrapFrame;
+pub use handler::{TrapFrame, trap_vector};
 
 /// 初始化中断相关的子模块
 /// 
@@ -103,6 +103,10 @@ impl SwapContext {
         self.x[1] = sp;
         self
     }
+    pub fn set_gp(&mut self, gp: usize) -> &mut Self {
+        self.x[2] = gp;
+        self
+    }
 }
 
 // 该函数的指针在从内核态返回到用户态之前被写到 stvec 寄存器里面去
@@ -113,7 +117,7 @@ impl SwapContext {
 #[export_name = "_user_to_supervisor"]
 pub unsafe extern "C" fn user_to_supervisor() -> ! {
     asm!(
-    
+    ".p2align 2",
     // 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
     "csrrw a0, sscratch, a0",
     
@@ -249,11 +253,12 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
     // 用户态发生中断时 pc 将会被设置成此值
     let user_trap_va = SWAP_FRAME_VA as usize;
     // 该函数最后应该跳转的虚拟地址
-    let jmp_va = supervisor_to_user as usize - _swap_frame as usize + SWAP_FRAME_VA;
+    let jmp_va = _supervisor_to_user as usize - _swap_frame as usize + SWAP_FRAME_VA;
     // println!("jmp_va = {:#x}", jmp_va);
     
     // 设置用户态陷入内核时需要跳转的地址
     unsafe { stvec::write(user_trap_va, TrapMode::Direct); }
+    // 将 trap::handler 中的 trap_vector 以 Vectored 模式写入到 stvec 寄存器
 
     // 设置 sstatus.SPP 的值为 User
     unsafe { sstatus::set_spp(SPP::User); }

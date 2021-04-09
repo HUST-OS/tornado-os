@@ -92,6 +92,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
     println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
     println!("_user_data: {:#x}", _user_data as usize);
+    println!("shared_add_task: {:#x}", task::shared_add_task as usize);
+    println!("shared_pop_task: {:#x}", task::shared_pop_task as usize);
 
     // let executor = task::Executor::default();
 
@@ -110,21 +112,21 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // todo: 这里要有个地方往tp里写东西，目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
+    
+    let shared_scheduler = task::shared_scheduler();
+    println!("Shared scheduler: {:?}", shared_scheduler);
+
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
+    let task_1 = task::KernelTask::new(task_1(), process.clone());
+    println!("task_1: {:?}", task_1);
+    unsafe {
+        task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
+        let _pop_task = task::shared_pop_task(shared_scheduler);
+    }
     // 尝试进入用户态
     user::try_enter_user(stack_handle.end.0 - 4)
-    // let task_1 = task::KernelTask::new(task_1(), process.clone());
-    // let task_2 = task::KernelTask::new(task_2(), process.clone());
-    // let task_3 = task::KernelTask::new(FibonacciFuture::new(5), process);
     
-    // println!("task_1: {:?}", task_1);
-    // println!("task_2: {:?}", task_2);
-    // println!("task_3: {:?}", task_3);
-
-    // let shared_scheduler = task::shared_scheduler();
-    // println!("Shared scheduler: {:?}", shared_scheduler);
-
     // let user_1_memory = memory::MemorySet::new_user().expect("create user 1 memory set");
     // let process_2 = task::Process::new(user_1_memory).expect("create process 2");
     // let task_4 = task::user_task::UserTask::new(user_task_1(), process_2);

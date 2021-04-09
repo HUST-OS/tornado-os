@@ -13,6 +13,10 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
         fn _test_user_trap();
         // 用户程序入口点
         fn _test_user_entry();
+        fn _sshared_data();
+        fn _eshared_data();
+        fn _sshared_text();
+        fn _eshared_text();
     }
     // println!("_test_user_trap: {:#x}, _test_user_entry: {:#x}", _test_user_trap as usize, _test_user_entry as usize);
    
@@ -55,7 +59,11 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
     // 往 SwapContext 写东西
     // _test_user_entry 由虚拟地址 0 映射到真实物理地址
     *swap_cx = trap::SwapContext::new_to_user(
-        kernel_satp, 0, 0, kernel_stack_top, user_stack_top, _test_user_trap as usize);
+        kernel_satp, 0, 0, kernel_stack_top, user_stack_top, _test_user_trap as usize
+    );
+    
+    // 在这里把 .shared_text 段在用户态的虚拟地址通过 gp 寄存器传过去
+    swap_cx.set_gp(memory::USER_SHARED_TEXT_VA);
     // println!("swap_cx.epc: {:#x}", swap_cx.epc);
     // println!("swap_cx.trap_handler: {:#x}", swap_cx.user_trap_handler);
     trap::switch_to_user(swap_cx, user_satp)
@@ -67,7 +75,7 @@ pub extern "C" fn test_user_trap() {
     match scause::read().cause() {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             println!("s mode timer!");
-            // 目前遇到时钟中断先让系统退出，等把内核进程队列完善好了再来处理
+            // 目前遇到时钟中断先让系统退出，等把内核完善好了再来处理
             crate::sbi::shutdown();
         },
         Trap::Exception(scause::Exception::Breakpoint) => {
@@ -75,7 +83,8 @@ pub extern "C" fn test_user_trap() {
             crate::sbi::shutdown();
         },
         Trap::Exception(scause::Exception::UserEnvCall) => {
-            println!("user mode exit.");
+            println!("ecall from user.");
+            // 这里先返回到用户态
             crate::sbi::shutdown();
         }
         _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}", scause::read().cause(), sepc::read(), stval::read())
