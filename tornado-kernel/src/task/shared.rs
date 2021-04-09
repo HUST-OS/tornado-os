@@ -33,13 +33,13 @@ use super::lock;
 
 /// 共享调度器的类型
 // type SharedScheduler = spin::Mutex<RingFifoScheduler<SharedTaskHandle, 500>>;
-type SharedScheduler = lock::Lock<SameAddrSpaceScheduler<SharedTaskHandle, 500>>;
+type SharedScheduler = lock::Lock<RingFifoScheduler<SharedTaskHandle, 500>>;
 
 /// 所有任务的调度器
 ///
 /// 注意：所有.shared_data段内的数据不应该分配堆空间
 #[link_section = ".shared_data"]
-pub static SHARED_SCHEDULER: SharedScheduler = lock::Lock::new(SameAddrSpaceScheduler::new());
+pub static SHARED_SCHEDULER: SharedScheduler = lock::Lock::new(RingFifoScheduler::new());
 
 /// 得到当前正在运行的任务，以备保存上下文
 ///
