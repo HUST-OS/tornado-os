@@ -113,6 +113,18 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
     
+    // 调用共享运行时的函数
+    let f_ptr = 0x8021_9000 as usize as *const ();
+    let f_code: extern "C" fn(a0: usize, a1: usize) = unsafe { core::mem::transmute(f_ptr) };
+    (f_code)(0, 1);
+    // unsafe {
+    //     asm!("
+    //     addi a0, x0, 0x0
+    //     addi a1, x0, 0x1
+    //     addi t0, x0, 0x8021_9000
+    //     jalr t0
+    //     ");
+    // }
     let shared_scheduler = task::shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
 

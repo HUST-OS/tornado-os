@@ -141,6 +141,10 @@ impl MemorySet {
             mapping.map_segment(segment, None)?;
         }
 
+        // 映射共享运行时段
+        let va_range = VirtualAddress(0x80200000)..VirtualAddress(0x80400000);
+        let pa_range = PhysicalAddress(0x80200000)..PhysicalAddress(0x80400000);
+        mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE );
         // 映射 _swap_frame
         let swap_frame_va = VirtualAddress(SWAP_FRAME_VA);
         let swap_frame_vpn = VirtualPageNumber::floor(swap_frame_va);
