@@ -70,6 +70,22 @@ pub struct SharedTaskHandle {
 }
 
 impl SharedTaskHandle {
+    pub fn new(hart_id: usize, asid: usize, task_ptr: usize) -> Self {
+        Self {
+            hart_id,
+            address_space_id: unsafe { AddressSpaceId::from_raw(asid) },
+            task_ptr
+        }
+    }
+    // pub fn hart_id(&self) -> usize {
+    //     self.hart_id
+    // }
+    // pub fn asid(&self) -> usize {
+    //     self.address_space_id.into_inner()
+    // }
+    // pub fn task_ptr(&self) -> usize {
+    //     self.task_ptr
+    // }
     fn should_switch(&self) -> bool {
         // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
         KernelHartInfo::current_address_space_id() != self.address_space_id

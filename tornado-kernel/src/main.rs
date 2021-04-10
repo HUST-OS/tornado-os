@@ -114,30 +114,33 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     kernel_memory.activate();
     
     // 调用共享运行时的函数
-    let f_ptr = 0x8021_9000 as usize as *const ();
-    let f_code: extern "C" fn(a0: usize, a1: usize) = unsafe { core::mem::transmute(f_ptr) };
-    (f_code)(0, 1);
-    // unsafe {
-    //     asm!("
-    //     addi a0, x0, 0x0
-    //     addi a1, x0, 0x1
-    //     addi t0, x0, 0x8021_9000
-    //     jalr t0
-    //     ");
-    // }
-    let shared_scheduler = task::shared_scheduler();
-    println!("Shared scheduler: {:?}", shared_scheduler);
+    let raw_table_ptr = 0x8021_b000 as *const ();
+    let raw_table: extern "C" fn(a0: usize) -> usize = unsafe { core::mem::transmute(raw_table_ptr) };
+    let shared_add_task_ptr = raw_table(2);
+    let shared_pop_task_ptr = raw_table(3);
+    let shared_add_task: extern "C" fn(handle: task::SharedTaskHandle) -> Option<task::SharedTaskHandle> = unsafe {
+        core::mem::transmute(shared_add_task_ptr)
+    };
+    let shared_pop_task: extern "C" fn() -> task::TaskResult = unsafe {
+        core::mem::transmute(shared_pop_task_ptr)
+    };
+    
+    // let shared_scheduler = task::shared_scheduler();
+    // println!("Shared scheduler: {:?}", shared_scheduler);
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
     let task_1 = task::KernelTask::new(task_1(), process.clone());
     println!("task_1: {:?}", task_1);
     unsafe {
-        task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
-        let _pop_task = task::shared_pop_task(shared_scheduler);
+        shared_add_task(task_1.shared_task_handle());
     }
+    // unsafe {
+    //     task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
+    //     let _pop_task = task::shared_pop_task(shared_scheduler);
+    // }
     // 尝试进入用户态
-    user::try_enter_user(stack_handle.end.0 - 4)
+    // user::try_enter_user(stack_handle.end.0 - 4)
     
     // let user_1_memory = memory::MemorySet::new_user().expect("create user 1 memory set");
     // let process_2 = task::Process::new(user_1_memory).expect("create process 2");
@@ -152,15 +155,15 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     //     riscv::register::sstatus::set_sie()   // todo 允许被特权级中断打断
     // };
 
-    // task::run_until_idle(
-    //     || unsafe { task::shared_pop_task(shared_scheduler) },
-    //     |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }
-    // );
+    task::run_until_idle(
+        || { shared_pop_task() },
+        |handle| { shared_add_task(handle) }
+    );
 
     // // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
-    // unsafe { hart::KernelHartInfo::unload_hart() };
+    unsafe { hart::KernelHartInfo::unload_hart() };
     // // 没有任务了，关机
-    // sbi::shutdown()
+    sbi::shutdown()
 }
 
 fn spawn(future: impl Future<Output = ()> + 'static + Send + Sync) {
