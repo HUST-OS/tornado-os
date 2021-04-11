@@ -25,7 +25,7 @@ pub struct UserTask {
     /// 任务信息的可变部分
     pub inner: Mutex<UserTaskInner>,
     /// 任务的 future
-    pub future: Mutex<Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>> // 用UnsafeCell代替Mutex会好一点
+    pub future: Mutex<Pin<Box<dyn Future<Output = usize> + 'static + Send + Sync>>> // 用UnsafeCell代替Mutex会好一点
 }
 
 /// 任务信息的可变部分
@@ -57,7 +57,7 @@ impl UserTaskId {
 impl UserTask {
     /// 创建一个用户态任务
     pub fn new(
-        future: impl Future<Output = ()> + 'static + Send + Sync,
+        future: impl Future<Output = usize> + 'static + Send + Sync,
     ) -> Arc<UserTask> {
         // 得到新的用户任务编号
         let id = UserTaskId::generate();

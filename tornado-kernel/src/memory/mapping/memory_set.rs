@@ -303,7 +303,7 @@ impl MemorySet {
         // 目前共享运行时写死在 0x80200000 这个物理地址上
         let va_range = VirtualAddress(0x80200000)..VirtualAddress(0x80400000);
         let pa_range = PhysicalAddress(0x80200000)..PhysicalAddress(0x80400000);
-        mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE );
+        mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER);
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New asid = {:?}", address_space_id);

@@ -61,7 +61,33 @@ fn main() -> ! {
     let raw_table: extern "C" fn(a0: usize) -> usize = unsafe {
         core::mem::transmute(shared_raw_table_ptr)
     };
-
+    let shared_scheduler_ptr = raw_table(1);
+    let shared_add_task_ptr = raw_table(2);
+    let shared_pop_task_ptr = raw_table(3);
+    let shared_scheduler: fn()  -> core::ptr::NonNull<()> = unsafe {
+        core::mem::transmute(shared_scheduler_ptr)
+    };
+    let shared_add_task: unsafe fn(
+        shared_scheduler: core::ptr::NonNull<()>, handle: shared::SharedTaskHandle
+    ) -> Option<shared::SharedTaskHandle> = unsafe {
+        core::mem::transmute(shared_add_task_ptr)
+    };
+    let shared_pop_task: unsafe fn(
+        shared_scheduler: core::ptr::NonNull<()>,
+        should_switch: fn(&shared::SharedTaskHandle) -> bool
+    ) -> task::TaskResult = unsafe {
+        core::mem::transmute(shared_pop_task_ptr)
+    };
+    let shared_scheduler = shared_scheduler();
+    let task = task::UserTask::new(FibonacciFuture::new(6));
+    unsafe {
+        shared_add_task(shared_scheduler, task.shared_task_handle());
+    }
+    let ret = shared::run_until_ready(
+        || unsafe { shared_pop_task(shared_scheduler, shared::SharedTaskHandle::should_switch) },
+        |handle| unsafe { shared_add_task(shared_scheduler, handle) }
+    );
+    assert_eq!(ret, Some(8));
     // todo: 退出进程的系统调用
     unsafe { llvm_asm!("ecall"); }
     unreachable!()

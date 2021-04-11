@@ -41,7 +41,7 @@ impl SharedTaskHandle {
     }
 }
 
-pub fn run_until_idle<F, G>(pop_task: F, push_task: G)
+pub fn run_until_ready<F, G>(pop_task: F, push_task: G) -> Option<usize>
 where
     F: Fn() -> TaskResult,
     G: Fn(SharedTaskHandle) -> Option<SharedTaskHandle> 
@@ -66,20 +66,21 @@ where
                 let waker = waker_ref(&task);
                 // poll our future and give it a waker
                 let mut context = Context::from_waker(&*waker);
-                // println!("Poll begin");
 
                 let ret = task.future.lock().as_mut().poll(&mut context);
-                // println!("Ret = {:?}", ret);
-                if let Poll::Pending = ret {
+                if let Poll::Ready(x) = ret {
+                    return Some(x);
+                }
+                else {
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                     push_task(handle); 
-                } // 否则，释放task的内存。这里相当于drop(task)
+                }
             },
             TaskResult::ShouldYield => {
                 //todo
                 // crate::trap::switch_to_user()
             },
-            TaskResult::Finished => break
+            TaskResult::Finished => return None
         }
     }
 }
