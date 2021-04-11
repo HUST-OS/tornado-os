@@ -1,6 +1,5 @@
 // todo：重新整理
 
-use crate::{hart::KernelHartInfo, memory::VirtualAddress};
 
 // 在用户的库中提供
 
@@ -8,22 +7,21 @@ use crate::{hart::KernelHartInfo, memory::VirtualAddress};
 /// 
 /// 目前只是暂时设计，将用户态任务硬编码在内核中
 
-use super::process::Process;
 use alloc::sync::Arc;
 use spin::Mutex;
-use core::{ops::Range, pin::Pin};
+use core::pin::Pin;
 use alloc::boxed::Box;
 use core::future::Future;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use super::SharedTaskHandle;
+use super::shared::{SharedTaskHandle, AddressSpaceId};
 
 /// 临时的用户态任务实现
 
 pub struct UserTask {
     /// 任务的编号
     pub id: UserTaskId,
-    /// 任务所属的进程
-    pub process: Arc<Process>,
+    /// 任务所属的地址空间
+    pub asid: AddressSpaceId,
     /// 任务信息的可变部分
     pub inner: Mutex<UserTaskInner>,
     /// 任务的 future
@@ -32,8 +30,6 @@ pub struct UserTask {
 
 /// 任务信息的可变部分
 pub struct UserTaskInner {
-    /// 任务栈（用户态）
-    pub stack: Option<Range<VirtualAddress>>,
     /// 任务是否在休眠
     pub sleeping: bool,
     /// 任务是否已经结束
@@ -60,10 +56,8 @@ impl UserTaskId {
 
 impl UserTask {
     /// 创建一个用户态任务
-    
     pub fn new(
         future: impl Future<Output = ()> + 'static + Send + Sync,
-        process: Arc<Process>
     ) -> Arc<UserTask> {
         // 得到新的用户任务编号
         let id = UserTaskId::generate();
@@ -71,9 +65,9 @@ impl UserTask {
         Arc::new(
             UserTask {
                 id,
-                process,
+                // todo: 地址空间编号
+                asid: unsafe { AddressSpaceId::from_raw(0) },
                 inner: Mutex::new(UserTaskInner {
-                    stack: None,
                     sleeping: false,
                     finished: false,
                 }),
@@ -82,20 +76,45 @@ impl UserTask {
         )
     }
 
-    /// 给用户态任务分配一个栈
-    
-    pub fn set_user_stack(&mut self, stack: Range<VirtualAddress>) {
-        self.inner.lock().stack = Some(stack);
-    }
-
     /// 转换到共享的任务编号
     /// 危险：创建了一个没有边界的生命周期
     
     pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
         SharedTaskHandle {
-            hart_id: KernelHartInfo::hart_id(), 
-            address_space_id: self.process.address_space_id(),
+            hart_id: 0,
+            // todo: 地址空间编号
+            address_space_id: self.asid,
             task_ptr: Arc::into_raw(self) as usize
         }
     }
+}
+
+impl UserTask {
+    fn mark_ready(&self) {
+        self.inner.lock().sleeping = false;
+    }
+    pub(crate) fn is_sleeping(&self) -> bool {
+        self.inner.lock().sleeping
+    }
+
+    pub(crate) fn mark_sleep(&self) {
+        self.inner.lock().sleeping = true;
+    }
+}
+
+impl woke::Woke for UserTask {
+    fn wake_by_ref(task: &Arc<Self>) {
+        task.mark_ready();
+    }
+}
+
+/// 共享调度器返回的结果
+#[derive(Debug)]
+pub enum TaskResult {
+    /// 应当立即执行特定任务
+    Task(SharedTaskHandle),
+    /// 其它地址空间的任务要运行，应当让出时间片
+    ShouldYield,
+    /// 队列已空，所有任务已经结束
+    Finished,
 }

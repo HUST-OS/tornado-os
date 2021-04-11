@@ -7,6 +7,8 @@
 extern crate alloc;
 
 mod excutor;
+mod shared;
+mod task;
 
 use buddy_system_allocator::LockedHeap;
 use alloc::vec;
@@ -39,11 +41,6 @@ pub fn handle_alloc_error(_layout: core::alloc::Layout) -> ! {
 #[link_section = ".text.entry"]
 #[export_name = "_start"]
 fn main() -> ! {
-    // unsafe {
-    //     asm!(
-    //         "lw t0, (gp)"
-    //     );
-    // }
     unsafe {
         HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
@@ -56,6 +53,15 @@ fn main() -> ! {
     excutor::spawn(fib);
     let ret = excutor::try_join();
     assert_eq!(ret, Some(8));
+
+    // 获取共享运行时的函数表
+    let shared_raw_table_ptr: usize;
+    unsafe { asm!("mv {}, gp", out(reg) shared_raw_table_ptr, options(nomem, nostack)); }; // rust-lang/rust#82753 Thank you @Amanieu :)
+    assert_eq!(shared_raw_table_ptr, 0x8021_b000);
+    let raw_table: extern "C" fn(a0: usize) -> usize = unsafe {
+        core::mem::transmute(shared_raw_table_ptr)
+    };
+
     // todo: 退出进程的系统调用
     unsafe { llvm_asm!("ecall"); }
     unreachable!()
