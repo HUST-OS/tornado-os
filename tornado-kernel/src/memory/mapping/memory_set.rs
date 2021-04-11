@@ -285,19 +285,19 @@ impl MemorySet {
             flags: Flags::READABLE | Flags::WRITABLE,
         }, None)?;
 
-        // 映射共享数据段
-        let shared_data_len = _eshared_data as usize - _sshared_data as usize;
-        let va_range = VirtualAddress(USER_SHARED_DATA_VA)..VirtualAddress(USER_SHARED_DATA_VA + shared_data_len);
-        let pa_range =
-            VirtualAddress(_sshared_data as usize).physical_address_linear()..VirtualAddress(_eshared_data as usize).physical_address_linear();
-        mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::USER);
+        // // 映射共享数据段
+        // let shared_data_len = _eshared_data as usize - _sshared_data as usize;
+        // let va_range = VirtualAddress(USER_SHARED_DATA_VA)..VirtualAddress(USER_SHARED_DATA_VA + shared_data_len);
+        // let pa_range =
+        //     VirtualAddress(_sshared_data as usize).physical_address_linear()..VirtualAddress(_eshared_data as usize).physical_address_linear();
+        // mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::USER);
 
-        // 映射共享代码段
-        let shared_text_len = _eshared_text as usize - _sshared_text as usize;
-        let va_range = VirtualAddress(USER_SHARED_TEXT_VA)..VirtualAddress(USER_SHARED_TEXT_VA + shared_text_len);
-        let pa_range =
-            VirtualAddress(_sshared_text as usize).physical_address_linear()..VirtualAddress(_eshared_text as usize).physical_address_linear();
-        mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE | Flags::USER);
+        // // 映射共享代码段
+        // let shared_text_len = _eshared_text as usize - _sshared_text as usize;
+        // let va_range = VirtualAddress(USER_SHARED_TEXT_VA)..VirtualAddress(USER_SHARED_TEXT_VA + shared_text_len);
+        // let pa_range =
+        //     VirtualAddress(_sshared_text as usize).physical_address_linear()..VirtualAddress(_eshared_text as usize).physical_address_linear();
+        // mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE | Flags::USER);
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New asid = {:?}", address_space_id);

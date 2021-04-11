@@ -39,11 +39,11 @@ pub fn handle_alloc_error(_layout: core::alloc::Layout) -> ! {
 #[link_section = ".text.entry"]
 #[export_name = "_start"]
 fn main() -> ! {
-    unsafe {
-        asm!(
-            "lw t0, (gp)"
-        );
-    }
+    // unsafe {
+    //     asm!(
+    //         "lw t0, (gp)"
+    //     );
+    // }
     unsafe {
         HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }

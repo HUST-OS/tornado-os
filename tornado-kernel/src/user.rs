@@ -62,8 +62,6 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
         kernel_satp, 0, 0, kernel_stack_top, user_stack_top, _test_user_trap as usize
     );
     
-    // 在这里把 .shared_text 段在用户态的虚拟地址通过 gp 寄存器传过去
-    swap_cx.set_gp(memory::USER_SHARED_TEXT_VA);
     // println!("swap_cx.epc: {:#x}", swap_cx.epc);
     // println!("swap_cx.trap_handler: {:#x}", swap_cx.user_trap_handler);
     trap::switch_to_user(swap_cx, user_satp)
