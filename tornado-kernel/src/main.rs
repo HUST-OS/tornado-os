@@ -92,16 +92,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
     println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
     println!("_user_data: {:#x}", _user_data as usize);
-    println!("shared_add_task: {:#x}", task::shared_add_task as usize);
-    println!("shared_pop_task: {:#x}", task::shared_pop_task as usize);
-
-    // let executor = task::Executor::default();
-
-    // executor.spawn(async {
-    //     println!("Hello world!")
-    // });
-
-    // executor.run_until_idle();
 
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };
@@ -113,65 +103,77 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
     
-    let shared_scheduler = task::shared_scheduler();
+    // 调用共享运行时的函数
+    let raw_table_ptr = 0x8021_b000 as *const ();
+    let raw_table: extern "C" fn(a0: usize) -> usize = unsafe { core::mem::transmute(raw_table_ptr) };
+    let shared_scheduler_ptr = raw_table(1);
+    let shared_add_task_ptr = raw_table(2);
+    let shared_pop_task_ptr = raw_table(3);
+    let shared_scheduler: fn()  -> core::ptr::NonNull<()> = unsafe {
+        core::mem::transmute(shared_scheduler_ptr)
+    };
+    let shared_add_task: unsafe fn(
+        shared_scheduler: core::ptr::NonNull<()>, handle: task::SharedTaskHandle
+    ) -> Option<task::SharedTaskHandle> = unsafe {
+        core::mem::transmute(shared_add_task_ptr)
+    };
+    let shared_pop_task: unsafe fn(
+        shared_scheduler: core::ptr::NonNull<()>,
+        should_switch: fn(&task::SharedTaskHandle) -> bool
+    ) -> task::TaskResult = unsafe {
+        core::mem::transmute(shared_pop_task_ptr)
+    };
+    
+    let shared_scheduler = shared_scheduler();
     println!("Shared scheduler: {:?}", shared_scheduler);
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
     let task_1 = task::KernelTask::new(task_1(), process.clone());
+    let task_2 = task::KernelTask::new(task_2(), process.clone());
+    let task_3 = task::KernelTask::new(FibonacciFuture::new(6), process.clone());
     println!("task_1: {:?}", task_1);
+    println!("task_2: {:?}", task_2);
+    println!("task_3: {:?}", task_3);
     unsafe {
-        task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
-        let _pop_task = task::shared_pop_task(shared_scheduler);
+        shared_add_task(shared_scheduler, task_1.shared_task_handle());
+        shared_add_task(shared_scheduler, task_2.shared_task_handle());
+        shared_add_task(shared_scheduler, task_3.shared_task_handle());
     }
-    // 尝试进入用户态
-    user::try_enter_user(stack_handle.end.0 - 4)
     
-    // let user_1_memory = memory::MemorySet::new_user().expect("create user 1 memory set");
-    // let process_2 = task::Process::new(user_1_memory).expect("create process 2");
-    // let task_4 = task::user_task::UserTask::new(user_task_1(), process_2);
-    // unsafe { 
-    //     task::shared_add_task(shared_scheduler, task_4.shared_task_handle()); // 用户任务
-    //     task::shared_add_task(shared_scheduler, task_3.shared_task_handle());
-    //     task::shared_add_task(shared_scheduler, task_1.shared_task_handle());
-    // }
-    // unsafe { 
-    //     riscv::register::sscratch::write(0); // todo 寄存器sscratch
-    //     riscv::register::sstatus::set_sie()   // todo 允许被特权级中断打断
-    // };
+    task::run_until_idle(
+        || unsafe { shared_pop_task(shared_scheduler, task::SharedTaskHandle::should_switch) },
+        |handle| unsafe { shared_add_task(shared_scheduler, handle) }
+    );
 
-    // task::run_until_idle(
-    //     || unsafe { task::shared_pop_task(shared_scheduler) },
-    //     |handle| unsafe { task::shared_add_task(shared_scheduler, handle) }
-    // );
+    // 进入用户态
+    user::try_enter_user(stack_handle.end.0 - 4)
 
-    // // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
+    // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
     // unsafe { hart::KernelHartInfo::unload_hart() };
-    // // 没有任务了，关机
+    // 没有任务了，关机
     // sbi::shutdown()
 }
 
-fn spawn(future: impl Future<Output = ()> + 'static + Send + Sync) {
-    unsafe { 
-        // 创建一个新的任务
-        // 在用户层，这里应该使用系统调用，一次性获得一个资源分配的令牌，代替“进程”结构体，复用这个令牌获得资源
-        let process = hart::KernelHartInfo::current_process().unwrap();
-        // 新建一个任务
-        let new_task = task::KernelTask::new(future, process);
-        // 加入调度器
-        let shared_scheduler = task::shared_scheduler();
-        task::shared_add_task(shared_scheduler, new_task.shared_task_handle());
-    }
-}
+// fn spawn(future: impl Future<Output = ()> + 'static + Send + Sync) {
+//     unsafe { 
+//         // 创建一个新的任务
+//         // 在用户层，这里应该使用系统调用，一次性获得一个资源分配的令牌，代替“进程”结构体，复用这个令牌获得资源
+//         let process = hart::KernelHartInfo::current_process().unwrap();
+//         // 新建一个任务
+//         let new_task = task::KernelTask::new(future, process);
+//         // 加入调度器
+//         let shared_scheduler = task::shared_scheduler();
+//         task::shared_add_task(shared_scheduler, new_task.shared_task_handle());
+//     }
+// }
 
 async fn task_1() {
-    spawn(task_2());
     println!("hello world from 1!");
 }
 
 async fn task_2() {
-    println!("hello world from 2!; this will block current hart");
-    // loop { } // 模拟用户长时间占用硬件线程的情况
+    println!("hello world from 2!");
 }
 
 async fn user_task_1() {
