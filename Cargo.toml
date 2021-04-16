@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "tornado-kernel",
-    "tornado-user"
+    "tornado-user",
+    "shared-scheduler"
 ]
 
 [profile.dev]

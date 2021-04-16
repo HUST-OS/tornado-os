@@ -9,6 +9,8 @@ kernel-elf := build-path + "tornado-kernel"
 kernel-bin := build-path + "tornado-kernel.bin"
 user-elf := "target/" + target + "/" + user-mode + "/" + "tornado-user"
 user-bin := "target/" + target + "/" + user-mode + "/" + "tornado-user.bin"
+shared-elf := "target/" + target + "/" + mode + "/" + "shared-scheduler"
+shared-bin := "target/" + target + "/" + mode + "/" + "shared-scheduler.bin"
 
 objdump := "riscv64-linux-gnu-objdump"
 gdb := "riscv64-unknown-elf-gdb.exe"
@@ -20,16 +22,20 @@ threads := "1"
 build:
     @just -f "tornado-kernel/justfile" build
 
-build-user app:
-    @just -f "tornado-user/justfile" build {{app}}
+build-user:
+    @just -f "tornado-user/justfile" build
 
-qemu: build # todo: build user
+build-shared:
+    @just -f "shared-scheduler/justfile" build
+
+qemu: build build-user build-shared
     @qemu-system-riscv64 \
             -machine virt \
             -nographic \
             -bios none \
             -device loader,file={{bootloader-bin}},addr=0x80000000 \
-            -device loader,file={{kernel-bin}},addr=0x80200000 \
+            -device loader,file={{shared-bin}},addr=0x80200000 \
+            -device loader,file={{kernel-bin}},addr=0x80400000 \
             -device loader,file={{user-bin}},addr=0x87000000 \
             -smp threads={{threads}} \
 
@@ -38,21 +44,22 @@ run: build qemu
 asm: build
     @{{objdump}} -D {{kernel-elf}} | less
 
-asm-user app: (build-user app)
+asm-user: build-user
     @{{objdump}} -D {{user-elf}} | less
 
 size: build
     @{{size}} -A -x {{kernel-elf}} 
-    @{{size}} -A -x {{user-elf}} 
+    @{{size}} -A -x {{user-elf}}
+    @{{size}} -A -x {{shared-elf}}
 
-
-debug app: build (build-user app)
+debug: build build-user
     @qemu-system-riscv64 \
             -machine virt \
             -nographic \
             -bios none \
             -device loader,file={{bootloader-bin}},addr=0x80000000 \
-            -device loader,file={{kernel-bin}},addr=0x80200000 \
+            -device loader,file={{shared-bin}},addr=0x80200000 \
+            -device loader,file={{kernel-bin}},addr=0x80400000 \
             -device loader,file={{user-bin}},addr=0x87000000 \
             -smp threads={{threads}} \
             -gdb tcp::1234 -S \

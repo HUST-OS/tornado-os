@@ -1,27 +1,21 @@
 OUTPUT_ARCH(riscv)
-
 ENTRY(_start)
-
-/* 省点虚拟空间……假设内核最多只有1G大小 */
-BASE_ADDRESS = 0xffffffffc0400000;
+BASE_ADDRESS = 0x80200000;
 
 SECTIONS
 {
     . = BASE_ADDRESS;
 
-    kernel_start = .;
+    shared_start = .;
 
     .text : ALIGN(4K) {
         _stext = .;
         *(.text.entry)
         *(.text .text.*)
-        . = ALIGN(4K);
-        _swap_frame = .;
-        *(.swap)
-        ASSERT(. - _swap_frame <= 4K, "swap frame larger than one page");
         _etext = .;
     }
-
+    . = ALIGN(4K);
+    
     .rodata : ALIGN(4K) {
         _srodata = .;
         *(.rodata .rodata.*)
@@ -38,10 +32,13 @@ SECTIONS
     }
 
     .bss (NOLOAD) : ALIGN(4K)  {
+        *(.bss.stack)
         _sbss = .;
         *(.sbss .bss .bss.*)
         _ebss = .;
     }
+
+    /* 将一些共享的函数放到这个段方便内核或用户访问 */
 
     .shared_data : ALIGN(4K) {
         _sshared_data = .;
@@ -55,23 +52,8 @@ SECTIONS
         _eshared_text = .;
     }
 
-    /* 暂时使用，等文件系统完工后移除 */
-    .user_data : ALIGN(4K) {
-        _suser_data = .;
-        *(.user_data .user_data.*)
-        _euser_data = .;
-    }
-    /* 暂时使用，等文件系统完工后移除 */
-    .user_text : ALIGN(4K) {
-        _suser_text = .;
-        *(.user_text .user_text.*)
-        _euser_text = .;
-    }
-    
-    . = ALIGN(4K);
-    free_memory_start = .;
-
     /DISCARD/ : {
         *(.eh_frame)
+        *(.debug*)
     }
 }

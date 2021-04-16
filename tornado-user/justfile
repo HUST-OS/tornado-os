@@ -7,8 +7,8 @@ user-bin := build-path + "tornado-user.bin"
 
 objcopy := "rust-objcopy --binary-architecture=riscv64"
 
-build app: (elf app)
+build: user
     @{{objcopy}} {{user-elf}} --strip-all -O binary {{user-bin}}
 
-elf app:
-    @cargo build --target {{target}} --{{mode}} --bin {{app}}
+user:
+    @cargo build --target={{target}} --{{mode}}
