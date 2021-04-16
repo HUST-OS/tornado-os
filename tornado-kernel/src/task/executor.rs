@@ -35,7 +35,6 @@ where
                 // poll our future and give it a waker
                 let mut context = Context::from_waker(&*waker);
                 // println!("Poll begin");
-
                 let ret = task.future.lock().as_mut().poll(&mut context);
                 // println!("Ret = {:?}", ret);
                 if let Poll::Pending = ret {
