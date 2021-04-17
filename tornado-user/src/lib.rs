@@ -16,6 +16,8 @@ use buddy_system_allocator::LockedHeap;
 
 const USER_HEAP_SIZE: usize = 32768;
 
+static mut ADDRESS_SPACE_ID: usize = 0;
+
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 
 #[global_allocator]

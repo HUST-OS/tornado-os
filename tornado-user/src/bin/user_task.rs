@@ -29,13 +29,13 @@ fn main() -> ! {
     // 获取共享运行时的函数表
     let shared_raw_table_ptr: usize;
     unsafe { asm!("mv {}, gp", out(reg) shared_raw_table_ptr, options(nomem, nostack)); }; // rust-lang/rust#82753 Thank you @Amanieu :)
-    assert_eq!(shared_raw_table_ptr, 0x8021_b000);
+    assert_eq!(shared_raw_table_ptr, 0x8600_0000);
     let raw_table: extern "C" fn(a0: usize) -> usize = unsafe {
         core::mem::transmute(shared_raw_table_ptr)
     };
-    let shared_scheduler_ptr = raw_table(1);
-    let shared_add_task_ptr = raw_table(2);
-    let shared_pop_task_ptr = raw_table(3);
+    let shared_scheduler_ptr = raw_table(0);
+    let shared_add_task_ptr = raw_table(1);
+    let shared_pop_task_ptr = raw_table(2);
     let shared_scheduler: fn()  -> core::ptr::NonNull<()> = unsafe {
         core::mem::transmute(shared_scheduler_ptr)
     };
@@ -60,17 +60,8 @@ fn main() -> ! {
         |handle| unsafe { shared_add_task(shared_scheduler, handle) }
     );
     assert_eq!(ret, Some(8));
-    // 测试系统调用
+    // 用户态退出的系统调用
     unsafe { llvm_asm!("addi a7, x0, 0"); }
-    unsafe { llvm_asm!("addi a0, x0, 49"); }
-    unsafe { llvm_asm!("ecall"); }
-    let ret: usize;
-    unsafe {
-        asm!("mv {}, a5", out(reg) ret, options(nomem, nostack));
-    }
-    assert_eq!(ret, 49);
-    // todo: 退出进程的系统调用
-    unsafe { llvm_asm!("addi a7, x0, 1"); }
     unsafe { llvm_asm!("ecall"); }
     unreachable!()
 }

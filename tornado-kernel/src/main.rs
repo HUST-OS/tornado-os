@@ -102,11 +102,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     kernel_memory.activate();
     
     // 调用共享负荷的函数
-    let raw_table_ptr = 0x8021_b000 as *const (); // 这个目前是写死的，后面考虑让共负荷传给内核
+    let raw_table_ptr = 0x8600_0000 as *const (); // 这个目前是写死的，后面考虑让共负荷传给内核
     let raw_table: extern "C" fn(a0: usize) -> usize = unsafe { core::mem::transmute(raw_table_ptr) };
-    let shared_scheduler_ptr = raw_table(1);
-    let shared_add_task_ptr = raw_table(2);
-    let shared_pop_task_ptr = raw_table(3);
+    let shared_scheduler_ptr = raw_table(0);
+    let shared_add_task_ptr = raw_table(1);
+    let shared_pop_task_ptr = raw_table(2);
     let shared_scheduler: fn()  -> core::ptr::NonNull<()> = unsafe {
         core::mem::transmute(shared_scheduler_ptr)
     };
@@ -145,7 +145,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     // 进入用户态
-    user::try_enter_user(stack_handle.end.0 - 4)
+    user::first_enter_user(stack_handle.end.0 - 4)
 
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
     // unsafe { hart::KernelHartInfo::unload_hart() };
