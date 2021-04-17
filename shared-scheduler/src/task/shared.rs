@@ -4,32 +4,25 @@ use crate::algorithm::{Scheduler, RingFifoScheduler};
 use crate::mm::AddressSpaceId;
 use core::{ptr::NonNull, usize};
 use super::TaskResult;
-use super::lock;
 use spin::Mutex;
 
-#[link_section = ".shared_text"]
-#[export_name  = "_shared_raw_table"]
+// #[link_section = ".shared_text"]
+// #[export_name  = "_shared_raw_table"]
 // 给出函数表偏移量，返回函数地址
-// 0 - hello_world()
-// 1 - shared_scheduler()
-// 2 - shared_add_task()
-// 3 - shared_pop_task()
+// 0 - shared_scheduler()
+// 1 - shared_add_task()
+// 2 - shared_pop_task()
+#[link_section = ".text.entry"]
+#[export_name = "_start"]
 pub extern "C" fn raw_table(offset: usize) -> usize {
     // println!("[shared-rt] enter shared raw table with offset: {:#x}", offset);
     match offset {
-        0 => hello_world as usize,
-        1 => shared_scheduler as usize,
-        2 => shared_add_task as usize,
-        3 => shared_pop_task as usize,
+        0 => shared_scheduler as usize,
+        1 => shared_add_task as usize,
+        2 => shared_pop_task as usize,
         _ => unimplemented!()
     }
 }
-
-#[link_section = ".shared_text"]
-#[no_mangle]
-pub fn hello_world() {
-    println!("[shared-rt] hello world from shared-rt");
-} 
 
 /// 共享调度器的类型
 type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;

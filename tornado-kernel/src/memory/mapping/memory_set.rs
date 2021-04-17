@@ -121,8 +121,8 @@ impl MemorySet {
         }
 
         // 映射共享负荷，目前地址是写死的
-        let va_range = VirtualAddress(0x80200000)..VirtualAddress(0x80400000);
-        let pa_range = PhysicalAddress(0x80200000)..PhysicalAddress(0x80400000);
+        let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8640_0000);
+        let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8640_0000);
         mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE );
         
         // 映射 _swap_frame
@@ -172,9 +172,9 @@ impl MemorySet {
         }, None)?;
 
         // 映射共享运行时段
-        // 目前共享运行时写死在 0x80200000 这个物理地址上
-        let va_range = VirtualAddress(0x80200000)..VirtualAddress(0x80400000);
-        let pa_range = PhysicalAddress(0x80200000)..PhysicalAddress(0x80400000);
+        // 目前共享运行时写死在 0x86000000 这个物理地址上
+        let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8640_0000);
+        let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8640_0000);
         mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER);
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid

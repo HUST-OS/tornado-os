@@ -29,13 +29,13 @@ fn main() -> ! {
     // 获取共享运行时的函数表
     let shared_raw_table_ptr: usize;
     unsafe { asm!("mv {}, gp", out(reg) shared_raw_table_ptr, options(nomem, nostack)); }; // rust-lang/rust#82753 Thank you @Amanieu :)
-    assert_eq!(shared_raw_table_ptr, 0x8021_b000);
+    assert_eq!(shared_raw_table_ptr, 0x8600_0000);
     let raw_table: extern "C" fn(a0: usize) -> usize = unsafe {
         core::mem::transmute(shared_raw_table_ptr)
     };
-    let shared_scheduler_ptr = raw_table(1);
-    let shared_add_task_ptr = raw_table(2);
-    let shared_pop_task_ptr = raw_table(3);
+    let shared_scheduler_ptr = raw_table(0);
+    let shared_add_task_ptr = raw_table(1);
+    let shared_pop_task_ptr = raw_table(2);
     let shared_scheduler: fn()  -> core::ptr::NonNull<()> = unsafe {
         core::mem::transmute(shared_scheduler_ptr)
     };

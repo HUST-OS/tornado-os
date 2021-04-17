@@ -3,7 +3,7 @@ OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
 /* 省点虚拟空间……假设内核最多只有1G大小 */
-BASE_ADDRESS = 0xffffffffc0400000;
+BASE_ADDRESS = 0xffffffffc0200000;
 
 SECTIONS
 {
