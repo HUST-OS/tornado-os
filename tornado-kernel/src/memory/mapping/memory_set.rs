@@ -135,6 +135,8 @@ impl MemorySet {
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("Kernel new asid = {:?}", address_space_id);
+        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
+        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
         Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
     }    
     
@@ -179,6 +181,8 @@ impl MemorySet {
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New asid = {:?}", address_space_id);
+        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
+        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
         Some(MemorySet { mapping, segments: Vec::new(), allocated_pairs, address_space_id })
     }
     /// 检测一段内存区域和已有的是否存在重叠区域

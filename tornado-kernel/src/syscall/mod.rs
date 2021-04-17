@@ -4,9 +4,12 @@ mod config;
 mod user_syscall;
 
 use config::*;
+
+use crate::{hart::KernelHartInfo, memory::{AddressSpaceId, Satp}};
 pub enum SyscallResult {
     Procceed { code: usize, extra: usize },
     Retry,
+    NextASID { satp: Satp }
 }
 
 impl SyscallResult {
@@ -35,7 +38,10 @@ pub fn syscall(param: [usize; 2], func: usize, module: usize) -> SyscallResult {
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
 fn switch_next_task(param: [usize; 2], func: usize) -> SyscallResult {
-    let next_asid = param[0]; // a0
-    
-    SyscallResult::ok(next_asid)
+    let next_asid = unsafe { AddressSpaceId::from_raw(param[0]) }; // a0
+    if let Some(next_satp) = KernelHartInfo::get_satp(next_asid) {
+        SyscallResult::NextASID{ satp: next_satp}
+    } else {
+        panic!("Next satp not found!")
+    }
 }

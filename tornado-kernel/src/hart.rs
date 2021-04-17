@@ -3,7 +3,7 @@ use alloc::collections::LinkedList;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use crate::{task::{Process, SharedTaskHandle}, trap::TrapFrame};
-use crate::memory::AddressSpaceId;
+use crate::memory::{AddressSpaceId, Satp};
 
 /// 写一个指针到上下文指针
 #[inline]
@@ -24,10 +24,10 @@ pub fn read_tp() -> usize {
 pub struct KernelHartInfo {
     hart_id: usize,
     current_address_space_id: AddressSpaceId,
-    
     current_process: Option<Arc<Process>>,
     hart_max_asid: AddressSpaceId,
     asid_alloc: (LinkedList<usize>, usize), // 空余的编号回收池；目前已分配最大的编号
+    satps: LinkedList<(AddressSpaceId, Satp)> // 记录地址空间与 satp 寄存器的对应关系 
 }
 
 impl KernelHartInfo {
@@ -39,13 +39,13 @@ impl KernelHartInfo {
             current_process: None,
             hart_max_asid: crate::memory::max_asid(),
             asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
+            satps: LinkedList::new()
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
     }
 
     /// 热加载/热卸载处理核，释放这个核占用的内存资源
-    
     pub unsafe fn unload_hart() {
         let addr = read_tp();
         let bx: Box<KernelHartInfo> = Box::from_raw(addr as *mut _);
@@ -94,7 +94,6 @@ impl KernelHartInfo {
     }
 
     /// 释放地址空间编号
-    
     pub fn free_address_space_id(asid: AddressSpaceId) {
         use_tp_box(|b| {
             let (free, max) = &mut b.asid_alloc;
@@ -104,7 +103,36 @@ impl KernelHartInfo {
             } else {
                 free.push_back(asid.into_inner())
             }
+            let satps = &mut b.satps;
+            let len = satps.len();
+            for _ in 0..len {
+                if let Some(x) = satps.pop_front() {
+                    if x.0 != asid {
+                        satps.push_back((x.0, x.1));
+                    }
+                }
+            }            
         });
+    }
+
+    /// 添加地址空间编号和 satp 寄存器的对应关系
+    pub fn add_asid_satp_map(asid: AddressSpaceId, satp: Satp) {
+        use_tp_box(|b| {
+            b.satps.push_back((asid, satp));
+        })
+    }
+
+    /// 根据地址空间编号获得 satp 寄存器
+    pub fn get_satp(asid: AddressSpaceId) -> Option<Satp> {
+        use_tp_box(|b| {
+            let v = &mut b.satps;
+            for x in v.iter() {
+                if x.0 == asid {
+                    return Some(x.1);
+                }
+            }
+            return None;
+        })
     }
 }
 

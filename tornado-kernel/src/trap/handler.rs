@@ -275,7 +275,8 @@ fn syscall(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
             trap_frame.sepc = trap_frame.sepc.wrapping_add(4); // skip `ecall` instruction
             trap_frame
         }
-        SyscallResult::Retry => trap_frame // don't skip
+        SyscallResult::Retry => trap_frame, // don't skip
+        _ => unimplemented!()
     }
 }
 

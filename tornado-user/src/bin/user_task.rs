@@ -12,7 +12,8 @@ use core::pin::Pin;
 use tornado_user::{
     excutor,
     shared,
-    task
+    task,
+    SHARED_RAW_TABLE
 };
 
 #[no_mangle]
@@ -27,11 +28,8 @@ fn main() -> ! {
     assert_eq!(ret, Some(8));
 
     // 获取共享运行时的函数表
-    let shared_raw_table_ptr: usize;
-    unsafe { asm!("mv {}, gp", out(reg) shared_raw_table_ptr, options(nomem, nostack)); }; // rust-lang/rust#82753 Thank you @Amanieu :)
-    assert_eq!(shared_raw_table_ptr, 0x8600_0000);
     let raw_table: extern "C" fn(a0: usize) -> usize = unsafe {
-        core::mem::transmute(shared_raw_table_ptr)
+        core::mem::transmute(SHARED_RAW_TABLE)
     };
     let shared_scheduler_ptr = raw_table(0);
     let shared_add_task_ptr = raw_table(1);

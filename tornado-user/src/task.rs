@@ -66,7 +66,7 @@ impl UserTask {
             UserTask {
                 id,
                 // todo: 地址空间编号
-                asid: unsafe { AddressSpaceId::from_raw(0) },
+                asid: unsafe { AddressSpaceId::from_raw(crate::ADDRESS_SPACE_ID) },
                 inner: Mutex::new(UserTaskInner {
                     sleeping: false,
                     finished: false,
