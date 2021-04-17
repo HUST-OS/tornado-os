@@ -8,7 +8,8 @@ use crate::memory::{
         PAGE_SIZE,
         SWAP_FRAME_VA,
         USER_STACK_BOTTOM_VA
-    }
+    },
+    MemorySetHandle
 };
 use crate::memory::{
     Mapping,
@@ -21,7 +22,7 @@ use crate::memory::{
     FrameTracker,
     AddressSpaceId
 };
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
 
 /// 一个地址空间中，所有与内存空间有关的信息
@@ -242,6 +243,12 @@ impl MemorySet {
         self.mapping.activate_on(self.address_space_id)
     }
 
+    /// 创建一个该内存映射的句柄
+    pub fn handle(self: Arc<Self>) -> MemorySetHandle {
+        let satp = self.mapping.get_satp(self.address_space_id);
+        let mms_ptr = Arc::into_raw(self);
+        MemorySetHandle::new(satp, mms_ptr as usize)
+    }
 }
 
 fn range_vpn_from_range_va(src: &Range<VirtualAddress>) -> Range<VirtualPageNumber> {

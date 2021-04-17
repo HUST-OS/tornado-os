@@ -5,7 +5,7 @@ mod frame;
 mod mapping;
 
 pub use address::{PhysicalAddress, PhysicalPageNumber, VirtualAddress, VirtualPageNumber};
-pub use mapping::{MemorySet, Mapping, Segment, MapType, Flags};
+pub use mapping::{MemorySet, Mapping, Segment, MapType, Flags, MemorySetHandle, Satp};
 pub use frame::{frame_alloc, FrameTracker};
 pub use config::*;
 

@@ -78,7 +78,6 @@ impl KernelTask {
     /// 转换到共享的任务编号
     ///
     /// note(unsafe): 创建了一个没有边界的生命周期
-    
     pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
         SharedTaskHandle {
             hart_id: KernelHartInfo::hart_id(),
