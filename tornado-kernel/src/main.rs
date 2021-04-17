@@ -36,7 +36,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         fn _swap_frame();
         fn _user_to_supervisor();
         fn _supervisor_to_user();
-        fn _user_data();
     }
 
     unsafe { 
@@ -91,7 +90,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("_swap_frame: {:#x}", _swap_frame as usize);
     println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
     println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
-    println!("_user_data: {:#x}", _user_data as usize);
 
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };
@@ -103,8 +101,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
     
-    // 调用共享运行时的函数
-    let raw_table_ptr = 0x8021_b000 as *const ();
+    // 调用共享负荷的函数
+    let raw_table_ptr = 0x8021_b000 as *const (); // 这个目前是写死的，后面考虑让共负荷传给内核
     let raw_table: extern "C" fn(a0: usize) -> usize = unsafe { core::mem::transmute(raw_table_ptr) };
     let shared_scheduler_ptr = raw_table(1);
     let shared_add_task_ptr = raw_table(2);

@@ -47,6 +47,9 @@ asm: build
 asm-user: build-user
     @{{objdump}} -D {{user-elf}} | less
 
+asm-shared: build-shared
+    @{{objdump}} -D {{shared-elf}} | less
+
 size: build
     @{{size}} -A -x {{kernel-elf}} 
     @{{size}} -A -x {{user-elf}}
