@@ -49,4 +49,7 @@ impl Satp {
             |pte| {pte.page_number()}
         )
     }
+    pub fn inner(&self) -> usize {
+        self.0
+    }
 }

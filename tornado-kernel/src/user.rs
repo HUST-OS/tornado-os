@@ -54,9 +54,35 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
     trap::switch_to_user(swap_cx, user_satp)
 }
 
-// 测试用的中断处理函数，用户态发生中断会陷入到这里
+/// 测试用的中断处理函数，用户态发生中断会陷入到这里
+/// 目前使用以下系统调用约定:
+/// + 系统调用号在 a7 中传递
+/// + 系统调用参数在 a0 中传递给 a5
+/// + 未使用的参数设置为 0
+/// + 返回值在 a0 中返回
 #[export_name = "_test_user_trap"]
 pub extern "C" fn test_user_trap() {
+    let user_satp: usize;
+    unsafe {
+        asm!("mv {}, t2", out(reg) user_satp, options(nomem, nostack));
+    }
+    let user_satp = memory::Satp::new(user_satp);
+    let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
+    let swap_cx_vpn = memory::VirtualPageNumber::floor(swap_cx_va);
+    let swap_cx_ppn = user_satp
+        .translate(swap_cx_vpn)
+        .unwrap();
+    // 将物理页号转换成裸指针
+    let swap_cx = unsafe {
+        (swap_cx_ppn.start_address()
+            .0
+            .wrapping_add(memory::KERNEL_MAP_OFFSET) as *mut trap::SwapContext)
+            .as_mut()
+            .unwrap()
+    };
+    // 从 SwapContext 中读东西
+    let a7 =swap_cx.x[16];
+    let a0 = swap_cx.x[9];
     match scause::read().cause() {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             println!("s mode timer!");
@@ -68,8 +94,21 @@ pub extern "C" fn test_user_trap() {
             crate::sbi::shutdown();
         },
         Trap::Exception(scause::Exception::UserEnvCall) => {
-            println!("ecall from user.");
-            crate::sbi::shutdown();
+            match a7 {
+                0 => {
+                    println!("user putchar: {}", a0 as u8 as char);
+                },
+                1 => {
+                    println!("exit signal from user");
+                    crate::sbi::shutdown()
+                },
+                _ => panic!("unknown syscall!")
+            }
+            // secp 加 4，回到用户态下一条指令继续运行
+            swap_cx.epc += 4;
+            swap_cx.x[14] = a0;
+            trap::switch_to_user(swap_cx, user_satp.inner())
+            // unreachable!()
         }
         _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}", scause::read().cause(), sepc::read(), stval::read())
     }

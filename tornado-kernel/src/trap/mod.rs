@@ -154,10 +154,15 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
     sd t5, 272(a0)
     sd t6, 280(a0)
     ",
-    //保存用户的 a0 寄存器
+
+    // 保存用户的 a0 寄存器
     "csrr t0, sscratch
     sd t0, 112(a0)",
-
+    
+    // 写 sepc 寄存器到 SwapContext 中相应位置
+    "csrr t0, sepc
+    sd t0, 24(a0)",
+    
     // 恢复内核栈指针
     "ld sp, 8(a0)",
 
@@ -166,7 +171,10 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
 
     // 将用户中断处理函数指针放到 t0 寄存器
     "ld t0, 16(a0)",
-
+    
+    // 将用户的 satp 寄存器放到 t2 寄存器里面去
+    "csrr t2, satp",
+    
     // 恢复内核页表
     "ld t1, 0(a0)
     csrw satp, t1",
