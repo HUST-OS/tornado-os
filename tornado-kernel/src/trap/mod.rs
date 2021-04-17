@@ -270,29 +270,10 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
 
     // todo: 如何处理 tp 寄存器
         
-    // unsafe {
-    //     asm!(
-    //         "fence.i",
-    //         "li     a0, {}",
-    //         "mv     a1, {}",
-    //         "jr     {}",
-    //         const SWAP_CONTEXT_VA,
-    //         in(reg) user_satp,
-    //         in(reg) jmp_va,
-    //         options(noreturn)
-    //     );
-    // }
     // 上面这样写生产出的汇编好像不太对，因此改为下面这样写
     unsafe {
         llvm_asm!("fence.i" :::: "volatile");
         llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(SWAP_CONTEXT_VA), "{a1}"(user_satp) :: "volatile");
     }
     unreachable!()
-}
-
-// 打印 satp 寄存器
-
-fn print_satp(satp: usize) {
-    use bit_field::BitField;
-    println!("root ppn: {:#x}", &satp.get_bits(0..44));
 }

@@ -7,9 +7,7 @@ use crate::memory::{
         MEMORY_END_ADDRESS,
         PAGE_SIZE,
         SWAP_FRAME_VA,
-        USER_STACK_BOTTOM_VA,
-        USER_SHARED_DATA_VA,
-        USER_SHARED_TEXT_VA
+        USER_STACK_BOTTOM_VA
     }
 };
 use crate::memory::{
@@ -56,12 +54,6 @@ impl MemorySet {
             fn _eshared_data();
             fn _sshared_text();
             fn _eshared_text();
-            /* 暂时使用，等文件系统完工后移除 */
-            fn _suser_data();
-            fn _euser_data();
-            fn _suser_text();
-            fn _euser_text();
-            /* 以上在文件系统完工后移除 */
             fn _swap_frame();
         }
         
@@ -71,8 +63,6 @@ impl MemorySet {
         println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
         println!("shared_data: {:x?}", VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize));
         println!("shared_text: {:x?}", VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize));
-        println!("user_data: {:x?}", VirtualAddress(_suser_data as usize)..VirtualAddress(_euser_data as usize));
-        println!("user_text: {:x?}", VirtualAddress(_suser_text as usize)..VirtualAddress(_euser_text as usize));
         println!("swap frame: {:x?}", VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize));
         println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
 
@@ -113,18 +103,6 @@ impl MemorySet {
                 range: VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize),
                 flags: Flags::EXECUTABLE // 没有READABLE
             },
-            // 用户段映射部分
-            /* 暂时使用，等文件系统完工后移除 */
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_suser_data as usize)..VirtualAddress(_euser_data as usize),
-                flags: Flags::READABLE | Flags::WRITABLE
-            },
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_suser_text as usize)..VirtualAddress(_euser_text as usize),
-                flags: Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE
-            },
             // 剩余内存空间，rw-
             Segment {
                 map_type: MapType::Linear,
@@ -141,10 +119,11 @@ impl MemorySet {
             mapping.map_segment(segment, None)?;
         }
 
-        // 映射共享运行时段
+        // 映射共享负荷，目前地址是写死的
         let va_range = VirtualAddress(0x80200000)..VirtualAddress(0x80400000);
         let pa_range = PhysicalAddress(0x80200000)..PhysicalAddress(0x80400000);
         mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE );
+        
         // 映射 _swap_frame
         let swap_frame_va = VirtualAddress(SWAP_FRAME_VA);
         let swap_frame_vpn = VirtualPageNumber::floor(swap_frame_va);
@@ -153,105 +132,11 @@ impl MemorySet {
         println!("swap_frame_vpn: {:x?}, swap_frame_ppn: {:x?}", swap_frame_vpn, swap_frame_ppn);
         mapping.map_one(swap_frame_vpn, Some(swap_frame_ppn), Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE)?;
 
-        // 映射 SwapContext
-        // let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
-        // mapping.map_segment(&Segment {
-        //     map_type: MapType::Framed,
-        //     range: swap_cx_va..swap_cx_va + PAGE_SIZE,
-        //     flags: Flags::READABLE | Flags::WRITABLE,
-        // }, None)?;
-        
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("Kernel new asid = {:?}", address_space_id);
         Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
     }    
-    /// 创建一个用户态映射
-    pub fn new_user() -> Option<MemorySet> { 
-        // 各个字段的起始和结束点，在链接器脚本中给出
-        extern "C" {
-            fn _stext();
-            fn _etext();
-            fn _srodata();
-            fn _erodata();
-            fn _sdata();
-            fn _edata();
-            fn _sbss();
-            fn _ebss();
-            fn _suser_text();
-            fn _euser_text();
-            fn _suser_data();
-            fn _euser_data();
-            fn _swap_frame();
-        }
-        
-        let mut mapping = Mapping::new_alloc()?;
-        let allocated_pairs = Vec::new();
-
-        let segments = vec![
-            // .text 段，r-x
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_stext as usize)..VirtualAddress(_swap_frame as usize),
-                flags: Flags::READABLE | Flags::EXECUTABLE
-            },
-            // .rodata 段，r--
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize),
-                flags: Flags::READABLE
-            },
-            // .data 段，rw-
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize),
-                flags: Flags::READABLE | Flags::WRITABLE
-            },
-            // .bss 段，rw-
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize),
-                flags: Flags::READABLE | Flags::WRITABLE
-            },
-        ];
-        // 映射这些段是为了用户态可以使用 Rust 语言项的一些东西
-        for segment in segments.iter() {
-            mapping.map_segment(segment, None)?;
-        }
-
-        // 映射 .user_text 段
-        let user_text_len = _euser_text as usize - _suser_text as usize;
-        let va_range = VirtualAddress(0)..VirtualAddress(user_text_len);
-        let pa_range = VirtualAddress(_suser_text as usize).physical_address_linear()..VirtualAddress(_euser_text as usize).physical_address_linear();
-        // let pa_range = PhysicalAddress((_suser_text as usize).wrapping_sub(KERNEL_MAP_OFFSET))..PhysicalAddress((_euser_text as usize).wrapping_sub(KERNEL_MAP_OFFSET));
-        mapping.map_defined(&va_range, &pa_range, Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE | Flags::USER);
-        
-        // 映射 .user_data 段
-        let user_stack_len = _euser_data as usize - _suser_data as usize;
-        assert_eq!(user_stack_len, PAGE_SIZE);
-        let va_range = VirtualAddress(USER_STACK_BOTTOM_VA)..VirtualAddress(USER_STACK_BOTTOM_VA + user_stack_len);
-        let pa_range = VirtualAddress(_suser_data as usize).physical_address_linear()..VirtualAddress(_euser_data as usize).physical_address_linear();
-        // let pa_range = PhysicalAddress((_suser_data as usize).wrapping_sub(KERNEL_MAP_OFFSET))..PhysicalAddress((_euser_data as usize).wrapping_sub(KERNEL_MAP_OFFSET));
-        mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::USER);
-        
-        // 映射 _swap_frame
-        let swap_frame_va = VirtualAddress(SWAP_FRAME_VA);
-        let swap_frame_vpn = VirtualPageNumber::floor(swap_frame_va);
-        let swap_frame_pa = VirtualAddress(_swap_frame as usize).physical_address_linear();
-        let swap_frame_ppn = PhysicalPageNumber::floor(swap_frame_pa);
-        mapping.map_one(swap_frame_vpn, Some(swap_frame_ppn), Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE);
-
-        // 映射 SwapContext
-        let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
-        mapping.map_segment(&Segment {
-            map_type: MapType::Framed,
-            range: swap_cx_va..swap_cx_va + PAGE_SIZE,
-            flags: Flags::READABLE | Flags::WRITABLE,
-        }, None)?;
-        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
-        println!("New asid = {:?}", address_space_id);
-        // 这里暂时不管 segment 字段
-        Some(MemorySet { mapping, segments: Vec::new(), allocated_pairs, address_space_id })
-    }
+    
     /// 通过一个 bin 文件创建用户态映射
     /// 
     /// 目前该用户 bin 文件在 qemu 中的位置写死为 0x87000000
@@ -284,20 +169,6 @@ impl MemorySet {
             range: swap_cx_va..swap_cx_va + PAGE_SIZE,
             flags: Flags::READABLE | Flags::WRITABLE,
         }, None)?;
-
-        // // 映射共享数据段
-        // let shared_data_len = _eshared_data as usize - _sshared_data as usize;
-        // let va_range = VirtualAddress(USER_SHARED_DATA_VA)..VirtualAddress(USER_SHARED_DATA_VA + shared_data_len);
-        // let pa_range =
-        //     VirtualAddress(_sshared_data as usize).physical_address_linear()..VirtualAddress(_eshared_data as usize).physical_address_linear();
-        // mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::USER);
-
-        // // 映射共享代码段
-        // let shared_text_len = _eshared_text as usize - _sshared_text as usize;
-        // let va_range = VirtualAddress(USER_SHARED_TEXT_VA)..VirtualAddress(USER_SHARED_TEXT_VA + shared_text_len);
-        // let pa_range =
-        //     VirtualAddress(_sshared_text as usize).physical_address_linear()..VirtualAddress(_eshared_text as usize).physical_address_linear();
-        // mapping.map_defined(&va_range, &pa_range, Flags::READABLE | Flags::WRITABLE | Flags::EXECUTABLE | Flags::USER);
 
         // 映射共享运行时段
         // 目前共享运行时写死在 0x80200000 这个物理地址上

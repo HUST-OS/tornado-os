@@ -33,9 +33,3 @@ pub const SWAP_CONTEXT_VA: usize = SWAP_FRAME_VA - PAGE_SIZE;
 /// 放在切换时保存的上下文下面
 /// todo: 这个后面要移除
 pub const USER_STACK_BOTTOM_VA: usize = SWAP_CONTEXT_VA - PAGE_SIZE;
-
-/// 共享数据段在用户态中的虚拟地址
-pub const USER_SHARED_DATA_VA: usize = 0xffff_ffff_ffff_0000;
-
-/// 共享代码段在用户态中的虚拟地址
-pub const USER_SHARED_TEXT_VA: usize = 0xffff_ffff_fffe_0000;

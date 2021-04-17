@@ -18,7 +18,6 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
         fn _sshared_text();
         fn _eshared_text();
     }
-    // println!("_test_user_trap: {:#x}, _test_user_entry: {:#x}", _test_user_trap as usize, _test_user_entry as usize);
    
     // 创建一个用户态映射
     // 用户态程序目前写死在 0x87000000 处
@@ -33,18 +32,8 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
         .translate(swap_cx_vpn)
         .unwrap()
         .page_number();
-    // println!("swap_cx_ppn: {:x?}", swap_cx_ppn);
     // 将物理页号转换为裸指针
     let swap_cx = unsafe { (swap_cx_ppn.start_address().0.wrapping_add(memory::KERNEL_MAP_OFFSET) as *mut trap::SwapContext).as_mut().unwrap() };
-    // println!("swap_cx_va: {:#x}, swap_cx_pa: {:#x}", memory::SWAP_CONTEXT_VA, swap_cx_ppn.start_address().0.wrapping_add(memory::KERNEL_MAP_OFFSET));
-    // 用户态程序入口，这里将映射到的物理页号打印出来
-    let user_entry_va = memory::VirtualAddress(0);
-    let user_entry_vpn = memory::VirtualPageNumber::floor(user_entry_va);
-    let user_entry_ppn = user_memory.mapping
-        .translate(user_entry_vpn)
-        .unwrap()
-        .page_number();
-    println!("user_entry_ppn: {:x?}", user_entry_ppn);
     // 获取用户的satp寄存器
     let user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
     let process = task::Process::new_user(user_memory).unwrap();
@@ -57,15 +46,12 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
     let kernel_satp = riscv::register::satp::read().bits();
 
     // 往 SwapContext 写东西
-    // _test_user_entry 由虚拟地址 0 映射到真实物理地址
     *swap_cx = trap::SwapContext::new_to_user(
         kernel_satp, 0, 0, kernel_stack_top, user_stack_top, _test_user_trap as usize
     );
     
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
     swap_cx.set_gp(0x8021_b000);
-    // println!("swap_cx.epc: {:#x}", swap_cx.epc);
-    // println!("swap_cx.trap_handler: {:#x}", swap_cx.user_trap_handler);
     trap::switch_to_user(swap_cx, user_satp)
 }
 
@@ -84,23 +70,9 @@ pub extern "C" fn test_user_trap() {
         },
         Trap::Exception(scause::Exception::UserEnvCall) => {
             println!("ecall from user.");
-            // 这里先返回到用户态
             crate::sbi::shutdown();
         }
         _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}", scause::read().cause(), sepc::read(), stval::read())
     }
 }
 
-// 测试用的用户程序入口
-#[export_name = "_test_user_entry"]
-#[link_section = ".user_text"]
-pub extern "C" fn test_user_entry() {
-    let mut data = [0usize; 500];
-    data.iter_mut().for_each(|i| *i += 1);
-    loop {}
-}
-
-// 用户态数据，这里是为了占位
-#[export_name = "_user_data"]
-#[link_section = ".user_data"]
-static _USER_STACK: [usize; PAGE_SIZE / 8] = [1; PAGE_SIZE / 8];
