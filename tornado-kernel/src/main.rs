@@ -145,7 +145,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     // 进入用户态
-    user::try_enter_user(stack_handle.end.0 - 4)
+    user::first_enter_user(stack_handle.end.0 - 4)
 
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
     // unsafe { hart::KernelHartInfo::unload_hart() };

@@ -1,16 +1,15 @@
 use riscv::register::scause::{self, Trap, Interrupt};
 use riscv::register::{sepc, stval};
-use alloc::sync::Arc;
 
 use crate::memory::{self, PAGE_SIZE};
 use crate::trap;
 use crate::task;
 
-// 尝试进入用户态
-pub fn try_enter_user(kernel_stack_top: usize) -> ! {
+/// 第一次进入用户态
+pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     extern {
         // 用户陷入内核时候的中断处理函数
-        fn _test_user_trap();
+        fn _user_trap_handler();
         // 用户程序入口点
         fn _test_user_entry();
         fn _sshared_data();
@@ -22,6 +21,7 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
     // 创建一个用户态映射
     // 用户态程序目前写死在 0x87000000 处
     let user_memory = memory::MemorySet::new_bin().unwrap();
+    
     // 存放用户特权级切换上下文的虚拟地址
     let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
     // 存放用户特权级切换上下文的虚拟页号
@@ -33,84 +33,30 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
         .page_number();
     // 将物理页号转换为裸指针
     let swap_cx = unsafe { (swap_cx_ppn.start_address().0.wrapping_add(memory::KERNEL_MAP_OFFSET) as *mut trap::SwapContext).as_mut().unwrap() };
-    // 获取用户的satp寄存器
+    
+    // 获取用户的 satp 寄存器
     let user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
     let process = task::Process::new_user(user_memory).unwrap();
+    
     // 用户态栈
     let user_stack_handle = process.alloc_stack().expect("alloc user stack");
     // 这里减 4 是因为映射的时候虚拟地址的右半边是不包含的
     let user_stack_top = user_stack_handle.end.0 - 4;
-    println!("kernel stack top: {:#x}, user stack top: {:#x}", kernel_stack_top, user_stack_top);
+    // println!("kernel stack top: {:#x}, user stack top: {:#x}", kernel_stack_top, user_stack_top);
+    
+    // 获取用户地址空间编号
+    let user_asid = process.address_space_id().into_inner();
+    
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 
     // 往 SwapContext 写东西
+    // 目前通过 tp 寄存器把地址空间编号传给用户，后面可能会修改
     *swap_cx = trap::SwapContext::new_to_user(
-        kernel_satp, 0, 0, kernel_stack_top, user_stack_top, _test_user_trap as usize
+        kernel_satp, 0, user_asid, kernel_stack_top, user_stack_top, _user_trap_handler as usize
     );
     
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
     swap_cx.set_gp(0x8021_b000);
     trap::switch_to_user(swap_cx, user_satp)
 }
-
-/// 测试用的中断处理函数，用户态发生中断会陷入到这里
-/// 目前使用以下系统调用约定:
-/// + 系统调用号在 a7 中传递
-/// + 系统调用参数在 a0 中传递给 a5
-/// + 未使用的参数设置为 0
-/// + 返回值在 a0 中返回
-#[export_name = "_test_user_trap"]
-pub extern "C" fn test_user_trap() {
-    let user_satp: usize;
-    unsafe {
-        asm!("mv {}, t2", out(reg) user_satp, options(nomem, nostack));
-    }
-    let user_satp = memory::Satp::new(user_satp);
-    let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
-    let swap_cx_vpn = memory::VirtualPageNumber::floor(swap_cx_va);
-    let swap_cx_ppn = user_satp
-        .translate(swap_cx_vpn)
-        .unwrap();
-    // 将物理页号转换成裸指针
-    let swap_cx = unsafe {
-        (swap_cx_ppn.start_address()
-            .0
-            .wrapping_add(memory::KERNEL_MAP_OFFSET) as *mut trap::SwapContext)
-            .as_mut()
-            .unwrap()
-    };
-    // 从 SwapContext 中读东西
-    let a7 =swap_cx.x[16];
-    let a0 = swap_cx.x[9];
-    match scause::read().cause() {
-        Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            println!("s mode timer!");
-            // 目前遇到时钟中断先让系统退出，等把内核完善好了再来处理
-            crate::sbi::shutdown();
-        },
-        Trap::Exception(scause::Exception::Breakpoint) => {
-            println!("user mode panic!");
-            crate::sbi::shutdown();
-        },
-        Trap::Exception(scause::Exception::UserEnvCall) => {
-            match a7 {
-                0 => {
-                    println!("user putchar: {}", a0 as u8 as char);
-                },
-                1 => {
-                    println!("exit signal from user");
-                    crate::sbi::shutdown()
-                },
-                _ => panic!("unknown syscall!")
-            }
-            // secp 加 4，回到用户态下一条指令继续运行
-            swap_cx.epc += 4;
-            swap_cx.x[14] = a0;
-            trap::switch_to_user(swap_cx, user_satp.inner())
-            // unreachable!()
-        }
-        _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}", scause::read().cause(), sepc::read(), stval::read())
-    }
-}
-

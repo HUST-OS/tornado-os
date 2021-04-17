@@ -33,8 +33,8 @@ qemu app: build build-shared
             -nographic \
             -bios none \
             -device loader,file={{bootloader-bin}},addr=0x80000000 \
-            -device loader,file={{shared-bin}},addr=0x80200000 \
-            -device loader,file={{kernel-bin}},addr=0x80400000 \
+            -device loader,file={{kernel-bin}},addr=0x80200000 \
+            -device loader,file={{shared-bin}},addr=0x86000000 \
             -device loader,file={{app-path}}{{app}}.bin,addr=0x87000000 \
             -smp threads={{threads}} \
 
@@ -54,8 +54,8 @@ debug app: build build-shared
             -nographic \
             -bios none \
             -device loader,file={{bootloader-bin}},addr=0x80000000 \
-            -device loader,file={{shared-bin}},addr=0x80200000 \
-            -device loader,file={{kernel-bin}},addr=0x80400000 \
+            -device loader,file={{kernel-bin}},addr=0x80200000 \
+            -device loader,file={{shared-bin}},addr=0x86000000 \
             -device loader,file={{app-path}}{{app}}.bin,addr=0x87000000 \
             -smp threads={{threads}} \
             -gdb tcp::1234 -S \

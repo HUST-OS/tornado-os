@@ -60,17 +60,8 @@ fn main() -> ! {
         |handle| unsafe { shared_add_task(shared_scheduler, handle) }
     );
     assert_eq!(ret, Some(8));
-    // 测试系统调用
+    // 用户态退出的系统调用
     unsafe { llvm_asm!("addi a7, x0, 0"); }
-    unsafe { llvm_asm!("addi a0, x0, 49"); }
-    unsafe { llvm_asm!("ecall"); }
-    let ret: usize;
-    unsafe {
-        asm!("mv {}, a5", out(reg) ret, options(nomem, nostack));
-    }
-    assert_eq!(ret, 49);
-    // todo: 退出进程的系统调用
-    unsafe { llvm_asm!("addi a7, x0, 1"); }
     unsafe { llvm_asm!("ecall"); }
     unreachable!()
 }
