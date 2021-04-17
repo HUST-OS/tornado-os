@@ -1,6 +1,6 @@
 use riscv::register::scause::{self, Trap, Interrupt};
 use riscv::register::{sepc, stval};
-/// 临时的用户态程序和数据
+use alloc::sync::Arc;
 
 use crate::memory::{self, PAGE_SIZE};
 use crate::trap;
@@ -22,7 +22,6 @@ pub fn try_enter_user(kernel_stack_top: usize) -> ! {
     // 创建一个用户态映射
     // 用户态程序目前写死在 0x87000000 处
     let user_memory = memory::MemorySet::new_bin().unwrap();
-    
     // 存放用户特权级切换上下文的虚拟地址
     let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
     // 存放用户特权级切换上下文的虚拟页号
