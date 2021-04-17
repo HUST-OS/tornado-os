@@ -77,8 +77,7 @@ where
                 }
             },
             TaskResult::ShouldYield => {
-                //todo
-                // crate::trap::switch_to_user()
+                // todo
             },
             TaskResult::Finished => return None
         }
