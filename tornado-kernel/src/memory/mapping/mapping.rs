@@ -71,12 +71,14 @@ impl Mapping {
         // 解引用结束，entry 位于最后一级页表
         Some(entry)
     }
+
     /// 地址转换
     pub fn translate(&self, vpn: VirtualPageNumber) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(
             |pte| {pte.clone()}
         )
     }
+
     /// 插入一项虚拟页号对物理页号的映射关系，Some表示成功
     pub fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
         // 先找到页表项
@@ -87,6 +89,7 @@ impl Mapping {
         *entry_mut = PageTableEntry::new(ppn, flags);
         Some(())
     }
+
     /// 插入并映射一个段
     pub fn map_segment(
         &mut self, segment: &Segment, init_data: Option<&[u8]>
@@ -104,6 +107,7 @@ impl Mapping {
             ),
         }
     }
+
     /// 自由映射一个段
     pub fn map_defined(
         &mut self, va_range: &Range<VirtualAddress>, pa_range: &Range<PhysicalAddress>, flags: Flags
@@ -112,6 +116,7 @@ impl Mapping {
         let ppn_range = range_vpn_contains_pa(pa_range.clone());
         self.map_range(vpn_range, ppn_range, flags);
     }
+    
     // 映射指定的虚拟页号和物理页号
     // 不能指定初始数据
     fn map_range(
@@ -130,6 +135,7 @@ impl Mapping {
             self.map_one(vpn, Some(ppn), flags);
         }
     }
+
     // 插入和映射线性的段
     fn map_range_linear(
         &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
@@ -145,6 +151,7 @@ impl Mapping {
         }
         Some(Vec::new())
     }
+
     // 插入和映射按帧分页的段
     fn map_range_framed(
         &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
@@ -179,6 +186,7 @@ impl Mapping {
         }
         Some(_allocated_pairs) // todo!
     }
+
     /// 把当前的映射保存到satp寄存器
     pub fn activate_on(&self, asid: AddressSpaceId) {
         use riscv::register::satp::{self, Mode};
@@ -190,6 +198,7 @@ impl Mapping {
             asm!("sfence.vma x0, {asid}", asid = in(reg) asid);
         }
     }
+
     /// 获取当前映射的satp寄存器值
     pub fn get_satp(&self, asid: AddressSpaceId) -> usize {
         // 60..64 mode
@@ -288,21 +297,3 @@ fn ppn_step_iter(src: Range<PhysicalPageNumber>) -> PpnRangeIter {
         current_addr: src.start.start_address().0,
     }
 }
-
-// 我觉得应当换一种方式，而不是用这种迭代方法 --luojia65
-// impl Iterator for (VpnRangeIter, PpnRangeIter) {
-//     type Item = (VirtualPageNumber, PhysicalPageNumber);
-//     // todo: 这里语法应该更严格一点
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.0.current_addr == self.0.end_addr || self.1.current_addr == self.1.end_addr {
-//             return None;
-//         }
-//         let current_vpn = VirtualPageNumber::ceil(VirtualAddress(self.0.current_addr));
-//         let next_va = self.0.current_addr.wrapping_add(PAGE_SIZE);
-//         self.0.current_addr = next_va;
-//         let current_ppn = PhysicalPageNumber::ceil(PhysicalAddress(self.1.current_addr));
-//         let next_pa = self.1.current_addr.wrapping_add(PAGE_SIZE);
-//         self.1.current_addr = next_pa;
-//         Some(current_vpn, current_ppn)
-//     }
-// }

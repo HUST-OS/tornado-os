@@ -5,6 +5,7 @@ use riscv::register::satp::Mode;
 use bit_field::BitField;
 
 /// Satp 寄存器，用于用户陷入内核态的时候提供地址映射帮助
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Satp(usize);
 
 impl Satp {

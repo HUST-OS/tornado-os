@@ -70,9 +70,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     
     println!("heap test passed");
     println!("Max asid = {:?}", memory::max_asid());
-    // let remap = memory::MemorySet::new_kernel().unwrap();
-    // remap.activate();
-    // println!("kernel remapped");
 
     // 物理页分配
     for i in 0..2 {
@@ -101,29 +98,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
     
-    // 调用共享负荷的函数
-    let raw_table_ptr = 0x8600_0000 as *const (); // 这个目前是写死的，后面考虑让共负荷传给内核
-    let raw_table: extern "C" fn(a0: usize) -> usize = unsafe { core::mem::transmute(raw_table_ptr) };
-    let shared_scheduler_ptr = raw_table(0);
-    let shared_add_task_ptr = raw_table(1);
-    let shared_pop_task_ptr = raw_table(2);
-    let shared_scheduler: fn()  -> core::ptr::NonNull<()> = unsafe {
-        core::mem::transmute(shared_scheduler_ptr)
-    };
-    let shared_add_task: unsafe fn(
-        shared_scheduler: core::ptr::NonNull<()>, handle: task::SharedTaskHandle
-    ) -> Option<task::SharedTaskHandle> = unsafe {
-        core::mem::transmute(shared_add_task_ptr)
-    };
-    let shared_pop_task: unsafe fn(
-        shared_scheduler: core::ptr::NonNull<()>,
-        should_switch: fn(&task::SharedTaskHandle) -> bool
-    ) -> task::TaskResult = unsafe {
-        core::mem::transmute(shared_pop_task_ptr)
-    };
-    
-    let shared_scheduler = shared_scheduler();
-    println!("Shared scheduler: {:?}", shared_scheduler);
+    let shared_load = unsafe { task::SharedLoad::new(0x8600_0000) };
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
@@ -134,14 +109,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
     unsafe {
-        shared_add_task(shared_scheduler, task_1.shared_task_handle());
-        shared_add_task(shared_scheduler, task_2.shared_task_handle());
-        shared_add_task(shared_scheduler, task_3.shared_task_handle());
+        shared_load.add_task(task_1.shared_task_handle());
+        shared_load.add_task(task_2.shared_task_handle());
+        shared_load.add_task(task_3.shared_task_handle());
     }
     
     task::run_until_idle(
-        || unsafe { shared_pop_task(shared_scheduler, task::SharedTaskHandle::should_switch) },
-        |handle| unsafe { shared_add_task(shared_scheduler, handle) }
+        || unsafe { shared_load.pop_task(task::SharedTaskHandle::should_switch) },
+        |handle| unsafe { shared_load.add_task(handle) }
     );
 
     // 进入用户态
@@ -152,19 +127,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // 没有任务了，关机
     // sbi::shutdown()
 }
-
-// fn spawn(future: impl Future<Output = ()> + 'static + Send + Sync) {
-//     unsafe { 
-//         // 创建一个新的任务
-//         // 在用户层，这里应该使用系统调用，一次性获得一个资源分配的令牌，代替“进程”结构体，复用这个令牌获得资源
-//         let process = hart::KernelHartInfo::current_process().unwrap();
-//         // 新建一个任务
-//         let new_task = task::KernelTask::new(future, process);
-//         // 加入调度器
-//         let shared_scheduler = task::shared_scheduler();
-//         task::shared_add_task(shared_scheduler, new_task.shared_task_handle());
-//     }
-// }
 
 async fn task_1() {
     println!("hello world from 1!");

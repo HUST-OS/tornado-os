@@ -10,17 +10,10 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     extern {
         // 用户陷入内核时候的中断处理函数
         fn _user_trap_handler();
-        // 用户程序入口点
-        fn _test_user_entry();
-        fn _sshared_data();
-        fn _eshared_data();
-        fn _sshared_text();
-        fn _eshared_text();
     }
    
     // 创建一个用户态映射
-    // 用户态程序目前写死在 0x87000000 处
-    let user_memory = memory::MemorySet::new_bin().unwrap();
+    let user_memory = memory::MemorySet::new_bin(0x8700_0000).unwrap();
     
     // 存放用户特权级切换上下文的虚拟地址
     let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);

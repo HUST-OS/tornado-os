@@ -9,7 +9,6 @@ use crate::memory::{
         SWAP_FRAME_VA,
         USER_STACK_BOTTOM_VA
     },
-    MemorySetHandle
 };
 use crate::memory::{
     Mapping,
@@ -135,13 +134,15 @@ impl MemorySet {
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("Kernel new asid = {:?}", address_space_id);
+        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
+        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
         Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
     }    
     
     /// 通过一个 bin 文件创建用户态映射
     /// 
     /// 目前该用户 bin 文件在 qemu 中的位置写死为 0x87000000
-    pub fn new_bin() -> Option<MemorySet> {
+    pub fn new_bin(base: usize) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
             fn _sshared_data();
@@ -153,7 +154,7 @@ impl MemorySet {
         let allocated_pairs = Vec::new();
         
         let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE * 20);
-        let pa_range = PhysicalAddress(0x87000000)..PhysicalAddress(0x87000000 + PAGE_SIZE * 20);
+        let pa_range = PhysicalAddress(base)..PhysicalAddress(base + PAGE_SIZE * 20);
         mapping.map_defined(&va_range, &pa_range, Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE | Flags::USER);
         
         // 映射 _swap_frame
@@ -179,6 +180,8 @@ impl MemorySet {
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New asid = {:?}", address_space_id);
+        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
+        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
         Some(MemorySet { mapping, segments: Vec::new(), allocated_pairs, address_space_id })
     }
     /// 检测一段内存区域和已有的是否存在重叠区域
@@ -241,13 +244,6 @@ impl MemorySet {
     pub fn activate(&self) {
         println!("Activating memory set in asid {:?}", self.address_space_id);
         self.mapping.activate_on(self.address_space_id)
-    }
-
-    /// 创建一个该内存映射的句柄
-    pub fn handle(self: Arc<Self>) -> MemorySetHandle {
-        let satp = self.mapping.get_satp(self.address_space_id);
-        let mms_ptr = Arc::into_raw(self);
-        MemorySetHandle::new(satp, mms_ptr as usize)
     }
 }
 

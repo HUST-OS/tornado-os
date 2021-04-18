@@ -42,9 +42,9 @@ where
                     push_task(handle); 
                 } // 否则，释放task的内存。这里相当于drop(task)
             },
-            TaskResult::ShouldYield => {
-                //todo
-                // crate::trap::switch_to_user()
+            TaskResult::ShouldYield(next_asid) => {
+                // todo: 切换到 next_asid 对应的地址空间
+                todo!()
             },
             TaskResult::Finished => break
         }

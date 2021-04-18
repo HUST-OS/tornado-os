@@ -8,6 +8,7 @@
 #![feature(asm)]
 #![feature(maybe_uninit_uninit_array, maybe_uninit_ref)]
 #![feature(naked_functions)]
+#![feature(const_raw_ptr_to_usize_cast)]
 
 extern crate alloc;
 
