@@ -3,7 +3,6 @@
 pub use self::shared::SharedTaskHandle;
 
 mod shared;
-mod lock;
 
 /// 共享调度器返回的结果
 /// 这个后面会考虑去掉，内核或用户与共享运行时通信的媒介只有 Rust 的基本类型数据

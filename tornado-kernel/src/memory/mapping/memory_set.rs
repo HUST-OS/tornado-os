@@ -9,7 +9,6 @@ use crate::memory::{
         SWAP_FRAME_VA,
         USER_STACK_BOTTOM_VA
     },
-    MemorySetHandle
 };
 use crate::memory::{
     Mapping,
@@ -245,13 +244,6 @@ impl MemorySet {
     pub fn activate(&self) {
         println!("Activating memory set in asid {:?}", self.address_space_id);
         self.mapping.activate_on(self.address_space_id)
-    }
-
-    /// 创建一个该内存映射的句柄
-    pub fn handle(self: Arc<Self>) -> MemorySetHandle {
-        let satp = self.mapping.get_satp(self.address_space_id);
-        let mms_ptr = Arc::into_raw(self);
-        MemorySetHandle::new(satp, mms_ptr as usize)
     }
 }
 
