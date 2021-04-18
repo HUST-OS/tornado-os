@@ -50,7 +50,7 @@ fn main() -> ! {
         core::mem::transmute(shared_pop_task_ptr)
     };
     let shared_scheduler = shared_scheduler();
-    let task = task::UserTask::new(FibonacciFuture::new(6));
+    let task = task::UserTask::new(FibonacciFuture::new(0));
     unsafe {
         shared_add_task(shared_scheduler, task.shared_task_handle());
     }
@@ -58,7 +58,7 @@ fn main() -> ! {
         || unsafe { shared_pop_task(shared_scheduler, shared::SharedTaskHandle::should_switch) },
         |handle| unsafe { shared_add_task(shared_scheduler, handle) }
     );
-    assert_eq!(ret, Some(8));
+    // assert_eq!(ret, Some(8));
     // 用户态退出的系统调用
     exit(0);
     unreachable!()

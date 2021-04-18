@@ -71,7 +71,7 @@ fn main() -> ! {
 use syscall::*;
 
 pub fn exit(exit_code: i32) -> SyscallResult { sys_exit(exit_code) }
-pub fn do_yield() -> SyscallResult { sys_yield() }
+pub fn do_yield(next_asid: usize) -> SyscallResult { sys_yield(next_asid) }
 mod syscall {
     const MODULE_PROCESS: usize = 0x114514;
     const SWITCH_TASK: usize = 0x121212;
@@ -174,7 +174,7 @@ mod syscall {
         syscall_0(USER_EXIT, exit_code as usize)
     }
 
-    pub fn sys_yield() -> SyscallResult {
-        syscall_0(SWITCH_TASK, 0)
+    pub fn sys_yield(next_asid: usize) -> SyscallResult {
+        syscall_1(SWITCH_TASK, 0, next_asid)
     }
 }

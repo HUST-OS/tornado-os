@@ -79,8 +79,10 @@ impl SharedTaskHandle {
     }
     pub fn should_switch(handle: &SharedTaskHandle) -> bool {
         // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
-        KernelHartInfo::current_address_space_id() != handle.address_space_id
+        // KernelHartInfo::current_address_space_id() != handle.address_space_id
+        false
     }
+
 }
 
 impl crate::algorithm::WithAddressSpace for SharedTaskHandle {

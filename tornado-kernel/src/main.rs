@@ -136,13 +136,13 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     unsafe {
         shared_add_task(shared_scheduler, task_1.shared_task_handle());
         shared_add_task(shared_scheduler, task_2.shared_task_handle());
-        shared_add_task(shared_scheduler, task_3.shared_task_handle());
+        // shared_add_task(shared_scheduler, task_3.shared_task_handle());
     }
     
-    task::run_until_idle(
-        || unsafe { shared_pop_task(shared_scheduler, task::SharedTaskHandle::should_switch) },
-        |handle| unsafe { shared_add_task(shared_scheduler, handle) }
-    );
+    // task::run_until_idle(
+    //     || unsafe { shared_pop_task(shared_scheduler, task::SharedTaskHandle::should_switch) },
+    //     |handle| unsafe { shared_add_task(shared_scheduler, handle) }
+    // );
 
     // 进入用户态
     user::first_enter_user(stack_handle.end.0 - 4)

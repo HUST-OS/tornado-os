@@ -48,6 +48,7 @@ pub extern "C" fn user_trap_handler() {
                     trap::switch_to_user(next_swap_cx, satp.inner())
                 }
             }
+            println!("return to user");
             trap::switch_to_user(swap_cx, user_satp.inner())
             // unreachable!()
         }
