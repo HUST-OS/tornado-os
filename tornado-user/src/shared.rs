@@ -78,9 +78,9 @@ where
                     push_task(handle); 
                 }
             },
-            TaskResult::ShouldYield => {
+            TaskResult::ShouldYield(next_asid) => {
                 // 让出操作
-                do_yield(0);
+                do_yield(next_asid);
             },
             TaskResult::Finished => return None
         }

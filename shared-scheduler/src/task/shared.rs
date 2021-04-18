@@ -62,16 +62,6 @@ pub struct SharedTaskHandle {
     pub(crate) task_ptr: usize,
 }
 
-// impl SharedTaskHandle {
-//     pub fn new(hart_id: usize, asid: usize, task_ptr: usize) -> Self {
-//         Self {
-//             hart_id,
-//             address_space_id: unsafe { AddressSpaceId::from_raw(asid) },
-//             task_ptr
-//         }
-//     }
-// }
-
 /// 给共享调度器添加任务
 /// 
 /// 在内核态和用户态都可以调用
@@ -100,8 +90,8 @@ pub unsafe fn shared_pop_task(
     let mut scheduler = s.as_mut().lock();
     if let Some(task) = scheduler.peek_next_task() {
         if should_switch(task) {
-            // 如果需要跳转到其他地址空间，则不弹出任务，给出信号
-            return TaskResult::ShouldYield
+            // 如果需要跳转到其他地址空间，则不弹出任务，返回需要跳转到的地址空间编号
+            return TaskResult::ShouldYield(task.address_space_id.into_inner())
         }
         // 从共享调度器弹出任务交给调用者
         let next_task = scheduler.next_task().unwrap();

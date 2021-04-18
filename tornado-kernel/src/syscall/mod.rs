@@ -38,7 +38,6 @@ pub fn syscall(param: [usize; 2], func: usize, module: usize) -> SyscallResult {
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
 fn switch_next_task(param: [usize; 2], func: usize) -> SyscallResult {
-    println!("switch next task: {}", param[0]);
     let next_asid = unsafe { AddressSpaceId::from_raw(param[0]) }; // a0
     if next_asid.into_inner() == 0 {
         // 内核任务，这里为了测试，不执行，直接回到用户态
@@ -57,7 +56,6 @@ fn switch_next_task(param: [usize; 2], func: usize) -> SyscallResult {
             core::mem::transmute(shared_pop_task_ptr)
         };
         unsafe { shared_pop_task(shared_scheduler, crate::task::SharedTaskHandle::should_switch); }
-        println!("run here");
         return SyscallResult::Procceed{ code: 0, extra: 0};
     }
     if let Some(next_satp) = KernelHartInfo::get_satp(next_asid) {
