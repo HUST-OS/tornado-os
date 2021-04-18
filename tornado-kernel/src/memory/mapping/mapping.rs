@@ -116,6 +116,7 @@ impl Mapping {
         let ppn_range = range_vpn_contains_pa(pa_range.clone());
         self.map_range(vpn_range, ppn_range, flags);
     }
+    
     // 映射指定的虚拟页号和物理页号
     // 不能指定初始数据
     fn map_range(

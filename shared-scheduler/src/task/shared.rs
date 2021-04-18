@@ -6,22 +6,19 @@ use core::{ptr::NonNull, usize};
 use super::TaskResult;
 use spin::Mutex;
 
-// #[link_section = ".shared_text"]
-// #[export_name  = "_shared_raw_table"]
-// 给出函数表偏移量，返回函数地址
-// 0 - shared_scheduler()
-// 1 - shared_add_task()
-// 2 - shared_pop_task()
-#[link_section = ".text.entry"]
-#[export_name = "_start"]
-pub extern "C" fn raw_table(offset: usize) -> usize {
-    // println!("[shared-rt] enter shared raw table with offset: {:#x}", offset);
-    match offset {
-        0 => shared_scheduler as usize,
-        1 => shared_add_task as usize,
-        2 => shared_pop_task as usize,
-        _ => unimplemented!()
-    }
+#[no_mangle]
+#[link_section = ".data"]
+#[export_name = "_raw_table"]
+pub static __shared_raw_table: [unsafe extern "C" fn(); 3] = [
+    _shared_scheduler,
+    _shared_add_task,
+    _shared_pop_task    
+];
+
+extern "C" {
+    fn _shared_scheduler();
+    fn _shared_add_task();
+    fn _shared_pop_task();
 }
 
 /// 共享调度器的类型
@@ -29,7 +26,7 @@ type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;
 
 /// 全局的共享调度器
 /// 放到 .shared_data 段，内核或用户从这个地址里取得共享调度器
-#[link_section = ".shared_data"]
+// #[link_section = ".shared_data"]
 pub static SHARED_SCHEDULER: SharedScheduler = Mutex::new(RingFifoScheduler::new());
 
 /// 得到当前正在运行的任务，以备保存上下文
@@ -44,6 +41,7 @@ pub fn current_task() -> Option<SharedTaskHandle> {
 /// 可以在共享的添加任务，弹出下一个任务中使用
 #[no_mangle]
 #[link_section = ".shared_text"]
+#[export_name = "_shared_scheduler"]
 pub fn shared_scheduler() -> NonNull<()> {
     NonNull::new(&SHARED_SCHEDULER as *const _ as *mut ())
         .expect("create non null pointer")
@@ -67,6 +65,7 @@ pub struct SharedTaskHandle {
 /// 在内核态和用户态都可以调用
 #[no_mangle]
 #[link_section = ".shared_text"]
+#[export_name = "_shared_add_task"]
 pub unsafe fn shared_add_task(
     shared_scheduler: NonNull<()>,
     handle: SharedTaskHandle
@@ -81,6 +80,7 @@ pub unsafe fn shared_add_task(
 /// 在内核态和用户态都可以调用
 #[no_mangle]
 #[link_section = ".shared_text"]
+#[export_name = "_shared_pop_task"]
 pub unsafe fn shared_pop_task(
     shared_scheduler: NonNull<()>,
     should_switch: fn(&SharedTaskHandle) -> bool

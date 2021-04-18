@@ -1,5 +1,5 @@
 OUTPUT_ARCH(riscv)
-ENTRY(_start)
+ENTRY(_raw_table)
 BASE_ADDRESS = 0x86000000;
 
 SECTIONS
@@ -7,6 +7,15 @@ SECTIONS
     . = BASE_ADDRESS;
 
     shared_start = .;
+
+    .data : ALIGN(4K) {
+        _sidata = LOADADDR(.data);
+        _sdata = .;
+        PROVIDE(__global_pointer$ = . + 0x800);
+        *(.sdata .sdata.* .sdata2 .sdata2.*);
+        *(.data .data.*)
+        _edata = .;
+    }
 
     .text : ALIGN(4K) {
         _stext = .;
@@ -20,15 +29,6 @@ SECTIONS
         _srodata = .;
         *(.rodata .rodata.*)
         _erodata = .;
-    }
-
-    .data : ALIGN(4K) {
-        _sidata = LOADADDR(.data);
-        _sdata = .;
-        PROVIDE(__global_pointer$ = . + 0x800);
-        *(.sdata .sdata.* .sdata2 .sdata2.*);
-        *(.data .data.*)
-        _edata = .;
     }
 
     .bss (NOLOAD) : ALIGN(4K)  {

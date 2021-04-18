@@ -9,9 +9,8 @@ pub use kernel_task::{KernelTask, TaskId};
 pub use process::{Process, ProcessId};
 pub use executor::run_until_idle;
 pub use shared::{
-    SHARED_SCHEDULER,
-    SharedTaskHandle, shared_scheduler,
-    current_task
+    SharedTaskHandle,
+    SharedRawTable
 };
 
 /// 共享调度器返回的结果
