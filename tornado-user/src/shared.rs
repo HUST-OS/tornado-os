@@ -1,3 +1,5 @@
+use crate::do_yield;
+
 //！ 尝试在用户态给共享调度器添加任务
 use super::task::{TaskResult, UserTask};
 use woke::waker_ref;
@@ -77,7 +79,8 @@ where
                 }
             },
             TaskResult::ShouldYield => {
-                // todo
+                // 让出操作
+                do_yield();
             },
             TaskResult::Finished => return None
         }

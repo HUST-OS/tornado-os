@@ -13,7 +13,8 @@ use tornado_user::{
     excutor,
     shared,
     task,
-    SHARED_RAW_TABLE
+    SHARED_RAW_TABLE,
+    exit,
 };
 
 #[no_mangle]
@@ -59,8 +60,7 @@ fn main() -> ! {
     );
     assert_eq!(ret, Some(8));
     // 用户态退出的系统调用
-    unsafe { llvm_asm!("addi a7, x0, 0"); }
-    unsafe { llvm_asm!("ecall"); }
+    exit(0);
     unreachable!()
 }
 

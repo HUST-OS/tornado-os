@@ -55,6 +55,7 @@ pub extern "C" fn user_trap_handler() {
     }
 }
 
+// 给定 satp 寄存器，获取 SwapContext 的裸指针
 unsafe fn get_swap_cx<'cx>(satp: &'cx Satp) -> &'cx mut SwapContext {
     let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
     let swap_cx_vpn = memory::VirtualPageNumber::floor(swap_cx_va);
