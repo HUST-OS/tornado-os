@@ -30,7 +30,6 @@ use crate::hart::KernelHartInfo;
 use core::ptr::NonNull;
 use core::mem;
 use super::TaskResult;
-use super::lock;
 
 
 /// 共享的包含Future在用户空间的地址
@@ -56,8 +55,7 @@ impl SharedTaskHandle {
     }
     pub fn should_switch(handle: &SharedTaskHandle) -> bool {
         // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
-        // KernelHartInfo::current_address_space_id() != handle.address_space_id
-        false
+        KernelHartInfo::current_address_space_id() != handle.address_space_id
     }
 
 }
@@ -68,18 +66,18 @@ impl crate::algorithm::WithAddressSpace for SharedTaskHandle {
     }
 }
 
-pub struct SharedRawTable {
-    pub shared_scheduler: unsafe fn() -> NonNull<()>,
-    pub shared_add_task: unsafe fn(
+pub struct SharedLoad {
+    pub shared_scheduler: NonNull<()>,
+    shared_add_task: unsafe fn(
         shared_scheduler: NonNull<()>, handle: SharedTaskHandle
     ) -> Option<SharedTaskHandle>,
-    pub shared_pop_task: unsafe fn(
+    shared_pop_task: unsafe fn(
         shared_scheduler: NonNull<()>, should_switch: fn(&SharedTaskHandle) -> bool
     ) -> TaskResult
 }
 
 
-impl SharedRawTable {
+impl SharedLoad {
     pub unsafe fn new(base: usize) -> Self {
         let raw_table_ptr = base
             as *const [extern "C" fn(); 3]
@@ -98,25 +96,20 @@ impl SharedRawTable {
             should_yield: fn(&SharedTaskHandle) -> bool
         ) -> TaskResult = mem::transmute(*shared_pop_task);
         Self {
-            shared_scheduler,
+            shared_scheduler: shared_scheduler(),
             shared_add_task,
             shared_pop_task
         }
     }
 
-    pub unsafe fn scheduler(&self) -> NonNull<()> {
-        let f = self.shared_scheduler;
-        f()
-    }
-
-    pub unsafe fn add_task(&self, scheduler: NonNull<()>, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
+    pub unsafe fn add_task(&self, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
         let f = self.shared_add_task;
-        f(scheduler, handle)
+        f(self.shared_scheduler, handle)
     }
 
-    pub unsafe fn pop_task(&self, scheduler: NonNull<()>, should_yield: fn(&SharedTaskHandle) -> bool) -> TaskResult {
+    pub unsafe fn pop_task(&self, should_yield: fn(&SharedTaskHandle) -> bool) -> TaskResult {
         let f = self.shared_pop_task;
-        f(scheduler, should_yield)
+        f(self.shared_scheduler, should_yield)
     }
 }
 

@@ -5,6 +5,7 @@ use super::task::{TaskResult, UserTask};
 use woke::waker_ref;
 use alloc::sync::Arc;
 use core::{mem, task::{Poll, Context}};
+use core::ptr::NonNull;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
@@ -39,7 +40,7 @@ impl SharedTaskHandle {
     }
     pub fn should_switch(handle: &SharedTaskHandle) -> bool {
         // todo
-        handle.address_space_id.into_inner() != 1
+        false
     }
 }
 
@@ -84,5 +85,52 @@ where
             },
             TaskResult::Finished => return None
         }
+    }
+}
+
+pub struct SharedLoad {
+    pub shared_scheduler: NonNull<()>,
+    shared_add_task: unsafe fn(
+        shared_scheduler: NonNull<()>, handle: SharedTaskHandle
+    ) -> Option<SharedTaskHandle>,
+    shared_pop_task: unsafe fn(
+        shared_scheduler: NonNull<()>, should_switch: fn(&SharedTaskHandle) -> bool
+    ) -> TaskResult
+}
+
+
+impl SharedLoad {
+    pub unsafe fn new(base: usize) -> Self {
+        let raw_table_ptr = base
+            as *const [extern "C" fn(); 3]
+            as *const extern "C" fn();
+        let shared_scheduler_ptr = raw_table_ptr as usize as *const extern "C" fn();
+        let shared_add_task = (raw_table_ptr as usize + mem::size_of::<extern "C" fn()>())
+            as *const extern "C" fn();
+        let shared_pop_task = (raw_table_ptr as usize + mem::size_of::<extern "C" fn()>() * 2)
+            as *const extern "C" fn();
+        let shared_scheduler: fn() -> NonNull<()> = mem::transmute(*shared_scheduler_ptr);
+        let shared_add_task: unsafe fn(
+            shared_scheduler: NonNull<()>, handle: SharedTaskHandle
+        ) -> Option<SharedTaskHandle> = mem::transmute(*shared_add_task);
+        let shared_pop_task: unsafe fn(
+            shared_scheduler: NonNull<()>,
+            should_yield: fn(&SharedTaskHandle) -> bool
+        ) -> TaskResult = mem::transmute(*shared_pop_task);
+        Self {
+            shared_scheduler: shared_scheduler(),
+            shared_add_task,
+            shared_pop_task
+        }
+    }
+
+    pub unsafe fn add_task(&self, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
+        let f = self.shared_add_task;
+        f(self.shared_scheduler, handle)
+    }
+
+    pub unsafe fn pop_task(&self, should_yield: fn(&SharedTaskHandle) -> bool) -> TaskResult {
+        let f = self.shared_pop_task;
+        f(self.shared_scheduler, should_yield)
     }
 }

@@ -10,7 +10,7 @@ pub use process::{Process, ProcessId};
 pub use executor::run_until_idle;
 pub use shared::{
     SharedTaskHandle,
-    SharedRawTable
+    SharedLoad
 };
 
 /// 共享调度器返回的结果

@@ -11,6 +11,7 @@ pub mod excutor;
 pub mod shared;
 pub mod task;
 
+
 use buddy_system_allocator::LockedHeap;
 
 
@@ -26,15 +27,13 @@ static HEAP: LockedHeap = LockedHeap::empty();
 
 #[cfg_attr(not(test), panic_handler)]
 pub fn panic_handler(_panic_info: &core::panic::PanicInfo) -> ! {
-    // todo: 直接传给系统调用
-    unsafe { llvm_asm!("ebreak"); }
+    exit(-1);
     unreachable!()
 }
 
 #[cfg_attr(not(test), alloc_error_handler)]
 pub fn handle_alloc_error(_layout: core::alloc::Layout) -> ! {
-    // todo: 直接传给系统调用
-    unsafe { llvm_asm!("ebreak"); }
+    exit(-2);
     unreachable!()
 }
 
