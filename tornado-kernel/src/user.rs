@@ -35,7 +35,6 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     let user_stack_handle = process.alloc_stack().expect("alloc user stack");
     // 这里减 4 是因为映射的时候虚拟地址的右半边是不包含的
     let user_stack_top = user_stack_handle.end.0 - 4;
-    // println!("kernel stack top: {:#x}, user stack top: {:#x}", kernel_stack_top, user_stack_top);
     
     // 获取用户地址空间编号
     let user_asid = process.address_space_id().into_inner();
