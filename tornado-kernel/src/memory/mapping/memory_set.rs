@@ -127,15 +127,16 @@ impl MemorySet {
         // 映射 _swap_frame
         let swap_frame_va = VirtualAddress(SWAP_FRAME_VA);
         let swap_frame_vpn = VirtualPageNumber::floor(swap_frame_va);
-        let swap_frame_pa = PhysicalAddress((_swap_frame as usize).wrapping_sub(KERNEL_MAP_OFFSET));
+        let swap_frame_pa = VirtualAddress(_swap_frame as usize).physical_address_linear();
         let swap_frame_ppn = PhysicalPageNumber::floor(swap_frame_pa);
-        println!("swap_frame_vpn: {:x?}, swap_frame_ppn: {:x?}", swap_frame_vpn, swap_frame_ppn);
         mapping.map_one(swap_frame_vpn, Some(swap_frame_ppn), Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE)?;
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("Kernel new asid = {:?}", address_space_id);
+        
         let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
         crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
+
         Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
     }    
     
@@ -179,9 +180,11 @@ impl MemorySet {
         mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER);
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
-        println!("New asid = {:?}", address_space_id);
+        println!("New user asid = {:?}", address_space_id);
+
         let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
         crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
+        
         Some(MemorySet { mapping, segments: Vec::new(), allocated_pairs, address_space_id })
     }
     /// 检测一段内存区域和已有的是否存在重叠区域

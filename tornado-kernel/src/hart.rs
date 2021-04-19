@@ -117,6 +117,7 @@ impl KernelHartInfo {
 
     /// 添加地址空间编号和 satp 寄存器的对应关系
     pub fn add_asid_satp_map(asid: AddressSpaceId, satp: Satp) {
+        // todo: 需要判断是否地址空间编号已经存在
         use_tp_box(|b| {
             b.satps.push_back((asid, satp));
         })
