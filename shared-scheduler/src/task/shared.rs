@@ -1,4 +1,4 @@
-//! 共享运行时的设计思路
+//! 共享载荷
 //! 
 use crate::algorithm::{Scheduler, RingFifoScheduler};
 use crate::mm::AddressSpaceId;
@@ -6,6 +6,7 @@ use core::{ptr::NonNull, usize};
 use super::TaskResult;
 use spin::Mutex;
 
+/// 共享载荷虚函数表
 #[no_mangle]
 #[link_section = ".data"]
 #[export_name = "_raw_table"]
@@ -26,7 +27,6 @@ type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;
 
 /// 全局的共享调度器
 /// 放到 .shared_data 段，内核或用户从这个地址里取得共享调度器
-// #[link_section = ".shared_data"]
 pub static SHARED_SCHEDULER: SharedScheduler = Mutex::new(RingFifoScheduler::new());
 
 /// 得到当前正在运行的任务，以备保存上下文
@@ -40,7 +40,6 @@ pub fn current_task() -> Option<SharedTaskHandle> {
 /// 
 /// 可以在共享的添加任务，弹出下一个任务中使用
 #[no_mangle]
-#[link_section = ".shared_text"]
 #[export_name = "_shared_scheduler"]
 pub fn shared_scheduler() -> NonNull<()> {
     NonNull::new(&SHARED_SCHEDULER as *const _ as *mut ())
@@ -64,7 +63,6 @@ pub struct SharedTaskHandle {
 /// 
 /// 在内核态和用户态都可以调用
 #[no_mangle]
-#[link_section = ".shared_text"]
 #[export_name = "_shared_add_task"]
 pub unsafe fn shared_add_task(
     shared_scheduler: NonNull<()>,
@@ -79,7 +77,6 @@ pub unsafe fn shared_add_task(
 /// 
 /// 在内核态和用户态都可以调用
 #[no_mangle]
-#[link_section = ".shared_text"]
 #[export_name = "_shared_pop_task"]
 pub unsafe fn shared_pop_task(
     shared_scheduler: NonNull<()>,

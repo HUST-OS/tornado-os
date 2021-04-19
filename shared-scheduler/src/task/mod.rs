@@ -12,6 +12,7 @@ pub enum TaskResult {
     /// 应当立即执行特定任务
     Task(SharedTaskHandle),
     /// 其他地址空间的任务要运行，应当让出时间片
+    /// 并返回下一个地址空间的编号
     ShouldYield(usize),
     /// 队列已空，所有任务已经结束
     Finished

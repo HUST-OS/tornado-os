@@ -136,12 +136,6 @@ async fn task_2() {
     println!("hello world from 2!");
 }
 
-async fn user_task_1() {
-    println!("From user level!");
-    loop {}
-    // todo: 退出进程 
-}
-
 struct FibonacciFuture {
     a: usize,
     b: usize,

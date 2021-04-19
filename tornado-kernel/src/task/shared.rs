@@ -66,6 +66,7 @@ impl crate::algorithm::WithAddressSpace for SharedTaskHandle {
     }
 }
 
+/// 共享载荷
 pub struct SharedLoad {
     pub shared_scheduler: NonNull<()>,
     shared_add_task: unsafe fn(
@@ -102,11 +103,13 @@ impl SharedLoad {
         }
     }
 
+    /// 往共享载荷中添加任务
     pub unsafe fn add_task(&self, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
         let f = self.shared_add_task;
         f(self.shared_scheduler, handle)
     }
 
+    /// 从共享载荷中弹出任务
     pub unsafe fn pop_task(&self, should_yield: fn(&SharedTaskHandle) -> bool) -> TaskResult {
         let f = self.shared_pop_task;
         f(self.shared_scheduler, should_yield)

@@ -55,7 +55,6 @@ pub struct TaskInner {
 
 impl KernelTask {
     /// 创建一个任务，将会复用执行器的栈
-    
     pub fn new(
         future: impl Future<Output = ()> + 'static + Send + Sync,
         process: Arc<Process>,
