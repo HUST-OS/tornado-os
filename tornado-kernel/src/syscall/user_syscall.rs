@@ -1,7 +1,7 @@
 //! 从用户过来的系统调用在这里处理
 use riscv::register::scause::{self, Trap, Interrupt};
 use riscv::register::{sepc, stval};
-use crate::{memory::{self, PAGE_SIZE, Satp}, trap::SwapContext};
+use crate::{memory::{self, Satp}, trap::SwapContext};
 use crate::trap;
 use super::{SyscallResult, syscall};
 

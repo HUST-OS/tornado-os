@@ -22,12 +22,18 @@ impl Satp {
             _ => unreachable!(),
         }
     }
+    
+    /// 地址空间参数
     pub fn asid(&self) -> usize {
         self.0.get_bits(44..60)
     }
+
+    /// 根页表物理页号
     pub fn ppn(&self) -> usize {
         self.0.get_bits(0..44)
     }
+
+    /// 找三级页表项
     pub fn find_pte(&self, vpn: VirtualPageNumber) -> Option<&mut PageTableEntry> {
         let root_ppn = PhysicalPageNumber::from_satp(self.0);
         let root_table_pa = root_ppn.start_address();
@@ -45,11 +51,14 @@ impl Satp {
         }
         Some(entry)
     }
+
+    /// 将虚拟页号转换为物理页号
     pub fn translate(&self, vpn: VirtualPageNumber) -> Option<PhysicalPageNumber> {
         self.find_pte(vpn).map(
             |pte| {pte.page_number()}
         )
     }
+    
     pub fn inner(&self) -> usize {
         self.0
     }

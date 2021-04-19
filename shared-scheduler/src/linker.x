@@ -38,20 +38,6 @@ SECTIONS
         _ebss = .;
     }
 
-    /* 将一些共享的函数放到这个段方便内核或用户访问 */
-
-    .shared_data : ALIGN(4K) {
-        _sshared_data = .;
-        *(.shared_data .shared_data.*)
-        _eshared_data = .;
-    }
-
-    .shared_text : ALIGN(4K) {
-        _sshared_text = .;
-        *(.shared_text .shared_text.*)
-        _eshared_text = .;
-    }
-
     /DISCARD/ : {
         *(.eh_frame)
         *(.debug*)
