@@ -32,32 +32,6 @@ pub fn init() {
     println!("mod interrupt initialized");
 }
 
-// 这个函数里不包含写satp的过程，需要别的函数先写satp和刷新页表
-#[naked]
-#[link_section = ".text"]
-
-unsafe extern "C" fn supervisor_restore(_target_frame: *mut TrapFrame) -> ! {
-    asm!(define_load_store!(), "
-        mv      sp, a0
-
-        LOAD    t0, 32
-        LOAD    t1, 33
-        csrw    sstatus, t0
-        csrw    sepc, t1
-
-        LOAD    x1, 1
-        .set    n, 3
-        .rept   29
-            LOAD_N  %n
-            .set    n, n + 1
-        .endr
-
-        LOAD	sp, 2
-        sret
-    ", options(noreturn))
-}
-
-
 /// 内核态和用户态切换时需要保存的上下文
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -117,9 +91,8 @@ impl SwapContext {
 #[export_name = "_user_to_supervisor"]
 pub unsafe extern "C" fn user_to_supervisor() -> ! {
     asm!(
-    ".p2align 2",
     // 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
-    "csrrw a0, sscratch, a0",
+    "csrrw  a0, sscratch, a0",
     
     //开始保存 SwapContext
     "
@@ -160,29 +133,29 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
     sd      t0, 9*8(a0)",
     
     // 写 sepc 寄存器到 SwapContext 中相应位置
-    "csrr t0, sepc
-    sd t0, 34*8(a0)",
+    "csrr   t0, sepc
+    sd      t0, 34*8(a0)",
     
     // 恢复内核栈指针
-    "ld sp, 32*8(a0)",
+    "ld     sp, 32*8(a0)",
 
     // todo: 如何处理 tp 寄存器
-    "ld tp, 35*8(a0)",
+    "ld     tp, 35*8(a0)",
 
     // 将用户中断处理函数指针放到 t0 寄存器
-    "ld t0, 33*8(a0)",
+    "ld     t0, 33*8(a0)",
     
     // 将用户的 satp 寄存器放到 t2 寄存器里面去
-    "csrr t2, satp",
+    "csrr   t2, satp",
     
     // 恢复内核页表
-    "ld t1, 31*8(a0)
-    csrw satp, t1",
+    "ld     t1, 31*8(a0)
+    csrw    satp, t1",
 
     "sfence.vma",
     
     // 跳转到中断处理函数
-    "jr t0"
+    "jr     t0"
     , options(noreturn));
 }
 
@@ -194,7 +167,7 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
 #[export_name = "_supervisor_to_user"]
 pub unsafe extern "C" fn supervisor_to_user() -> ! {
     asm!(
-    "csrw satp, a1
+    "csrw   satp, a1
     sfence.vma", // 刷新页表
 
     // 从 SwapContext 中恢复用户的上下文
@@ -238,7 +211,7 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
     ld      t6,  30*8(a0)
     ",
     // 恢复用户的 a0 寄存器，并且保存交换栈顶在 sscratch 寄存器中
-    "csrrw a0, sscratch, a0",
+    "csrrw  a0, sscratch, a0",
     // 返回到用户态
     "sret",
     options(noreturn)
