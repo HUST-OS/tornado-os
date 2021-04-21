@@ -1,17 +1,14 @@
 OUTPUT_ARCH(riscv)
-ENTRY(_raw_table)
+ENTRY(_raw_table) /* Hack: keep raw table at entry address */
 BASE_ADDRESS = 0x86000000;
 
 SECTIONS
 {
     . = BASE_ADDRESS;
 
-    shared_start = .;
-
     .data : ALIGN(4K) {
         _sidata = LOADADDR(.data);
         _sdata = .;
-        PROVIDE(__global_pointer$ = . + 0x800);
         *(.sdata .sdata.* .sdata2 .sdata2.*);
         *(.data .data.*)
         _edata = .;
