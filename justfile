@@ -27,7 +27,7 @@ build-user app:
 build-shared:
     @just -f "shared-scheduler/justfile" build
 
-qemu app: build build-shared
+qemu app: build build-shared (build-user app)
     @qemu-system-riscv64 \
             -machine virt \
             -nographic \
