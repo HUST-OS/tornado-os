@@ -25,23 +25,10 @@ impl AddressSpaceId {
     pub(crate) unsafe fn from_raw(asid: usize) -> AddressSpaceId {
         AddressSpaceId(asid as u16)
     }
-    pub(crate) fn into_inner(self) -> usize {
-        self.0 as usize
-    }
 }
 
-impl SharedTaskHandle {
-    pub fn _new(hart_id: usize, asid: usize, task_ptr: usize) -> Self {
-        Self {
-            hart_id,
-            address_space_id: unsafe { AddressSpaceId::from_raw(asid) },
-            task_ptr
-        }
-    }
-    pub fn should_switch(handle: &SharedTaskHandle) -> bool {
-        // todo
-        false
-    }
+pub extern "C" fn user_should_switch(_handle: &SharedTaskHandle) -> bool {
+    false
 }
 
 pub fn run_until_ready<F, G>(pop_task: F, push_task: G) -> Option<usize>
@@ -88,49 +75,78 @@ where
     }
 }
 
+/// 共享载荷
+#[repr(C)]
 pub struct SharedPayload {
-    pub shared_scheduler: NonNull<()>,
-    shared_add_task: unsafe fn(
+    shared_scheduler: NonNull<()>,
+    shared_add_task: unsafe extern "C" fn(
         shared_scheduler: NonNull<()>, handle: SharedTaskHandle
-    ) -> Option<SharedTaskHandle>,
-    shared_pop_task: unsafe fn(
-        shared_scheduler: NonNull<()>, should_switch: fn(&SharedTaskHandle) -> bool
+    ) -> FfiOption<SharedTaskHandle>,
+    shared_pop_task: unsafe extern "C" fn(
+        shared_scheduler: NonNull<()>, should_switch: extern "C" fn(&SharedTaskHandle) -> bool
     ) -> TaskResult
 }
 
+type SharedPayloadAsUsize = [usize; 4]; // 编译时基地址，共享调度器地址，添加函数，弹出函数
+type SharedPayloadRaw = (
+    usize, // 编译时基地址，转换后类型占位，不使用
+    NonNull<()>,
+    unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+);
 
 impl SharedPayload {
     pub unsafe fn new(base: usize) -> Self {
-        let raw_table_ptr = base
-            as *const [extern "C" fn(); 3]
-            as *const extern "C" fn();
-        let shared_scheduler_ptr = raw_table_ptr as usize as *const extern "C" fn();
-        let shared_add_task = (raw_table_ptr as usize + mem::size_of::<extern "C" fn()>())
-            as *const extern "C" fn();
-        let shared_pop_task = (raw_table_ptr as usize + mem::size_of::<extern "C" fn()>() * 2)
-            as *const extern "C" fn();
-        let shared_scheduler: fn() -> NonNull<()> = mem::transmute(*shared_scheduler_ptr);
-        let shared_add_task: unsafe fn(
-            shared_scheduler: NonNull<()>, handle: SharedTaskHandle
-        ) -> Option<SharedTaskHandle> = mem::transmute(*shared_add_task);
-        let shared_pop_task: unsafe fn(
-            shared_scheduler: NonNull<()>,
-            should_yield: fn(&SharedTaskHandle) -> bool
-        ) -> TaskResult = mem::transmute(*shared_pop_task);
+        let mut payload_usize = *(base as *const SharedPayloadAsUsize);
+        let compiled_offset = payload_usize[0];
+        for (i, idx) in payload_usize.iter_mut().enumerate() {
+            if i == 0 {
+                continue
+            }
+            *idx = idx.wrapping_sub(compiled_offset).wrapping_add(base);
+        }
+        let raw_table: SharedPayloadRaw = mem::transmute(payload_usize);
         Self {
-            shared_scheduler: shared_scheduler(),
-            shared_add_task,
-            shared_pop_task
+            shared_scheduler: raw_table.1,
+            shared_add_task: raw_table.2,
+            shared_pop_task: raw_table.3
         }
     }
 
     pub unsafe fn add_task(&self, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
         let f = self.shared_add_task;
-        f(self.shared_scheduler, handle)
+        f(self.shared_scheduler, handle).into()
     }
 
-    pub unsafe fn pop_task(&self, should_yield: fn(&SharedTaskHandle) -> bool) -> TaskResult {
+    pub unsafe fn pop_task(&self, should_yield: extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult {
         let f = self.shared_pop_task;
         f(self.shared_scheduler, should_yield)
+    }
+}
+
+// 跨FFI边界安全的Option枚举结构
+#[repr(C)]
+pub enum FfiOption<T> {
+    None,
+    Some(T),
+}
+
+impl<T> From<Option<T>> for FfiOption<T> {
+    fn from(src: Option<T>) -> FfiOption<T> {
+        if let Some(t) = src {
+            FfiOption::Some(t)
+        } else {
+            FfiOption::None
+        }
+    }
+}
+
+impl<T> From<FfiOption<T>> for Option<T> {
+    fn from(src: FfiOption<T>) -> Option<T> {
+        if let FfiOption::Some(t) = src {
+            Some(t)
+        } else {
+            None
+        }
     }
 }

@@ -79,7 +79,7 @@ impl SharedPayload {
             }
             *idx = idx.wrapping_sub(compiled_offset).wrapping_add(base);
         }
-        let raw_table: SharedPayloadRaw = core::mem::transmute(payload_usize);
+        let raw_table: SharedPayloadRaw = mem::transmute(payload_usize);
         Self {
             shared_scheduler: raw_table.1,
             shared_add_task: raw_table.2,
@@ -87,13 +87,13 @@ impl SharedPayload {
         }
     }
 
-    /// 往共享载荷中添加任务
+    /// 往共享调度器中添加任务
     pub unsafe fn add_task(&self, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
         let f = self.shared_add_task;
         f(self.shared_scheduler, handle).into()
     }
 
-    /// 从共享载荷中弹出任务
+    /// 从共享调度器中弹出任务
     pub unsafe fn pop_task(&self, should_yield: extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult {
         let f = self.shared_pop_task;
         f(self.shared_scheduler, should_yield)

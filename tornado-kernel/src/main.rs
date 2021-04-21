@@ -98,7 +98,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
     
-    let shared_load = unsafe { task::SharedPayload::new(0x8600_0000) };
+    let shared_payload = unsafe { task::SharedPayload::new(0x8600_0000) };
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
@@ -109,14 +109,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
     unsafe {
-        shared_load.add_task(task_1.shared_task_handle());
-        shared_load.add_task(task_2.shared_task_handle());
-        shared_load.add_task(task_3.shared_task_handle());
+        shared_payload.add_task(task_1.shared_task_handle());
+        shared_payload.add_task(task_2.shared_task_handle());
+        shared_payload.add_task(task_3.shared_task_handle());
     }
     
     task::run_until_idle(
-        || unsafe { shared_load.pop_task(task::kernel_should_switch) },
-        |handle| unsafe { shared_load.add_task(handle) }
+        || unsafe { shared_payload.pop_task(task::kernel_should_switch) },
+        |handle| unsafe { shared_payload.add_task(handle) }
     );
 
     // 进入用户态
