@@ -1,3 +1,5 @@
+/* RISC-V架构，4K页系统，共享调度器链接脚本 */
+
 OUTPUT_ARCH(riscv)
 ENTRY(SHARED_RAW_TABLE) /* Hack: keep raw table at entry address */
 BASE_ADDRESS = 0x86000000;
@@ -5,36 +7,34 @@ BASE_ADDRESS = 0x86000000;
 SECTIONS
 {
     . = BASE_ADDRESS;
-
     payload_compiled_start = .;
 
-    .data : ALIGN(4K) {
-        _sidata = LOADADDR(.data);
-        _sdata = .;
+    .rodata : ALIGN(4K) {
+        srodata_page = .;
+        *(.meta) /* 元数据放在最开头 */
+        *(.rodata .rodata.*)
+        erodata_page = .;
+    }
+
+    . = ALIGN(4K);
+    .data : {
+        sdata_page = .;
         *(.sdata .sdata.* .sdata2 .sdata2.*);
         *(.data .data.*)
-        _edata = .;
     }
+
+    .bss (NOLOAD) : {
+        sbss = .;
+        *(.sbss .bss .bss.*)
+        ebss = ALIGN(4);
+    }
+    edata_page = .;
 
     .text : ALIGN(4K) {
-        _stext = .;
+        stext_page = .;
         *(.text.entry)
         *(.text .text.*)
-        _etext = .;
-    }
-    . = ALIGN(4K);
-    
-    .rodata : ALIGN(4K) {
-        _srodata = .;
-        *(.rodata .rodata.*)
-        _erodata = .;
-    }
-
-    .bss (NOLOAD) : ALIGN(4K)  {
-        *(.bss.stack)
-        _sbss = .;
-        *(.sbss .bss .bss.*)
-        _ebss = .;
+        etext_page = .;
     }
 
     /DISCARD/ : {

@@ -39,21 +39,48 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 }
 
 /// 共享载荷虚函数表
-#[link_section = ".data"]
+#[link_section = ".meta"] // 虚函数表只读
 #[no_mangle]
 pub static SHARED_RAW_TABLE: (
     &'static u8, // 载荷编译时的基地址
+    unsafe extern "C" fn() -> PageList, // 初始化函数，执行完之后，内核将函数指针置空
     &'static SharedScheduler, // 共享调度器的地址
     unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
 ) = (
-    unsafe { 
-        extern "C" {
-            static payload_compiled_start: u8;
-        }
-        &payload_compiled_start  
-    },
+    unsafe { &payload_compiled_start },
+    init_payload_environment,
     &SHARED_SCHEDULER,
     shared_add_task,
     shared_pop_task,    
 );
+
+#[allow(non_upper_case_globals)]
+extern "C" {
+    static payload_compiled_start: u8;
+    static srodata_page: u32; static erodata_page: u32;
+    static sdata_page: u32; static edata_page: u32;
+    static stext_page: u32; static etext_page: u32;
+    static mut sbss: u32; static mut ebss: u32;
+}
+
+/// 初始化载荷环境，只能由内核运行，只能运行一次
+unsafe extern "C" fn init_payload_environment() -> PageList {
+    r0::zero_bss(&mut sbss, &mut ebss);
+    PageList {
+        rodata: [&srodata_page, &erodata_page],
+        data: [&sdata_page, &edata_page],
+        text: [&stext_page, &etext_page],
+    }
+}
+
+/// 共享载荷各个段的范围，方便内存管理的权限设置
+///
+/// 有虚拟内存，用特殊的链接器脚本，以确保对齐到4K，如果没有虚拟内存，可以使用更低的对齐方法
+#[repr(C)]
+pub struct PageList {
+    // 这里的&'static u32指向的值并不重要，它表示的地址比较重要
+    rodata: [&'static u32; 2], // 只读数据段
+    data: [&'static u32; 2], // 数据段
+    text: [&'static u32; 2], // 代码段
+}

@@ -98,7 +98,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
     
-    let shared_payload = unsafe { task::SharedPayload::new(0x8600_0000) };
+    let shared_payload = unsafe { task::SharedPayload::load(0x8600_0000) };
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let stack_handle = process.alloc_stack().expect("alloc initial stack");

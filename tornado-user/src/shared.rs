@@ -87,9 +87,10 @@ pub struct SharedPayload {
     ) -> TaskResult
 }
 
-type SharedPayloadAsUsize = [usize; 4]; // 编译时基地址，共享调度器地址，添加函数，弹出函数
+type SharedPayloadAsUsize = [usize; 5]; // 编译时基地址，（已清空）初始化函数，共享调度器地址，添加函数，弹出函数
 type SharedPayloadRaw = (
     usize, // 编译时基地址，转换后类型占位，不使用
+    usize, // 初始化函数已清空，不适用
     NonNull<()>,
     unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
@@ -100,16 +101,16 @@ impl SharedPayload {
         let mut payload_usize = *(base as *const SharedPayloadAsUsize);
         let compiled_offset = payload_usize[0];
         for (i, idx) in payload_usize.iter_mut().enumerate() {
-            if i == 0 {
+            if i == 0 || i == 1 {
                 continue
             }
             *idx = idx.wrapping_sub(compiled_offset).wrapping_add(base);
         }
         let raw_table: SharedPayloadRaw = mem::transmute(payload_usize);
         Self {
-            shared_scheduler: raw_table.1,
-            shared_add_task: raw_table.2,
-            shared_pop_task: raw_table.3
+            shared_scheduler: raw_table.2,
+            shared_add_task: raw_table.3,
+            shared_pop_task: raw_table.4
         }
     }
 
