@@ -43,18 +43,6 @@ SECTIONS
         _ebss = .;
     }
 
-    .shared_data : ALIGN(4K) {
-        _sshared_data = .;
-        *(.shared_data .shared_data.*)
-        _eshared_data = .;
-    }
-
-    .shared_text : ALIGN(4K) {
-        _sshared_text = .;
-        *(.shared_text .shared_text.*)
-        _eshared_text = .;
-    }
-
     . = ALIGN(4K);
     free_memory_start = .;
 

@@ -49,10 +49,6 @@ impl MemorySet {
             fn _edata();
             fn _sbss();
             fn _ebss();
-            fn _sshared_data();
-            fn _eshared_data();
-            fn _sshared_text();
-            fn _eshared_text();
             fn _swap_frame();
         }
         
@@ -60,8 +56,6 @@ impl MemorySet {
         println!("rodata: {:x?}", VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize));
         println!("data:   {:x?}", VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize));
         println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
-        println!("shared_data: {:x?}", VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize));
-        println!("shared_text: {:x?}", VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize));
         println!("swap frame: {:x?}", VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize));
         println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
 
@@ -90,17 +84,6 @@ impl MemorySet {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize),
                 flags: Flags::READABLE | Flags::WRITABLE
-            },
-            // 共享段的内核映射部分
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize),
-                flags: Flags::READABLE | Flags::WRITABLE
-            },
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize),
-                flags: Flags::EXECUTABLE // 没有READABLE
             },
             // 剩余内存空间，rw-
             Segment {
@@ -144,10 +127,6 @@ impl MemorySet {
     pub fn new_bin(base: usize) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
-            fn _sshared_data();
-            fn _eshared_data();
-            fn _sshared_text();
-            fn _eshared_text();
         }
         let mut mapping = Mapping::new_alloc()?;
         let allocated_pairs = Vec::new();
