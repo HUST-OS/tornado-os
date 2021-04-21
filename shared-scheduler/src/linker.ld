@@ -1,5 +1,5 @@
 OUTPUT_ARCH(riscv)
-ENTRY(_raw_table) /* Hack: keep raw table at entry address */
+ENTRY(SHARED_RAW_TABLE) /* Hack: keep raw table at entry address */
 BASE_ADDRESS = 0x86000000;
 
 SECTIONS

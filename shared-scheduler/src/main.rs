@@ -39,9 +39,8 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 }
 
 /// 共享载荷虚函数表
-#[no_mangle]
 #[link_section = ".data"]
-#[export_name = "_raw_table"]
+#[no_mangle]
 pub static SHARED_RAW_TABLE: (
     &'static u8, // 载荷编译时的基地址
     &'static SharedScheduler, // 共享调度器的地址
