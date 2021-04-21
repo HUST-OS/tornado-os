@@ -3,6 +3,8 @@
 mod config;
 mod user_syscall;
 
+pub use user_syscall::user_trap_handler;
+
 use config::*;
 
 use crate::{hart::KernelHartInfo, memory::{AddressSpaceId, Satp}};

@@ -7,7 +7,6 @@ use crate::memory::{
         MEMORY_END_ADDRESS,
         PAGE_SIZE,
         SWAP_FRAME_VA,
-        USER_STACK_BOTTOM_VA
     },
 };
 use crate::memory::{

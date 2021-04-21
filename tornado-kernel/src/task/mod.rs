@@ -16,6 +16,8 @@ pub use shared::{
 
 /// 共享调度器返回的结果
 #[derive(Debug)]
+#[repr(C)]
+#[allow(dead_code)] // value is constructed elsewhere
 pub enum TaskResult {
     /// 应当立即执行特定任务
     Task(SharedTaskHandle),
