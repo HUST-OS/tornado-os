@@ -107,39 +107,40 @@ impl<T, const N: usize> RingQueue<T, N> {
             Some(unsafe { &*self.elem[self.front].as_ptr() })
         }
     }
-    pub fn iter(&self) -> Iter<'_, T, N> {
-        let mut elem = [&self.elem[0]; N];
-        for i in 0..self.elem.len() {
-            elem[i] = &self.elem[i];
-        }
-        Iter {
-            elem,
-            front: self.front,
-            tail: self.tail
-        }
-    }
+    // 如果用到这个函数，取消注释
+    // pub fn iter(&self) -> Iter<'_, T, N> {
+    //     let mut elem = [&self.elem[0]; N];
+    //     for i in 0..self.elem.len() {
+    //         elem[i] = &self.elem[i];
+    //     }
+    //     Iter {
+    //         elem,
+    //         front: self.front,
+    //         tail: self.tail
+    //     }
+    // }
 }
 
-pub struct Iter<'a, T: 'a, const N: usize> {
-    elem: [&'a MaybeUninit<T>; N],
-    front: usize,
-    tail: usize
-}
+// pub struct Iter<'a, T: 'a, const N: usize> {
+//     elem: [&'a MaybeUninit<T>; N],
+//     front: usize,
+//     tail: usize
+// }
 
-// TODO: 这里有不确定 Unsafe 代码，需检查正确性
-impl<'a, T, const N: usize> Iterator for Iter<'a, T, N> {
-    type Item = &'a T;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.tail == self.front {
-            // is empty
-            None
-        } else {
-            let value = unsafe { self.elem[self.front].assume_init_ref() };
-            self.front = self.front.wrapping_add(1);
-            if self.front > N || self.front == 0 {
-                self.front = self.front.wrapping_sub(N);
-            }
-            Some(value)
-        }
-    }
-}
+// // TODO: 这里有不确定 Unsafe 代码，需检查正确性
+// impl<'a, T, const N: usize> Iterator for Iter<'a, T, N> {
+//     type Item = &'a T;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.tail == self.front {
+//             // is empty
+//             None
+//         } else {
+//             let value = unsafe { self.elem[self.front].assume_init_ref() };
+//             self.front = self.front.wrapping_add(1);
+//             if self.front > N || self.front == 0 {
+//                 self.front = self.front.wrapping_sub(N);
+//             }
+//             Some(value)
+//         }
+//     }
+// }

@@ -27,13 +27,6 @@ type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;
 /// 放到 .shared_data 段，内核或用户从这个地址里取得共享调度器
 pub static SHARED_SCHEDULER: SharedScheduler = Mutex::new(RingFifoScheduler::new());
 
-/// 得到当前正在运行的任务，以备保存上下文
-/// 
-/// 只供内核中断使用，不需要和用户层共享代码
-pub fn current_task() -> Option<SharedTaskHandle> {
-    SHARED_SCHEDULER.lock().current_task()
-}
-
 /// 得到共享的调度器指针
 /// 
 /// 可以在共享的添加任务，弹出下一个任务中使用
