@@ -1,5 +1,6 @@
-//! 为协程内核设计的共享调度器运行时
-//! 
+//! 为协程内核设计的共享调度器载荷
+//! 以二进制包的形式编译
+
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -25,12 +26,12 @@ static HEAP: LockedHeap = LockedHeap::empty();
 
 #[cfg_attr(not(test), panic_handler)]
 pub fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
-    println!("[shared-rt] panic: {:?}", panic_info);
+    println!("[shared scheduler] panic: {:?}", panic_info);
     sbi::shutdown()    
 }
 
 #[cfg_attr(not(test), alloc_error_handler)]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
-    println!("[shared-rt] alloc panic: {:?}", layout);
+    println!("[shared scheduler] alloc panic: {:?}", layout);
     sbi::shutdown()
 }

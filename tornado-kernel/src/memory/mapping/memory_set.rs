@@ -119,7 +119,7 @@ impl MemorySet {
             mapping.map_segment(segment, None)?;
         }
 
-        // 映射共享负荷，目前地址是写死的
+        // 映射共享载荷，目前地址是写死的
         let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8640_0000);
         let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8640_0000);
         mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE );

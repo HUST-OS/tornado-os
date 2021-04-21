@@ -10,17 +10,15 @@ use spin::Mutex;
 #[no_mangle]
 #[link_section = ".data"]
 #[export_name = "_raw_table"]
-pub static __shared_raw_table: [unsafe extern "C" fn(); 3] = [
-    _shared_scheduler,
-    _shared_add_task,
-    _shared_pop_task    
-];
-
-extern "C" {
-    fn _shared_scheduler();
-    fn _shared_add_task();
-    fn _shared_pop_task();
-}
+pub static __shared_raw_table: (
+    extern "C" fn() -> NonNull<()>,
+    unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+) = (
+    shared_scheduler,
+    shared_add_task,
+    shared_pop_task,    
+);
 
 /// 共享调度器的类型
 type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;
@@ -39,9 +37,8 @@ pub fn current_task() -> Option<SharedTaskHandle> {
 /// 得到共享的调度器指针
 /// 
 /// 可以在共享的添加任务，弹出下一个任务中使用
-#[no_mangle]
-#[export_name = "_shared_scheduler"]
-pub fn shared_scheduler() -> NonNull<()> {
+// todo：不要导出这个函数
+pub extern "C" fn shared_scheduler() -> NonNull<()> {
     NonNull::new(&SHARED_SCHEDULER as *const _ as *mut ())
         .expect("create non null pointer")
 }
@@ -59,28 +56,41 @@ pub struct SharedTaskHandle {
     pub(crate) task_ptr: usize,
 }
 
+// 跨FFI边界安全的Option枚举结构
+#[repr(C)]
+pub enum FfiOption<T> {
+    None,
+    Some(T),
+}
+
+impl<T> From<Option<T>> for FfiOption<T> {
+    fn from(src: Option<T>) -> FfiOption<T> {
+        if let Some(t) = src {
+            FfiOption::Some(t)
+        } else {
+            FfiOption::None
+        }
+    }
+}
+
 /// 给共享调度器添加任务
 /// 
 /// 在内核态和用户态都可以调用
-#[no_mangle]
-#[export_name = "_shared_add_task"]
-pub unsafe fn shared_add_task(
+pub unsafe extern "C" fn shared_add_task(
     shared_scheduler: NonNull<()>,
     handle: SharedTaskHandle
-) -> Option<SharedTaskHandle> {
+) -> FfiOption<SharedTaskHandle> { // 如果未来有FFI-safe core::option::Option，换掉这个返回值
     let s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_ref().lock();
-    scheduler.add_task(handle)
+    scheduler.add_task(handle).into()
 }
 
 /// 从共享调度器中弹出一个任务
 /// 
 /// 在内核态和用户态都可以调用
-#[no_mangle]
-#[export_name = "_shared_pop_task"]
-pub unsafe fn shared_pop_task(
+pub unsafe extern "C" fn shared_pop_task(
     shared_scheduler: NonNull<()>,
-    should_switch: fn(&SharedTaskHandle) -> bool
+    should_switch: extern "C" fn(&SharedTaskHandle) -> bool
 ) -> TaskResult {
     // 得到共享调度器的引用
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();

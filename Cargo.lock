@@ -98,6 +98,16 @@ checksum = "b5eb417147ba9860a96cfe72a0b93bf88fee1744b5636ec99ab20c1aa9376581"
 [[package]]
 name = "riscv"
 version = "0.6.0"
+source = "git+https://github.com.cnpmjs.org/rust-embedded/riscv.git?rev=7e9d2e5b#7e9d2e5bb05ccabf5539fcea36877748d7236c6e"
+dependencies = [
+ "bare-metal",
+ "bit_field",
+ "riscv-target",
+]
+
+[[package]]
+name = "riscv"
+version = "0.6.0"
 source = "git+https://github.com.cnpmjs.org/HUST-OS/riscv.git#9459cacfa4b3947e13006bebdbc84c287d11b390"
 dependencies = [
  "bare-metal",
@@ -140,6 +150,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
+name = "shared-scheduler"
+version = "0.1.0"
+dependencies = [
+ "buddy_system_allocator",
+ "lazy_static",
+ "r0",
+ "riscv 0.6.0 (git+https://github.com.cnpmjs.org/rust-embedded/riscv.git?rev=7e9d2e5b)",
+ "spin 0.7.1",
+]
+
+[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -170,7 +191,7 @@ dependencies = [
  "hashbrown",
  "lazy_static",
  "r0",
- "riscv",
+ "riscv 0.6.0 (git+https://github.com.cnpmjs.org/HUST-OS/riscv.git)",
  "spin 0.7.1",
  "woke",
 ]
@@ -181,6 +202,7 @@ version = "0.1.0"
 dependencies = [
  "buddy_system_allocator",
  "lazy_static",
+ "r0",
  "spin 0.5.2",
  "woke",
 ]
