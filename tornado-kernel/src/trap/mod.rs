@@ -62,18 +62,18 @@ unsafe extern "C" fn supervisor_restore(_target_frame: *mut TrapFrame) -> ! {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SwapContext {
-    /// 内核的根页表的satp寄存器值，包括根页号、地址空间编号和页表模式
-    pub kernel_satp: usize, // 0
-    /// 内核栈指针
-    pub kernel_stack: usize, // 8
-    /// 陷入内核时的处理函数
-    pub user_trap_handler: usize, // 16
-    /// sepc 寄存器
-    pub epc: usize, // 24
-    /// 内核 tp 寄存器的值
-    pub kernel_tp: usize, // 32
     /// 31 个通用寄存器，x0 被硬编码为 0 因此不用保存
-    pub x: [usize; 31] // 40-280
+    pub x: [usize; 31], // 0 - 30
+    /// 内核的根页表的satp寄存器值，包括根页号、地址空间编号和页表模式
+    pub kernel_satp: usize, // 31
+    /// 内核栈指针
+    pub kernel_stack: usize, // 32
+    /// 陷入内核时的处理函数
+    pub user_trap_handler: usize, // 33
+    /// sepc 寄存器
+    pub epc: usize, // 34
+    /// 内核 tp 寄存器的值
+    pub kernel_tp: usize, // 35
 }
 
 impl SwapContext {
@@ -123,60 +123,60 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
     
     //开始保存 SwapContext
     "
-    sd ra, 40(a0)
-    sd sp, 48(a0)
-    sd gp, 56(a0)
-    sd tp, 64(a0)
-    sd t0, 72(a0)
-    sd t1, 80(a0)
-    sd t2, 88(a0)
-    sd s0, 96(a0)
-    sd s1, 104(a0)
-    sd a1, 120(a0)
-    sd a2, 128(a0)
-    sd a3, 136(a0)
-    sd a4, 144(a0)
-    sd a5, 152(a0)
-    sd a6, 160(a0)
-    sd a7, 168(a0)
-    sd s2, 176(a0)
-    sd s3, 184(a0)
-    sd s4, 192(a0)
-    sd s5, 200(a0)
-    sd s6, 208(a0)
-    sd s7, 216(a0)
-    sd s8, 224(a0)
-    sd s9, 232(a0)
-    sd s10, 240(a0)
-    sd s11, 248(a0)
-    sd t3, 256(a0)
-    sd t4, 264(a0)
-    sd t5, 272(a0)
-    sd t6, 280(a0)
+    sd      ra,  0*8(a0)
+    sd      sp,  1*8(a0)
+    sd      gp,  2*8(a0)
+    sd      tp,  3*8(a0)
+    sd      t0,  4*8(a0)
+    sd      t1,  5*8(a0)
+    sd      t2,  6*8(a0)
+    sd      s0,  7*8(a0)
+    sd      s1,  8*8(a0)
+    sd      a1,  10*8(a0)
+    sd      a2,  11*8(a0)
+    sd      a3,  12*8(a0)
+    sd      a4,  13*8(a0)
+    sd      a5,  14*8(a0)
+    sd      a6,  15*8(a0)
+    sd      a7,  16*8(a0)
+    sd      s2,  17*8(a0)
+    sd      s3,  18*8(a0)
+    sd      s4,  19*8(a0)
+    sd      s5,  20*8(a0)
+    sd      s6,  21*8(a0)
+    sd      s7,  22*8(a0)
+    sd      s8,  23*8(a0)
+    sd      s9,  24*8(a0)
+    sd      s10, 25*8(a0)
+    sd      s11, 26*8(a0)
+    sd      t3,  27*8(a0)
+    sd      t4,  28*8(a0)
+    sd      t5,  29*8(a0)
+    sd      t6,  30*8(a0)
     ",
 
     // 保存用户的 a0 寄存器
-    "csrr t0, sscratch
-    sd t0, 112(a0)",
+    "csrr   t0, sscratch
+    sd      t0, 9*8(a0)",
     
     // 写 sepc 寄存器到 SwapContext 中相应位置
     "csrr t0, sepc
-    sd t0, 24(a0)",
+    sd t0, 34*8(a0)",
     
     // 恢复内核栈指针
-    "ld sp, 8(a0)",
+    "ld sp, 32*8(a0)",
 
     // todo: 如何处理 tp 寄存器
-    "ld tp, 32(a0)",
+    "ld tp, 35*8(a0)",
 
     // 将用户中断处理函数指针放到 t0 寄存器
-    "ld t0, 16(a0)",
+    "ld t0, 33*8(a0)",
     
     // 将用户的 satp 寄存器放到 t2 寄存器里面去
     "csrr t2, satp",
     
     // 恢复内核页表
-    "ld t1, 0(a0)
+    "ld t1, 31*8(a0)
     csrw satp, t1",
 
     "sfence.vma",
@@ -201,41 +201,41 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
     // 将用户的 a0 寄存器保存在 sscratch 寄存器中，
     // 这样子可以在最后一步将它和 a0（ctx） 进行交换
     "
-    ld t0, 112(a0)
-    csrw sscratch, t0
+    ld      t0, 9*8(a0)
+    csrw    sscratch, t0
     ",
     // 恢复通用寄存器的上下文
     "
-    ld ra, 40(a0)
-    ld sp, 48(a0)
-    ld gp, 56(a0)
-    ld tp, 64(a0)
-    ld t0, 72(a0)
-    ld t1, 80(a0)
-    ld t2, 88(a0)
-    ld s0, 96(a0)
-    ld s1, 104(a0)
-    ld a1, 120(a0)
-    ld a2, 128(a0)
-    ld a3, 136(a0)
-    ld a4, 144(a0)
-    ld a5, 152(a0)
-    ld a6, 160(a0)
-    ld a7, 168(a0)
-    ld s2, 176(a0)
-    ld s3, 184(a0)
-    ld s4, 192(a0)
-    ld s5, 200(a0)
-    ld s6, 208(a0)
-    ld s7, 216(a0)
-    ld s8, 224(a0)
-    ld s9, 232(a0)
-    ld s10, 240(a0)
-    ld s11, 248(a0)
-    ld t3, 256(a0)
-    ld t4, 264(a0)
-    ld t5, 272(a0)
-    ld t6, 280(a0)
+    ld      ra,  0*8(a0)
+    ld      sp,  1*8(a0)
+    ld      gp,  2*8(a0)
+    ld      tp,  3*8(a0)
+    ld      t0,  4*8(a0)
+    ld      t1,  5*8(a0)
+    ld      t2,  6*8(a0)
+    ld      s0,  7*8(a0)
+    ld      s1,  8*8(a0)
+    ld      a1,  10*8(a0)
+    ld      a2,  11*8(a0)
+    ld      a3,  12*8(a0)
+    ld      a4,  13*8(a0)
+    ld      a5,  14*8(a0)
+    ld      a6,  15*8(a0)
+    ld      a7,  16*8(a0)
+    ld      s2,  17*8(a0)
+    ld      s3,  18*8(a0)
+    ld      s4,  19*8(a0)
+    ld      s5,  20*8(a0)
+    ld      s6,  21*8(a0)
+    ld      s7,  22*8(a0)
+    ld      s8,  23*8(a0)
+    ld      s9,  24*8(a0)
+    ld      s10, 25*8(a0)
+    ld      s11, 26*8(a0)
+    ld      t3,  27*8(a0)
+    ld      t4,  28*8(a0)
+    ld      t5,  29*8(a0)
+    ld      t6,  30*8(a0)
     ",
     // 恢复用户的 a0 寄存器，并且保存交换栈顶在 sscratch 寄存器中
     "csrrw a0, sscratch, a0",
