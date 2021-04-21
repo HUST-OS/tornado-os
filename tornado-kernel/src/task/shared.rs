@@ -79,6 +79,7 @@ impl SharedPayload {
             }
             *idx = idx.wrapping_sub(compiled_offset).wrapping_add(base);
         }
+        println!("[kernel:shared] After patched: {:x?}", payload_usize);
         let raw_table: SharedPayloadRaw = mem::transmute(payload_usize);
         Self {
             shared_scheduler: raw_table.1,
