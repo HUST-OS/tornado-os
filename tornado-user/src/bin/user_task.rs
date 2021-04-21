@@ -28,7 +28,7 @@ fn main() -> ! {
     let ret = excutor::try_join();
     assert_eq!(ret, Some(8));
 
-    let shared_load = unsafe { shared::SharedLoad::new(0x8600_0000) };
+    let shared_load = unsafe { shared::SharedPayload::new(0x8600_0000) };
     let task = task::UserTask::new(FibonacciFuture::new(6));
     unsafe {
         shared_load.add_task(task.shared_task_handle());

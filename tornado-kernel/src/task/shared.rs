@@ -23,14 +23,11 @@
 /// 许多的指令集架构存在也是名为“地址空间”的优化方法，来提高页表缓存的访问效率，我们可以用它们实现软件上的地址空间。
 /// 如果具体的处理核上没有实现这种硬件优化，我们只用软件给出“地址空间”的概念，而不在硬件上利用它们。
 
-#[allow(unused_imports)]
-use crate::algorithm::{Scheduler, RingFifoScheduler, SameAddrSpaceScheduler};
 use crate::memory::AddressSpaceId;
 use crate::hart::KernelHartInfo;
 use core::ptr::NonNull;
 use core::mem;
 use super::TaskResult;
-
 
 /// 共享的包含Future在用户空间的地址
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -45,76 +42,88 @@ pub struct SharedTaskHandle {
     pub(crate) task_ptr: usize,
 }
 
-impl SharedTaskHandle {
-    pub fn _new(hart_id: usize, asid: usize, task_ptr: usize) -> Self {
-        Self {
-            hart_id,
-            address_space_id: unsafe { AddressSpaceId::from_raw(asid) },
-            task_ptr
-        }
-    }
-    pub fn should_switch(handle: &SharedTaskHandle) -> bool {
-        // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
-        KernelHartInfo::current_address_space_id() != handle.address_space_id
-    }
-
-}
-
-impl crate::algorithm::WithAddressSpace for SharedTaskHandle {
-    fn should_switch(&self) -> bool {
-        self.should_switch()
-    }
+pub extern "C" fn kernel_should_switch(handle: &SharedTaskHandle) -> bool {
+    // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
+    KernelHartInfo::current_address_space_id() != handle.address_space_id
 }
 
 /// 共享载荷
-pub struct SharedLoad {
-    pub shared_scheduler: NonNull<()>,
-    shared_add_task: unsafe fn(
+#[repr(C)]
+pub struct SharedPayload {
+    shared_scheduler: NonNull<()>,
+    shared_add_task: unsafe extern "C" fn(
         shared_scheduler: NonNull<()>, handle: SharedTaskHandle
-    ) -> Option<SharedTaskHandle>,
-    shared_pop_task: unsafe fn(
-        shared_scheduler: NonNull<()>, should_switch: fn(&SharedTaskHandle) -> bool
+    ) -> FfiOption<SharedTaskHandle>,
+    shared_pop_task: unsafe extern "C" fn(
+        shared_scheduler: NonNull<()>, should_switch: extern "C" fn(&SharedTaskHandle) -> bool
     ) -> TaskResult
 }
 
+type SharedPayloadAsUsize = [usize; 4]; // 编译时基地址，共享调度器地址，添加函数，弹出函数
+type SharedPayloadRaw = (
+    usize, // 编译时基地址，转换后类型占位，不使用
+    NonNull<()>,
+    unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+);
 
-impl SharedLoad {
+impl SharedPayload {
     pub unsafe fn new(base: usize) -> Self {
-        let raw_table_ptr = base
-            as *const [extern "C" fn(); 3]
-            as *const extern "C" fn();
-        let shared_scheduler_ptr = raw_table_ptr as usize as *const extern "C" fn();
-        let shared_add_task = (raw_table_ptr as usize + mem::size_of::<extern "C" fn()>())
-            as *const extern "C" fn();
-        let shared_pop_task = (raw_table_ptr as usize + mem::size_of::<extern "C" fn()>() * 2)
-            as *const extern "C" fn();
-        let shared_scheduler: fn() -> NonNull<()> = mem::transmute(*shared_scheduler_ptr);
-        let shared_add_task: unsafe fn(
-            shared_scheduler: NonNull<()>, handle: SharedTaskHandle
-        ) -> Option<SharedTaskHandle> = mem::transmute(*shared_add_task);
-        let shared_pop_task: unsafe fn(
-            shared_scheduler: NonNull<()>,
-            should_yield: fn(&SharedTaskHandle) -> bool
-        ) -> TaskResult = mem::transmute(*shared_pop_task);
+        let mut payload_usize = *(base as *const SharedPayloadAsUsize);
+        println!("[kernel:shared] Raw table base: {:p}", base as *const SharedPayloadAsUsize);
+        println!("[kernel:shared] Content: {:x?}", payload_usize);
+        let compiled_offset = payload_usize[0];
+        for (i, idx) in payload_usize.iter_mut().enumerate() {
+            if i == 0 {
+                continue
+            }
+            *idx = idx.wrapping_sub(compiled_offset).wrapping_add(base);
+        }
+        let raw_table: SharedPayloadRaw = core::mem::transmute(payload_usize);
         Self {
-            shared_scheduler: shared_scheduler(),
-            shared_add_task,
-            shared_pop_task
+            shared_scheduler: raw_table.1,
+            shared_add_task: raw_table.2,
+            shared_pop_task: raw_table.3
         }
     }
 
     /// 往共享载荷中添加任务
     pub unsafe fn add_task(&self, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
         let f = self.shared_add_task;
-        f(self.shared_scheduler, handle)
+        f(self.shared_scheduler, handle).into()
     }
 
     /// 从共享载荷中弹出任务
-    pub unsafe fn pop_task(&self, should_yield: fn(&SharedTaskHandle) -> bool) -> TaskResult {
+    pub unsafe fn pop_task(&self, should_yield: extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult {
         let f = self.shared_pop_task;
         f(self.shared_scheduler, should_yield)
     }
 }
 
+// 跨FFI边界安全的Option枚举结构
+#[repr(C)]
+pub enum FfiOption<T> {
+    None,
+    Some(T),
+}
 
+impl<T> From<Option<T>> for FfiOption<T> {
+    fn from(src: Option<T>) -> FfiOption<T> {
+        if let Some(t) = src {
+            FfiOption::Some(t)
+        } else {
+            FfiOption::None
+        }
+    }
+}
+
+impl<T> From<FfiOption<T>> for Option<T> {
+    fn from(src: FfiOption<T>) -> Option<T> {
+        if let FfiOption::Some(t) = src {
+            Some(t)
+        } else {
+            None
+        }
+    }
+}
 

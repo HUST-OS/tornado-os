@@ -88,7 +88,7 @@ where
     }
 }
 
-pub struct SharedLoad {
+pub struct SharedPayload {
     pub shared_scheduler: NonNull<()>,
     shared_add_task: unsafe fn(
         shared_scheduler: NonNull<()>, handle: SharedTaskHandle
@@ -99,7 +99,7 @@ pub struct SharedLoad {
 }
 
 
-impl SharedLoad {
+impl SharedPayload {
     pub unsafe fn new(base: usize) -> Self {
         let raw_table_ptr = base
             as *const [extern "C" fn(); 3]

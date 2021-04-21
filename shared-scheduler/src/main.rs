@@ -20,6 +20,8 @@ mod task;
 mod mm;
 
 use buddy_system_allocator::LockedHeap;
+use core::ptr::NonNull;
+use crate::task::{SharedTaskHandle, FfiOption, TaskResult, SharedScheduler, SHARED_SCHEDULER, shared_add_task, shared_pop_task};
 
 #[global_allocator]
 static HEAP: LockedHeap = LockedHeap::empty();
@@ -35,3 +37,24 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     println!("[shared scheduler] alloc panic: {:?}", layout);
     sbi::shutdown()
 }
+
+/// 共享载荷虚函数表
+#[no_mangle]
+#[link_section = ".data"]
+#[export_name = "_raw_table"]
+pub static SHARED_RAW_TABLE: (
+    &'static u8, // 载荷编译时的基地址
+    &'static SharedScheduler, // 共享调度器的地址
+    unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+) = (
+    unsafe { 
+        extern "C" {
+            static payload_compiled_start: u8;
+        }
+        &payload_compiled_start  
+    },
+    &SHARED_SCHEDULER,
+    shared_add_task,
+    shared_pop_task,    
+);

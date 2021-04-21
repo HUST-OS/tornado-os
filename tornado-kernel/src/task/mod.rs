@@ -10,7 +10,8 @@ pub use process::{Process, ProcessId};
 pub use executor::run_until_idle;
 pub use shared::{
     SharedTaskHandle,
-    SharedLoad
+    SharedPayload,
+    kernel_should_switch
 };
 
 /// 共享调度器返回的结果

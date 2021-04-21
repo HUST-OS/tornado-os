@@ -6,6 +6,8 @@ SECTIONS
 {
     . = BASE_ADDRESS;
 
+    payload_compiled_start = .;
+
     .data : ALIGN(4K) {
         _sidata = LOADADDR(.data);
         _sdata = .;

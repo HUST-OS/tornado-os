@@ -18,35 +18,12 @@ pub enum TaskResult {
     Finished
 }
 
-/// 共享载荷虚函数表
-#[no_mangle]
-#[link_section = ".data"]
-#[export_name = "_raw_table"]
-pub static SHARED_RAW_TABLE: (
-    extern "C" fn() -> NonNull<()>,
-    unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
-    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
-) = (
-    shared_scheduler,
-    shared_add_task,
-    shared_pop_task,    
-);
-
 /// 共享调度器的类型
-type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;
+pub type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;
 
 /// 全局的共享调度器
-/// 放到 .shared_data 段，内核或用户从这个地址里取得共享调度器
+/// 放到数据段，内核或用户从这个地址里取得共享调度器
 pub static SHARED_SCHEDULER: SharedScheduler = Mutex::new(RingFifoScheduler::new());
-
-/// 得到共享的调度器指针
-/// 
-/// 可以在共享的添加任务，弹出下一个任务中使用
-// todo：不要导出这个函数
-pub extern "C" fn shared_scheduler() -> NonNull<()> {
-    NonNull::new(&SHARED_SCHEDULER as *const _ as *mut ())
-        .expect("create non null pointer")
-}
 
 /// 共享任务的句柄
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
