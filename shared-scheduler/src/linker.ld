@@ -23,7 +23,7 @@ SECTIONS
         *(.data .data.*)
     }
 
-    .bss (NOLOAD) : {
+    .bss (NOLOAD) : ALIGN(4) {
         sbss = .;
         *(.sbss .bss .bss.*)
         ebss = ALIGN(4);

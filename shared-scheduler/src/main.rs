@@ -57,20 +57,26 @@ pub static SHARED_RAW_TABLE: (
 
 #[allow(non_upper_case_globals)]
 extern "C" {
+    // 载荷编译时的起始地址，可用于内核加载时计算偏移量
     static payload_compiled_start: u8;
-    static srodata_page: u32; static erodata_page: u32;
-    static sdata_page: u32; static edata_page: u32;
-    static stext_page: u32; static etext_page: u32;
+    // 每个页的开始都对齐到4K，结束并无对齐要求，结束位置应当向上取整到4K
+    static srodata_page: u8; static erodata_page: u8;
+    static sdata_page: u8; static edata_page: u8;
+    static stext_page: u8; static etext_page: u8;
+    // 都是u32类型，将会由r0::zero_bss每次写入一个32位零内存来初始化
+    // 对应链接器脚本中的“ebss = ALIGN(4)”等等
     static mut sbss: u32; static mut ebss: u32;
 }
 
 /// 初始化载荷环境，只能由内核运行，只能运行一次
 unsafe extern "C" fn init_payload_environment() -> PageList {
+    // 初始化零初始段，每次写入一个u32类型的零内存
     r0::zero_bss(&mut sbss, &mut ebss);
+    // 返回一个表，表示本共享载荷应当保护的地址范围
     PageList {
-        rodata: [&srodata_page, &erodata_page],
-        data: [&sdata_page, &edata_page],
-        text: [&stext_page, &etext_page],
+        rodata: [&srodata_page, &erodata_page], // 只读
+        data: [&sdata_page, &edata_page], // 读+写
+        text: [&stext_page, &etext_page], // 只运行
     }
 }
 
@@ -79,8 +85,8 @@ unsafe extern "C" fn init_payload_environment() -> PageList {
 /// 有虚拟内存，用特殊的链接器脚本，以确保对齐到4K，如果没有虚拟内存，可以使用更低的对齐方法
 #[repr(C)]
 pub struct PageList {
-    // 这里的&'static u32指向的值并不重要，它表示的地址比较重要
-    rodata: [&'static u32; 2], // 只读数据段
-    data: [&'static u32; 2], // 数据段
-    text: [&'static u32; 2], // 代码段
+    // 这里的&'static u8指向的值并不重要，它表示的地址比较重要
+    rodata: [&'static u8; 2], // 只读数据段
+    data: [&'static u8; 2], // 数据段
+    text: [&'static u8; 2], // 代码段
 }
