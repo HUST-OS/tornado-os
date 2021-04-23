@@ -16,8 +16,6 @@ pub struct SharedTaskHandle {
     pub(crate) address_space_id: AddressSpaceId,
     /// task_ptr 是 Arc<Task> 的虚拟地址
     pub(crate) task_ptr: usize,
-    // 留给调度器使用，用户不应使用
-    _private: usize,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

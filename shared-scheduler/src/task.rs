@@ -3,7 +3,6 @@ use crate::algorithm::{Scheduler, RingFifoScheduler};
 use crate::mm::AddressSpaceId;
 use core::ptr::NonNull;
 use spin::Mutex;
-use alloc::sync::Arc;
 
 /// 共享调度器返回的结果
 // 不应该移除，这对FFI是安全的，我们只考虑Rust用户，其它语言自己想办法
@@ -33,7 +32,7 @@ pub type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;
 pub static SHARED_SCHEDULER: SharedScheduler = Mutex::new(RingFifoScheduler::new());
 
 /// 共享任务的句柄
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct SharedTaskHandle {
     /// 运行此任务的硬件线程编号
@@ -42,33 +41,6 @@ pub struct SharedTaskHandle {
     pub(crate) address_space_id: AddressSpaceId,
     // 元数据指针，由所在的地址空间解释
     task_repr: TaskRepr,
-    // 内部变量，仅供调度器使用，类型为Option<Arc<()>>
-    owned_ref_counter: usize,
-}
-
-impl Clone for SharedTaskHandle {
-    fn clone(&self) -> Self {
-        let counter = self.owned_ref_counter as *const ();
-        let arc = unsafe { Arc::from_raw(counter) };
-        let arc2 = arc.clone();
-        // let (s, w) = (Arc::strong_count(&arc), Arc::weak_count(&arc));
-        core::mem::forget(arc);
-        // println!("After clone: {:p}, strong: {}, weak: {}", counter, s, w);
-        SharedTaskHandle {
-            owned_ref_counter: Arc::into_raw(arc2) as usize,
-            ..*self
-        }
-    }
-}
-
-impl Drop for SharedTaskHandle {
-    fn drop(&mut self) {
-        let counter = self.owned_ref_counter as *const ();
-        let arc = unsafe { Arc::from_raw(counter) };
-        // let (s, w) = (Arc::strong_count(&arc), Arc::weak_count(&arc));
-        drop(arc);
-        // println!("After drop: {:p}, strong: {}, weak: {}", counter, s, w);
-    }
 }
 
 /// 给共享调度器添加任务
@@ -92,13 +64,10 @@ pub unsafe extern "C" fn shared_add_task(
     address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
 ) -> SharedTaskHandle {
-    let counter = Arc::new(());
-    let ptr = Arc::into_raw(counter);
     SharedTaskHandle {
         hart_id,
         address_space_id,
         task_repr,
-        owned_ref_counter: ptr as usize
     }
 }
 

@@ -40,8 +40,6 @@ pub struct SharedTaskHandle {
     /// 对每个虚拟空间来说，task_ptr是Arc<Task>相应的虚拟地址
     /// 比如内核中是内核虚拟地址，用户中是用户的虚拟地址
     pub(crate) task_ptr: usize,
-    // 不关心
-    _owned_ref_counter: usize,
 }
 
 pub extern "C" fn kernel_should_switch(handle: &SharedTaskHandle) -> bool {
