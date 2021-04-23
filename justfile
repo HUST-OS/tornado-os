@@ -1,6 +1,6 @@
 target := "riscv64imac-unknown-none-elf"
 mode := "debug"
-user-mode := "release"
+user-mode := "debug"
 build-path := "target/" + target + "/" + mode + "/"
 app-path := "target/" + target + "/" + user-mode + "/"
 
@@ -48,7 +48,7 @@ size: build
     @{{size}} -A -x {{kernel-elf}} 
     @{{size}} -A -x {{shared-elf}}
 
-debug app: build build-shared
+debug app: build build-shared (build-user app)
     @qemu-system-riscv64 \
             -machine virt \
             -nographic \

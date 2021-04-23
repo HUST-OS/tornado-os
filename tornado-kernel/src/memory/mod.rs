@@ -14,6 +14,7 @@ pub fn init() {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[repr(C)]
 pub struct AddressSpaceId(u16); // in Sv39, [0, 2^16)
 
 impl AddressSpaceId {

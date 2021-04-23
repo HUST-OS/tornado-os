@@ -51,22 +51,20 @@ pub extern "C" fn kernel_should_switch(handle: &SharedTaskHandle) -> bool {
 #[repr(C)]
 pub struct SharedPayload {
     shared_scheduler: NonNull<()>,
-    shared_add_task: unsafe extern "C" fn(
-        shared_scheduler: NonNull<()>, handle: SharedTaskHandle
-    ) -> FfiOption<SharedTaskHandle>,
-    shared_pop_task: unsafe extern "C" fn(
-        shared_scheduler: NonNull<()>, should_switch: extern "C" fn(&SharedTaskHandle) -> bool
-    ) -> TaskResult
+    shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
+    shared_peek_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+    shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize) -> bool,
 }
 
-type SharedPayloadAsUsize = [usize; 5]; // 编译时基地址，初始化函数，共享调度器地址，添加函数，弹出函数
+type SharedPayloadAsUsize = [usize; 6]; // 编译时基地址，初始化函数，共享调度器地址，添加函数，弹出函数
 type InitFunction = unsafe extern "C" fn() -> PageList;
 type SharedPayloadRaw = (
     usize, // 编译时基地址，转换后类型占位，不使用
     usize, // 初始化函数，执行完之后，内核将函数指针置空
     NonNull<()>,
-    unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+    unsafe extern "C" fn(NonNull<()>, usize) -> bool,
 );
 
 impl SharedPayload {
@@ -93,47 +91,30 @@ impl SharedPayload {
         Self {
             shared_scheduler: raw_table.2,
             shared_add_task: raw_table.3,
-            shared_pop_task: raw_table.4
+            shared_peek_task: raw_table.4,
+            shared_delete_task: raw_table.5,
         }
     }
 
     /// 往共享调度器中添加任务
-    pub unsafe fn add_task(&self, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
+    pub unsafe fn add_task(&self, hart_id: usize, address_space_id: AddressSpaceId, task_repr: usize) -> bool {
         let f = self.shared_add_task;
-        f(self.shared_scheduler, handle).into()
+        // println!("Add = {:x}, p1 = {:p}, p2 = {:x}, p3 = {:?}, p4 = {:x}", f as usize, self.shared_scheduler, 
+        // hart_id, address_space_id, task_repr);
+        f(self.shared_scheduler, hart_id, address_space_id, task_repr)
     }
 
-    /// 从共享调度器中弹出任务
-    pub unsafe fn pop_task(&self, should_yield: extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult {
-        let f = self.shared_pop_task;
+    /// 从共享调度器中得到下一个任务
+    pub unsafe fn peek_task(&self, should_yield: extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult {
+        let f = self.shared_peek_task;
+        // println!("Peek = {:x}, p1 = {:p}, p2 = {:x}", f as usize, self.shared_scheduler, should_yield as usize);
         f(self.shared_scheduler, should_yield)
     }
-}
 
-// 跨FFI边界安全的Option枚举结构
-#[repr(C)]
-pub enum FfiOption<T> {
-    None,
-    Some(T),
-}
-
-impl<T> From<Option<T>> for FfiOption<T> {
-    fn from(src: Option<T>) -> FfiOption<T> {
-        if let Some(t) = src {
-            FfiOption::Some(t)
-        } else {
-            FfiOption::None
-        }
-    }
-}
-
-impl<T> From<FfiOption<T>> for Option<T> {
-    fn from(src: FfiOption<T>) -> Option<T> {
-        if let FfiOption::Some(t) = src {
-            Some(t)
-        } else {
-            None
-        }
+    /// 从共享调度器中删除任务
+    pub unsafe fn delete_task(&self, task_repr: usize) -> bool {
+        let f = self.shared_delete_task;
+        f(self.shared_scheduler, task_repr)
     }
 }
 

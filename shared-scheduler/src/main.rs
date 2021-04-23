@@ -20,11 +20,18 @@ mod task;
 mod mm;
 
 use buddy_system_allocator::LockedHeap;
-use core::ptr::NonNull;
-use crate::task::{SharedTaskHandle, FfiOption, TaskResult, SharedScheduler, SHARED_SCHEDULER, shared_add_task, shared_pop_task};
+use core::{mem::MaybeUninit, ptr::NonNull};
+use crate::task::{
+    SharedTaskHandle, TaskResult, TaskRepr, SharedScheduler, SHARED_SCHEDULER, 
+    shared_add_task, shared_peek_task, shared_delete_task,
+};
+use crate::mm::AddressSpaceId;
 
 #[global_allocator]
 static HEAP: LockedHeap = LockedHeap::empty();
+
+const HEAP_SIZE: usize = 128 * 1024;
+static HEAP_MEMORY: MaybeUninit<[u8; HEAP_SIZE]> = core::mem::MaybeUninit::uninit();
 
 #[cfg_attr(not(test), panic_handler)]
 pub fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
@@ -45,14 +52,16 @@ pub static SHARED_RAW_TABLE: (
     &'static u8, // 载荷编译时的基地址
     unsafe extern "C" fn() -> PageList, // 初始化函数，执行完之后，内核将函数指针置空
     &'static SharedScheduler, // 共享调度器的地址
-    unsafe extern "C" fn(NonNull<()>, SharedTaskHandle) -> FfiOption<SharedTaskHandle>,
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> bool,
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+    unsafe extern "C" fn(NonNull<()>, TaskRepr) -> bool,
 ) = (
     unsafe { &payload_compiled_start },
     init_payload_environment,
     &SHARED_SCHEDULER,
     shared_add_task,
-    shared_pop_task,    
+    shared_peek_task,
+    shared_delete_task,
 );
 
 #[allow(non_upper_case_globals)]
@@ -72,6 +81,9 @@ extern "C" {
 unsafe extern "C" fn init_payload_environment() -> PageList {
     // 初始化零初始段，每次写入一个u32类型的零内存
     r0::zero_bss(&mut sbss, &mut ebss);
+    // 初始化堆
+    let heap_start = HEAP_MEMORY.as_ptr() as usize;
+    HEAP.lock().init(heap_start, HEAP_SIZE);
     // 返回一个表，表示本共享载荷应当保护的地址范围
     PageList {
         rodata: [&srodata_page, &erodata_page], // 只读

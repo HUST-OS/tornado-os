@@ -47,7 +47,7 @@ pub extern "C" fn user_trap_handler() {
             }
             trap::switch_to_user(swap_cx, user_satp.inner())
         }
-        _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}", scause::read().cause(), sepc::read(), stval::read())
+        _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}, {:x?}", scause::read().cause(), sepc::read(), stval::read(), swap_cx)
     }
 }
 
