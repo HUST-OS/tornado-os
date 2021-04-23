@@ -33,9 +33,8 @@ pub struct SharedTaskHandle {
     pub(crate) hart_id: usize,
     /// 地址空间的编号
     pub(crate) address_space_id: AddressSpaceId,
-    /// 对每个虚拟空间来说，task_ptr是Arc<Task>相应的虚拟地址
-    /// 比如内核中是内核虚拟地址，用户中是用户的虚拟地址
-    pub(crate) task_ptr: usize,
+    // 元数据指针，由所在的地址空间解释
+    _task_ptr: usize,
 }
 
 /// 给共享调度器添加任务
