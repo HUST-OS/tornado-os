@@ -6,7 +6,6 @@ use crate::trap;
 use super::{SyscallResult, syscall};
 
 /// 测试用的中断处理函数，用户态发生中断会陷入到这里
-#[export_name = "_user_trap_handler"]
 pub extern "C" fn user_trap_handler() {
     // 用户地址空间的 satp 寄存器通过 t2 传给内核
     let user_satp: usize;
@@ -16,8 +15,8 @@ pub extern "C" fn user_trap_handler() {
     let user_satp = Satp::new(user_satp);
     let swap_cx = unsafe { get_swap_cx(&user_satp) };
     // 从 SwapContext 中读东西
-    let a7 =swap_cx.x[16];
-    let a6 =swap_cx.x[15];
+    let a7 = swap_cx.x[16];
+    let a6 = swap_cx.x[15];
     let a0 = swap_cx.x[9];
     let a1 = swap_cx.x[10];
     match scause::read().cause() {
@@ -48,7 +47,7 @@ pub extern "C" fn user_trap_handler() {
             }
             trap::switch_to_user(swap_cx, user_satp.inner())
         }
-        _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}", scause::read().cause(), sepc::read(), stval::read())
+        _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}, {:x?}", scause::read().cause(), sepc::read(), stval::read(), swap_cx)
     }
 }
 

@@ -6,9 +6,17 @@ kernel-elf := build-path + "tornado-kernel"
 kernel-bin := build-path + "tornado-kernel.bin"
 
 objcopy := "rust-objcopy --binary-architecture=riscv64"
+objdump := "riscv64-unknown-elf-objdump"
+size := "rust-size"
 
 build: kernel
     @{{objcopy}} {{kernel-elf}} --strip-all -O binary {{kernel-bin}}
 
 kernel:
     @cargo build --target={{target}}
+
+asm: build
+    @{{objdump}} -D {{kernel-elf}} | less
+
+size: build
+    @{{size}} -A -x {{kernel-elf}} 

@@ -7,11 +7,6 @@ use crate::task;
 
 /// 第一次进入用户态
 pub fn first_enter_user(kernel_stack_top: usize) -> ! {
-    extern {
-        // 用户陷入内核时候的中断处理函数
-        fn _user_trap_handler();
-    }
-   
     // 创建一个用户态映射
     let user_memory = memory::MemorySet::new_bin(0x8700_0000).unwrap();
     
@@ -45,7 +40,8 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     // 往 SwapContext 写东西
     // 目前通过 tp 寄存器把地址空间编号传给用户，后面可能会修改
     *swap_cx = trap::SwapContext::new_to_user(
-        kernel_satp, 0, user_asid, kernel_stack_top, user_stack_top, _user_trap_handler as usize
+        kernel_satp, 0, user_asid, kernel_stack_top, user_stack_top, 
+        crate::trap::trap_vector as usize
     );
     
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户

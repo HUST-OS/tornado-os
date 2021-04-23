@@ -98,9 +98,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
     
-    let shared_load = unsafe { task::SharedLoad::new(0x8600_0000) };
+    let shared_payload = unsafe { task::SharedPayload::load(0x8600_0000) };
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
+    let hart_id = crate::hart::KernelHartInfo::hart_id();
+    let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
     let task_1 = task::KernelTask::new(task_1(), process.clone());
     let task_2 = task::KernelTask::new(task_2(), process.clone());
@@ -109,14 +111,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
     unsafe {
-        shared_load.add_task(task_1.shared_task_handle());
-        shared_load.add_task(task_2.shared_task_handle());
-        shared_load.add_task(task_3.shared_task_handle());
+        shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
     }
     
     task::run_until_idle(
-        || unsafe { shared_load.pop_task(task::SharedTaskHandle::should_switch) },
-        |handle| unsafe { shared_load.add_task(handle) }
+        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
     );
 
     // 进入用户态

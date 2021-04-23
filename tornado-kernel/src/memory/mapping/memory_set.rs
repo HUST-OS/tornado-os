@@ -7,7 +7,6 @@ use crate::memory::{
         MEMORY_END_ADDRESS,
         PAGE_SIZE,
         SWAP_FRAME_VA,
-        USER_STACK_BOTTOM_VA
     },
 };
 use crate::memory::{
@@ -50,10 +49,6 @@ impl MemorySet {
             fn _edata();
             fn _sbss();
             fn _ebss();
-            fn _sshared_data();
-            fn _eshared_data();
-            fn _sshared_text();
-            fn _eshared_text();
             fn _swap_frame();
         }
         
@@ -61,8 +56,6 @@ impl MemorySet {
         println!("rodata: {:x?}", VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize));
         println!("data:   {:x?}", VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize));
         println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
-        println!("shared_data: {:x?}", VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize));
-        println!("shared_text: {:x?}", VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize));
         println!("swap frame: {:x?}", VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize));
         println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
 
@@ -92,17 +85,6 @@ impl MemorySet {
                 range: VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize),
                 flags: Flags::READABLE | Flags::WRITABLE
             },
-            // 共享段的内核映射部分
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_sshared_data as usize)..VirtualAddress(_eshared_data as usize),
-                flags: Flags::READABLE | Flags::WRITABLE
-            },
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(_sshared_text as usize)..VirtualAddress(_eshared_text as usize),
-                flags: Flags::EXECUTABLE // 没有READABLE
-            },
             // 剩余内存空间，rw-
             Segment {
                 map_type: MapType::Linear,
@@ -119,7 +101,7 @@ impl MemorySet {
             mapping.map_segment(segment, None)?;
         }
 
-        // 映射共享负荷，目前地址是写死的
+        // 映射共享载荷，目前地址是写死的
         let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8640_0000);
         let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8640_0000);
         mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE );
@@ -146,16 +128,12 @@ impl MemorySet {
     pub fn new_bin(base: usize) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
-            fn _sshared_data();
-            fn _eshared_data();
-            fn _sshared_text();
-            fn _eshared_text();
         }
         let mut mapping = Mapping::new_alloc()?;
         let allocated_pairs = Vec::new();
         
-        let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE * 20);
-        let pa_range = PhysicalAddress(base)..PhysicalAddress(base + PAGE_SIZE * 20);
+        let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE * 200);
+        let pa_range = PhysicalAddress(base)..PhysicalAddress(base + PAGE_SIZE * 200);
         mapping.map_defined(&va_range, &pa_range, Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE | Flags::USER);
         
         // 映射 _swap_frame
@@ -175,8 +153,8 @@ impl MemorySet {
 
         // 映射共享运行时段
         // 目前共享运行时写死在 0x86000000 这个物理地址上
-        let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8640_0000);
-        let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8640_0000);
+        let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8680_0000);
+        let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8680_0000);
         mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER);
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid

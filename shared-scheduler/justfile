@@ -4,7 +4,7 @@ build-path := "../target/" + target + "/" + mode + "/"
 shared-elf := build-path + "shared-scheduler"
 shared-bin := build-path + "shared-scheduler.bin"
 
-objdump := "riscv64-linux-gnu-objdump"
+objdump := "riscv64-unknown-elf-objdump"
 objcopy := "rust-objcopy --binary-architecture=riscv64"
 gdb := "riscv64-unknown-elf-gdb.exe"
 size := "rust-size"

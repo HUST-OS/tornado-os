@@ -79,13 +79,8 @@ impl UserTask {
     /// 转换到共享的任务编号
     /// 危险：创建了一个没有边界的生命周期
     
-    pub unsafe fn shared_task_handle(self: Arc<Self>) -> SharedTaskHandle {
-        SharedTaskHandle {
-            hart_id: 0,
-            // todo: 地址空间编号
-            address_space_id: self.asid,
-            task_ptr: Arc::into_raw(self) as usize
-        }
+    pub unsafe fn task_repr(self: Arc<Self>) -> usize {
+        Arc::into_raw(self) as usize
     }
 }
 
@@ -112,7 +107,7 @@ impl woke::Woke for UserTask {
 #[derive(Debug)]
 pub enum TaskResult {
     /// 应当立即执行特定任务
-    Task(SharedTaskHandle),
+    Task(usize),
     /// 其它地址空间的任务要运行，应当让出时间片
     ShouldYield(usize),
     /// 队列已空，所有任务已经结束

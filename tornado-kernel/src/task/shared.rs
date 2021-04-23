@@ -23,14 +23,11 @@
 /// 许多的指令集架构存在也是名为“地址空间”的优化方法，来提高页表缓存的访问效率，我们可以用它们实现软件上的地址空间。
 /// 如果具体的处理核上没有实现这种硬件优化，我们只用软件给出“地址空间”的概念，而不在硬件上利用它们。
 
-#[allow(unused_imports)]
-use crate::algorithm::{Scheduler, RingFifoScheduler, SameAddrSpaceScheduler};
 use crate::memory::AddressSpaceId;
 use crate::hart::KernelHartInfo;
 use core::ptr::NonNull;
 use core::mem;
 use super::TaskResult;
-
 
 /// 共享的包含Future在用户空间的地址
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -45,76 +42,87 @@ pub struct SharedTaskHandle {
     pub(crate) task_ptr: usize,
 }
 
-impl SharedTaskHandle {
-    pub fn _new(hart_id: usize, asid: usize, task_ptr: usize) -> Self {
-        Self {
-            hart_id,
-            address_space_id: unsafe { AddressSpaceId::from_raw(asid) },
-            task_ptr
-        }
-    }
-    pub fn should_switch(handle: &SharedTaskHandle) -> bool {
-        // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
-        KernelHartInfo::current_address_space_id() != handle.address_space_id
-    }
-
-}
-
-impl crate::algorithm::WithAddressSpace for SharedTaskHandle {
-    fn should_switch(&self) -> bool {
-        self.should_switch()
-    }
+pub extern "C" fn kernel_should_switch(handle: &SharedTaskHandle) -> bool {
+    // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
+    KernelHartInfo::current_address_space_id() != handle.address_space_id
 }
 
 /// 共享载荷
-pub struct SharedLoad {
-    pub shared_scheduler: NonNull<()>,
-    shared_add_task: unsafe fn(
-        shared_scheduler: NonNull<()>, handle: SharedTaskHandle
-    ) -> Option<SharedTaskHandle>,
-    shared_pop_task: unsafe fn(
-        shared_scheduler: NonNull<()>, should_switch: fn(&SharedTaskHandle) -> bool
-    ) -> TaskResult
+#[repr(C)]
+pub struct SharedPayload {
+    shared_scheduler: NonNull<()>,
+    shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
+    shared_peek_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+    shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize) -> bool,
 }
 
+type SharedPayloadAsUsize = [usize; 6]; // 编译时基地址，初始化函数，共享调度器地址，添加函数，弹出函数
+type InitFunction = unsafe extern "C" fn() -> PageList;
+type SharedPayloadRaw = (
+    usize, // 编译时基地址，转换后类型占位，不使用
+    usize, // 初始化函数，执行完之后，内核将函数指针置空
+    NonNull<()>,
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+    unsafe extern "C" fn(NonNull<()>, usize) -> bool,
+);
 
-impl SharedLoad {
-    pub unsafe fn new(base: usize) -> Self {
-        let raw_table_ptr = base
-            as *const [extern "C" fn(); 3]
-            as *const extern "C" fn();
-        let shared_scheduler_ptr = raw_table_ptr as usize as *const extern "C" fn();
-        let shared_add_task = (raw_table_ptr as usize + mem::size_of::<extern "C" fn()>())
-            as *const extern "C" fn();
-        let shared_pop_task = (raw_table_ptr as usize + mem::size_of::<extern "C" fn()>() * 2)
-            as *const extern "C" fn();
-        let shared_scheduler: fn() -> NonNull<()> = mem::transmute(*shared_scheduler_ptr);
-        let shared_add_task: unsafe fn(
-            shared_scheduler: NonNull<()>, handle: SharedTaskHandle
-        ) -> Option<SharedTaskHandle> = mem::transmute(*shared_add_task);
-        let shared_pop_task: unsafe fn(
-            shared_scheduler: NonNull<()>,
-            should_yield: fn(&SharedTaskHandle) -> bool
-        ) -> TaskResult = mem::transmute(*shared_pop_task);
+impl SharedPayload {
+    pub unsafe fn load(base: usize) -> Self {
+        let mut payload_usize = *(base as *const SharedPayloadAsUsize);
+        println!("[kernel:shared] Raw table base: {:p}", base as *const SharedPayloadAsUsize);
+        println!("[kernel:shared] Content: {:x?}", payload_usize);
+        let compiled_offset = payload_usize[0];
+        for (i, idx) in payload_usize.iter_mut().enumerate() {
+            if i == 0 {
+                continue
+            }
+            *idx = idx.wrapping_sub(compiled_offset).wrapping_add(base);
+            if *idx == 0 {
+                panic!("shared scheduler used effective address of zero")
+            }
+        }
+        println!("[kernel:shared] After patched: {:x?}", payload_usize);
+        let payload_init: InitFunction = mem::transmute(payload_usize[1]);
+        let page_list = payload_init(); // 初始化载荷，包括零初始化段的清零等等
+        payload_usize[1] = 0; // 置空初始化函数
+        println!("[kernel:shared] Init, page list: {:x?}", page_list); // 应当在分页系统中使用上，本次比赛设计暂时不深入
+        let raw_table: SharedPayloadRaw = mem::transmute(payload_usize);
         Self {
-            shared_scheduler: shared_scheduler(),
-            shared_add_task,
-            shared_pop_task
+            shared_scheduler: raw_table.2,
+            shared_add_task: raw_table.3,
+            shared_peek_task: raw_table.4,
+            shared_delete_task: raw_table.5,
         }
     }
 
-    /// 往共享载荷中添加任务
-    pub unsafe fn add_task(&self, handle: SharedTaskHandle) -> Option<SharedTaskHandle> {
+    /// 往共享调度器中添加任务
+    pub unsafe fn add_task(&self, hart_id: usize, address_space_id: AddressSpaceId, task_repr: usize) -> bool {
         let f = self.shared_add_task;
-        f(self.shared_scheduler, handle)
+        // println!("Add = {:x}, p1 = {:p}, p2 = {:x}, p3 = {:?}, p4 = {:x}", f as usize, self.shared_scheduler, 
+        // hart_id, address_space_id, task_repr);
+        f(self.shared_scheduler, hart_id, address_space_id, task_repr)
     }
 
-    /// 从共享载荷中弹出任务
-    pub unsafe fn pop_task(&self, should_yield: fn(&SharedTaskHandle) -> bool) -> TaskResult {
-        let f = self.shared_pop_task;
+    /// 从共享调度器中得到下一个任务
+    pub unsafe fn peek_task(&self, should_yield: extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult {
+        let f = self.shared_peek_task;
+        // println!("Peek = {:x}, p1 = {:p}, p2 = {:x}", f as usize, self.shared_scheduler, should_yield as usize);
         f(self.shared_scheduler, should_yield)
+    }
+
+    /// 从共享调度器中删除任务
+    pub unsafe fn delete_task(&self, task_repr: usize) -> bool {
+        let f = self.shared_delete_task;
+        f(self.shared_scheduler, task_repr)
     }
 }
 
-
-
+/// 共享载荷各个段的范围，方便内存管理的权限设置
+#[derive(Debug)]
+#[repr(C)]
+struct PageList {
+    rodata: [usize; 2], // 只读数据段
+    data: [usize; 2], // 数据段
+    text: [usize; 2], // 代码段
+}
