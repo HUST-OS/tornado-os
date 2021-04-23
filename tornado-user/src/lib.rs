@@ -39,15 +39,6 @@ pub fn handle_alloc_error(_layout: core::alloc::Layout) -> ! {
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() -> ! {
-    extern "C" {
-        fn sbss(); fn ebss();
-    } 
-    unsafe { r0::zero_bss(&mut sbss as *mut _ as *mut u64, &mut ebss as *mut _ as *mut u64) };
-    unsafe {
-        HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
-    }
-
-    
     let mut ret: usize;
     unsafe {
         // 从 gp 寄存器里面取出 shared_raw_table 的地址
@@ -56,6 +47,15 @@ pub extern "C" fn _start() -> ! {
         // 从 tp 寄存器里面取出该用户态的地址空间编号
         asm!("mv {}, tp", out(reg) ret, options(nomem, nostack));
         ADDRESS_SPACE_ID = ret;
+    }
+    extern "C" {
+        fn sbss(); fn ebss();
+    } 
+    unsafe { 
+        r0::zero_bss(&mut sbss as *mut _ as *mut u32, &mut ebss as *mut _ as *mut u32);
+    }
+    unsafe {
+        HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
     main()
 }
@@ -169,7 +169,7 @@ mod syscall {
     }
 
     pub fn sys_exit(exit_code: i32) -> SyscallResult {
-        syscall_0(USER_EXIT, exit_code as usize)
+        syscall_0(USER_EXIT, exit_code as usize) // 暂时放着，写法不规范
     }
 
     pub fn sys_yield(next_asid: usize) -> SyscallResult {
