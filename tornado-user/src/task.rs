@@ -38,7 +38,6 @@ pub struct UserTaskInner {
 pub struct UserTaskId(usize);
 
 impl UserTaskId {
-    
     pub(crate) fn generate() -> UserTaskId {
         // 任务编号计数器，任务编号自增
         static COUNTER: AtomicUsize = AtomicUsize::new(0);

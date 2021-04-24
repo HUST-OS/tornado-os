@@ -60,8 +60,6 @@ pub extern "C" fn _start() -> ! {
     } 
     unsafe { 
         r0::zero_bss(&mut sbss as *mut _ as *mut u32, &mut ebss as *mut _ as *mut u32);
-    }
-    unsafe {
         HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
     let exit_code = main();

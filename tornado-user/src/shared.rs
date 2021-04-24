@@ -1,4 +1,5 @@
 use crate::do_yield;
+use crate::println;
 
 //！ 尝试在用户态给共享调度器添加任务
 use super::task::{TaskResult, UserTask};
@@ -34,12 +35,13 @@ pub extern "C" fn user_should_switch(_handle: &SharedTaskHandle) -> bool {
 }
 
 // 该执行器目前是测试使用，当轮询到一个完成的任务就退出了
-pub fn run_until_ready(
+pub fn run_until_idle(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,
 ) {
     loop {
         let task = peek_task();
+        println!(">>> user executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => { // 在相同的地址空间里面
                 let task: Arc<UserTask> = unsafe { Arc::from_raw(task_repr as *mut _) };
@@ -51,7 +53,6 @@ pub fn run_until_ready(
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 } else {
                     delete_task(task_repr);
-                    break; // todo, remove
                 }
             },
             TaskResult::ShouldYield(next_asid) => {

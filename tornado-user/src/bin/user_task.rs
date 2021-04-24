@@ -42,7 +42,7 @@ impl FibonacciFuture {
 }
 
 impl Future for FibonacciFuture {
-    type Output = usize;
+    type Output = ();
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.i == self.cnt {
             println!("Fibonacci result: {}", self.a);
