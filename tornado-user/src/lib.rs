@@ -50,12 +50,10 @@ pub extern "C" fn _start() -> ! {
     unsafe {
         // 从 gp 寄存器里面取出 shared_raw_table 的地址
         asm!("mv {}, gp", out(reg) shared_payload_base, options(nomem, nostack));
+        SHARED_PAYLOAD_BASE = shared_payload_base;
         // 从 tp 寄存器里面取出该用户态的地址空间编号
         asm!("mv {}, tp", out(reg) address_space_id, options(nomem, nostack));
-    }
-    unsafe {
         ADDRESS_SPACE_ID = address_space_id;
-        SHARED_PAYLOAD_BASE = shared_payload_base;
     }
     extern "C" {
         fn sbss(); fn ebss();
@@ -66,14 +64,15 @@ pub extern "C" fn _start() -> ! {
     unsafe {
         HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
-    let exit_code = entry();
+    let exit_code = main();
     exit(exit_code);
     unreachable!()
 }
 
 #[linkage = "weak"]
+#[link_section = ".text"] // 必须指定，否则llvm好像会把名字为“entry”的函数链接到最开始……
 #[no_mangle]
-fn entry() -> i32 {
+fn main() -> i32 {
     println!("[User] No main function found; user exit");
     panic!("Can not find main!");
 }
@@ -83,10 +82,9 @@ fn entry() -> i32 {
 pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'static) -> i32 {
     let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
     let asid = unsafe { shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
-    let exit_code = alloc::sync::Arc::new(spin::Mutex::new(0));
-    let exit_code_2 = exit_code.clone();
+    static mut EXIT_CODE: i32 = 0;
     let main_task = task::UserTask::new(async move {
-        *exit_code_2.lock() = main.await;
+        unsafe { EXIT_CODE = main.await };
     });
     unsafe {
         shared_payload.add_task(0/* todo */, asid, main_task.task_repr());
@@ -95,9 +93,7 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
         || unsafe { shared_payload.peek_task(shared::user_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) }
     );
-    let ans = *exit_code.lock();
-    drop(exit_code);
-    ans
+    unsafe { EXIT_CODE }
 }
 
 use syscall::*;

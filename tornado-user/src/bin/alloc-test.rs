@@ -10,7 +10,7 @@ use alloc::vec;
 
 // 同步函数的例子，没有调用execute_async_main
 #[no_mangle]
-fn entry() -> i32 {
+fn main() -> i32 {
     println!("[user] enter main!");
     let mut test_v = vec![1, 2, 3, 4, 5];
     test_v.iter_mut().for_each(|x| *x += 1);

@@ -10,7 +10,7 @@ use core::future::Future;
 use core::task::{Context, Poll};
 use core::pin::Pin;
 
-async fn main() -> i32 {
+async fn async_main() -> i32 {
     let ans = FibonacciFuture::new(6).await;
     println!("[User] Fibonacci[6] = {}", ans);
     0
@@ -18,8 +18,8 @@ async fn main() -> i32 {
 
 // 异步main函数，由entry调用execute_async_main
 #[no_mangle]
-pub fn entry() -> i32 {
-    tornado_user::execute_async_main(main())
+fn main() -> i32 {
+    tornado_user::execute_async_main(async_main())
 }
 
 
