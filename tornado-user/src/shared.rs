@@ -33,6 +33,7 @@ pub extern "C" fn user_should_switch(_handle: &SharedTaskHandle) -> bool {
     false
 }
 
+// 该执行器目前是测试使用，当轮询到一个完成的任务就退出了
 pub fn run_until_ready(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,

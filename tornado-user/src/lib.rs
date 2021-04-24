@@ -7,7 +7,6 @@
 
 extern crate alloc;
 
-pub mod excutor;
 pub mod shared;
 pub mod task;
 
@@ -17,7 +16,7 @@ use buddy_system_allocator::LockedHeap;
 const USER_HEAP_SIZE: usize = 32768;
 
 pub static mut ADDRESS_SPACE_ID: usize = 0;
-pub static mut SHARED_RAW_TABLE: usize = 0;
+pub static mut SHARED_PAYLOAD_BASE: usize = 0;
 
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 
@@ -43,7 +42,7 @@ pub extern "C" fn _start() -> ! {
     unsafe {
         // 从 gp 寄存器里面取出 shared_raw_table 的地址
         asm!("mv {}, gp", out(reg) ret, options(nomem, nostack));
-        SHARED_RAW_TABLE = ret;
+        SHARED_PAYLOAD_BASE = ret;
         // 从 tp 寄存器里面取出该用户态的地址空间编号
         asm!("mv {}, tp", out(reg) ret, options(nomem, nostack));
         ADDRESS_SPACE_ID = ret;

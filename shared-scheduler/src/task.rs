@@ -93,6 +93,7 @@ pub unsafe extern "C" fn shared_peek_task(
         drop(scheduler); // 释放锁
         return TaskResult::Task(task_repr)
         // 调用者拿到任务后，执行此任务，然后必须销毁任务，否则任务会被重新拿出来再执行一次
+        // CCC: 这样的设计好像会增加一些时间复杂度，后面需要再考虑一下这部分的设计
     } else {
         // 没有任务了，返回已完成
         return TaskResult::Finished;

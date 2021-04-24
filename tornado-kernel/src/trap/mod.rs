@@ -238,7 +238,7 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
     
     // 设置用户态陷入内核时需要跳转的地址
     unsafe { stvec::write(user_trap_va, TrapMode::Direct); }
-    // 将 trap::handler 中的 trap_vector 以 Vectored 模式写入到 stvec 寄存器
+    // todo: 将 trap::handler 中的 trap_vector 以 Vectored 模式写入到 stvec 寄存器
 
     // 设置 sstatus.SPP 的值为 User
     unsafe { sstatus::set_spp(SPP::User); }
