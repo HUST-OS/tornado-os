@@ -19,7 +19,6 @@ use tornado_user::{
 
 #[no_mangle]
 fn main() -> ! {
-    println!("[user] enter main!");
     let mut test_v = vec![1, 2, 3, 4, 5];
     test_v.iter_mut().for_each(|x| *x += 1);
     assert_eq!(test_v, vec![2, 3, 4, 5, 6]);
@@ -30,11 +29,10 @@ fn main() -> ! {
         shared_payload.add_task(0, tornado_user::shared::AddressSpaceId::from_raw(tornado_user::ADDRESS_SPACE_ID), task.task_repr());
     }
     
-    let ret = shared::run_until_ready(
+    shared::run_until_idle(
         || unsafe { shared_payload.peek_task(shared::user_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) }
     );
-    assert_eq!(ret, Some(8));
     // 用户态退出的系统调用
     exit(0);
     unreachable!()
@@ -59,15 +57,17 @@ impl FibonacciFuture {
 }
 
 impl Future for FibonacciFuture {
-    type Output = usize;
+    type Output = ();
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.i == self.cnt {
-            Poll::Ready(self.a)
+            println!("Fibonacci result: {}", self.a);
+            Poll::Ready(())
         } else {
             let t = self.a;
             self.a += self.b;
             self.b = t;
             self.i += 1;
+            println!("Fibonacci: i = {}, a = {}, b = {}", self.i, self.a, self.b);
             cx.waker().wake_by_ref();
             Poll::Pending
         }

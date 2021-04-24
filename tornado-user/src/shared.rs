@@ -1,4 +1,5 @@
 use crate::do_yield;
+use crate::println;
 
 //！ 尝试在用户态给共享调度器添加任务
 use super::task::{TaskResult, UserTask};
@@ -34,13 +35,13 @@ pub extern "C" fn user_should_switch(_handle: &SharedTaskHandle) -> bool {
 }
 
 // 该执行器目前是测试使用，当轮询到一个完成的任务就退出了
-pub fn run_until_ready(
+pub fn run_until_idle(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,
-) -> Option<usize> {
-    let run_ret;
+) {
     loop {
         let task = peek_task();
+        println!(">>> user executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的（内核）地址空间里面
@@ -52,25 +53,19 @@ pub fn run_until_ready(
                 let mut context = Context::from_waker(&*waker);
 
                 let ret = task.future.lock().as_mut().poll(&mut context);
-                if let Poll::Ready(x) = ret {
-                    run_ret = Some(x);
-                    delete_task(task_repr);
-                    break;
-                } else {
+                if let Poll::Pending = ret {
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
+                } else {
+                    delete_task(task_repr);
                 }
             },
             TaskResult::ShouldYield(next_asid) => {
                 // 让出操作
                 do_yield(next_asid);
             },
-            TaskResult::Finished => {
-                run_ret = None;
-                break;
-            }
+            TaskResult::Finished => break
         }
     }
-    run_ret
 }
 
 /// 共享载荷
