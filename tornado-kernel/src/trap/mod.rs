@@ -55,7 +55,7 @@ impl SwapContext {
     pub fn new_to_user(
         kernel_satp: usize,
         user_entry: usize, // 将会被写到 sepc, sret 的时候会读取这个值
-        tp: usize, // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
+        kernel_tp: usize, // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
         kernel_stack: usize, // 内核栈指针
         user_stack: usize, // 用户栈指针
         // 将会被写到 stvec 寄存器中返回到用户态
@@ -67,7 +67,7 @@ impl SwapContext {
             kernel_stack,
             user_trap_handler,
             epc: user_entry,
-            kernel_tp: tp,
+            kernel_tp,
             x: [0; 31]
         };
         swap_context.set_sp(user_stack);
@@ -79,6 +79,10 @@ impl SwapContext {
     }
     pub fn set_gp(&mut self, gp: usize) -> &mut Self {
         self.x[2] = gp;
+        self
+    }
+    pub fn set_tp(&mut self, tp: usize) -> &mut Self {
+        self.x[3] = tp;
         self
     }
 }

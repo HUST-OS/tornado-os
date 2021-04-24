@@ -4,6 +4,7 @@
 #![feature(llvm_asm)]
 
 extern crate alloc;
+#[macro_use]
 extern crate tornado_user;
 use alloc::vec;
 use core::future::Future;
@@ -18,6 +19,7 @@ use tornado_user::{
 
 #[no_mangle]
 fn main() -> ! {
+    println!("[user] enter main!");
     let mut test_v = vec![1, 2, 3, 4, 5];
     test_v.iter_mut().for_each(|x| *x += 1);
     assert_eq!(test_v, vec![2, 3, 4, 5, 6]);
