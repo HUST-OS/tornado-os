@@ -10,7 +10,7 @@ use core::future::Future;
 use core::task::{Context, Poll};
 use core::pin::Pin;
 use tornado_user::{
-    excutor,
+    SHARED_PAYLOAD_BASE,
     shared,
     task,
     exit,
@@ -22,12 +22,7 @@ fn main() -> ! {
     test_v.iter_mut().for_each(|x| *x += 1);
     assert_eq!(test_v, vec![2, 3, 4, 5, 6]);
 
-    let fib = FibonacciFuture::new(6);
-    excutor::spawn(fib);
-    let ret = excutor::try_join();
-    assert_eq!(ret, Some(8));
-
-    let shared_payload = unsafe { shared::SharedPayload::new(0x8600_0000) };
+    let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
     let task = task::UserTask::new(FibonacciFuture::new(6));
     unsafe {
         /* todo: hart_id, asid */

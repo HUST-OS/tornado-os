@@ -52,8 +52,8 @@ pub static SHARED_RAW_TABLE: (
     &'static u8, // 载荷编译时的基地址
     unsafe extern "C" fn() -> PageList, // 初始化函数，执行完之后，内核将函数指针置空
     &'static SharedScheduler, // 共享调度器的地址
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> bool,
-    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> bool, // 添加任务
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult, // 弹出任务
     unsafe extern "C" fn(NonNull<()>, TaskRepr) -> bool,
 ) = (
     unsafe { &payload_compiled_start },
