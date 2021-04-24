@@ -94,6 +94,16 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
     unsafe { EXIT_CODE }
 }
 
+/// 生成一个新的任务
+pub fn spawn(future: impl Future<Output = ()> + Send + Sync + 'static) {
+    let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
+    let asid = unsafe { shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
+    let task = task::UserTask::new(future);
+    unsafe {
+        shared_payload.add_task(0/* todo */, asid, task.task_repr());
+    }
+}
+
 use syscall::*;
 
 pub fn exit(exit_code: i32) -> SyscallResult { sys_exit(exit_code) }
