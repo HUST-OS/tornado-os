@@ -13,15 +13,12 @@ use core::pin::Pin;
 use alloc::boxed::Box;
 use core::future::Future;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use super::shared::{AddressSpaceId};
 
 /// 临时的用户态任务实现
 
 pub struct UserTask {
     /// 任务的编号
     pub id: UserTaskId,
-    /// 任务所属的地址空间
-    pub asid: AddressSpaceId,
     /// 任务信息的可变部分
     pub inner: Mutex<UserTaskInner>,
     /// 任务的 future
@@ -64,7 +61,6 @@ impl UserTask {
         Arc::new(
             UserTask {
                 id,
-                asid: unsafe { AddressSpaceId::from_raw(crate::ADDRESS_SPACE_ID) },
                 inner: Mutex::new(UserTaskInner {
                     sleeping: false,
                     finished: false,

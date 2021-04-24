@@ -265,9 +265,9 @@ fn breakpoint(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
 }
 
 fn syscall(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
-    println!("Syscall at {:#08x}", trap_frame.sepc);
+    println!("Syscall at {:#08x}; note that user_satp /*todo*/", trap_frame.sepc);
     let param = [trap_frame.x[10], trap_frame.x[11], 0, 0, 0, 0]; // a0, a1
-    match do_syscall(param, trap_frame.x[16], trap_frame.x[17]) { // a6, a7
+    match do_syscall(param, 0/* todo */, trap_frame.x[16], trap_frame.x[17]) { // a6, a7
         SyscallResult::Procceed { code, extra } => {
             trap_frame.x[10] = code; // a0
             trap_frame.x[11] = extra; // a1

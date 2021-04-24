@@ -6,37 +6,27 @@
 extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
-use alloc::vec;
 use core::future::Future;
 use core::task::{Context, Poll};
 use core::pin::Pin;
-use tornado_user::{
-    SHARED_PAYLOAD_BASE,
-    shared,
-    task,
-    exit,
-};
 
-#[no_mangle]
-fn main() -> ! {
-    let mut test_v = vec![1, 2, 3, 4, 5];
-    test_v.iter_mut().for_each(|x| *x += 1);
-    assert_eq!(test_v, vec![2, 3, 4, 5, 6]);
-    let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
-    let task = task::UserTask::new(FibonacciFuture::new(6));
-    unsafe {
-        /* todo: hart_id, asid */
-        shared_payload.add_task(0, tornado_user::shared::AddressSpaceId::from_raw(tornado_user::ADDRESS_SPACE_ID), task.task_repr());
-    }
-    
-    shared::run_until_idle(
-        || unsafe { shared_payload.peek_task(shared::user_should_switch) },
-        |task_repr| unsafe { shared_payload.delete_task(task_repr) }
-    );
-    // 用户态退出的系统调用
-    exit(0);
-    unreachable!()
+async fn async_main() -> i32 {
+    // todo: 唤醒逻辑
+    tornado_user::spawn(async {
+        let ans = FibonacciFuture::new(5).await;
+        println!("[User] Fibonacci[5] = {}", ans);
+    });
+    let ans = FibonacciFuture::new(6).await;
+    println!("[User] Fibonacci[6] = {}", ans);
+    0
 }
+
+// 异步main函数，由entry调用execute_async_main
+#[no_mangle]
+fn main() -> i32 {
+    tornado_user::execute_async_main(async_main())
+}
+
 
 struct FibonacciFuture {
     a: usize,
@@ -57,17 +47,17 @@ impl FibonacciFuture {
 }
 
 impl Future for FibonacciFuture {
-    type Output = ();
+    type Output = usize;
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.i == self.cnt {
-            println!("Fibonacci result: {}", self.a);
-            Poll::Ready(())
+            println!("Fibonacci {} result: {}", self.cnt, self.a);
+            Poll::Ready(self.a)
         } else {
             let t = self.a;
             self.a += self.b;
             self.b = t;
             self.i += 1;
-            println!("Fibonacci: i = {}, a = {}, b = {}", self.i, self.a, self.b);
+            println!("Fibonacci {}: i = {}, a = {}, b = {}", self.cnt, self.i, self.a, self.b);
             cx.waker().wake_by_ref();
             Poll::Pending
         }
