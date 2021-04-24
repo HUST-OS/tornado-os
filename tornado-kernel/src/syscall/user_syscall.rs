@@ -15,10 +15,10 @@ pub extern "C" fn user_trap_handler() {
     let user_satp = Satp::new(user_satp);
     let swap_cx = unsafe { get_swap_cx(&user_satp) };
     // 从 SwapContext 中读东西
-    let a7 = swap_cx.x[16];
-    let a6 = swap_cx.x[15];
     let a0 = swap_cx.x[9];
     let a1 = swap_cx.x[10];
+    let a6 = swap_cx.x[15];
+    let a7 = swap_cx.x[16];
     match scause::read().cause() {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             println!("s mode timer!");
@@ -36,17 +36,22 @@ pub extern "C" fn user_trap_handler() {
                 SyscallResult::Procceed { code,  extra} => {
                     swap_cx.x[9] = code;
                     swap_cx.x[10] = extra;
-                    swap_cx.epc += 4;        
+                    swap_cx.epc = swap_cx.epc.wrapping_add(4);
+                    trap::switch_to_user(swap_cx, user_satp.inner())        
                 },
                 SyscallResult::Retry => {
                     // 不跳过指令，继续运行
+                    trap::switch_to_user(swap_cx, user_satp.inner())
                 },
                 SyscallResult::NextASID{ satp } => {
                     // 需要转到目标地址空间去运行
                     todo!()
+                },
+                SyscallResult::Terminate(exit_code) => {
+                    println!("User exit!");
+                    crate::sbi::shutdown();
                 }
             }
-            trap::switch_to_user(swap_cx, user_satp.inner())
         }
         _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}, {:x?}", scause::read().cause(), sepc::read(), stval::read(), swap_cx)
     }

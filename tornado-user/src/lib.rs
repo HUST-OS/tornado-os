@@ -25,13 +25,13 @@ static HEAP: LockedHeap = LockedHeap::empty();
 
 #[cfg_attr(not(test), panic_handler)]
 pub fn panic_handler(_panic_info: &core::panic::PanicInfo) -> ! {
-    exit(-1);
+    sys_panic();
     unreachable!()
 }
 
 #[cfg_attr(not(test), alloc_error_handler)]
 pub fn handle_alloc_error(_layout: core::alloc::Layout) -> ! {
-    exit(-2);
+    sys_panic();
     unreachable!()
 }
 
@@ -71,12 +71,11 @@ pub fn exit(exit_code: i32) -> SyscallResult { sys_exit(exit_code) }
 pub fn do_yield(next_asid: usize) -> SyscallResult { sys_yield(next_asid) }
 mod syscall {
     const MODULE_PROCESS: usize = 0x114514;
-    const SWITCH_TASK: usize = 0x121212;
-    const USER_EXIT: usize = 0x0;
-    const USER_PANIC: usize = 0x11451419;
-
     const MODULE_TEST_INTERFACE: usize = 0x233666;
-    const FUNC_TEST_WRITE: usize = 0x666233;
+    const MODULE_TASK: usize = 0x7777777;
+    
+    const FUNC_PROCESS_EXIT: usize = 0x1919810;
+    const FUNC_PROCESS_PANIC: usize = 0x11451419;
 
     pub struct SyscallResult {
         pub code: usize,
@@ -168,10 +167,15 @@ mod syscall {
     }
 
     pub fn sys_exit(exit_code: i32) -> SyscallResult {
-        syscall_0(USER_EXIT, exit_code as usize) // 暂时放着，写法不规范
+        syscall_1(MODULE_PROCESS, FUNC_PROCESS_EXIT, exit_code as usize) // 暂时放着，写法不规范
     }
 
-    pub fn sys_yield(next_asid: usize) -> SyscallResult {
-        syscall_1(SWITCH_TASK, 0, next_asid)
+    pub fn sys_panic() -> SyscallResult {
+        syscall_0(MODULE_PROCESS, FUNC_PROCESS_PANIC)
     }
+    pub fn sys_yield(next_asid: usize) -> SyscallResult {
+        todo!()
+    }
+
+
 }

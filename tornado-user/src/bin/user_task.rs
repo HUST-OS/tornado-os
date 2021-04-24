@@ -21,13 +21,13 @@ fn main() -> ! {
     let mut test_v = vec![1, 2, 3, 4, 5];
     test_v.iter_mut().for_each(|x| *x += 1);
     assert_eq!(test_v, vec![2, 3, 4, 5, 6]);
-
     let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
     let task = task::UserTask::new(FibonacciFuture::new(6));
     unsafe {
         /* todo: hart_id, asid */
         shared_payload.add_task(0, tornado_user::shared::AddressSpaceId::from_raw(tornado_user::ADDRESS_SPACE_ID), task.task_repr());
     }
+    
     let ret = shared::run_until_ready(
         || unsafe { shared_payload.peek_task(shared::user_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) }

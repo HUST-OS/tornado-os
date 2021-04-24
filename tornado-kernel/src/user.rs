@@ -41,7 +41,7 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     // 目前通过 tp 寄存器把地址空间编号传给用户，后面可能会修改
     *swap_cx = trap::SwapContext::new_to_user(
         kernel_satp, 0, user_asid, kernel_stack_top, user_stack_top, 
-        crate::trap::trap_vector as usize
+        crate::syscall::user_trap_handler as usize
     );
     
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户

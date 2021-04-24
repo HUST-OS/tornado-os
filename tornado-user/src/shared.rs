@@ -38,6 +38,7 @@ pub fn run_until_ready(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,
 ) -> Option<usize> {
+    let run_ret;
     loop {
         let task = peek_task();
         match task {
@@ -52,8 +53,9 @@ pub fn run_until_ready(
 
                 let ret = task.future.lock().as_mut().poll(&mut context);
                 if let Poll::Ready(x) = ret {
+                    run_ret = Some(x);
                     delete_task(task_repr);
-                    return Some(x);
+                    break;
                 } else {
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 }
@@ -62,9 +64,13 @@ pub fn run_until_ready(
                 // 让出操作
                 do_yield(next_asid);
             },
-            TaskResult::Finished => return None
+            TaskResult::Finished => {
+                run_ret = None;
+                break;
+            }
         }
     }
+    run_ret
 }
 
 /// 共享载荷

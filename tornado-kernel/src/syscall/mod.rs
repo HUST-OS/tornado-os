@@ -11,7 +11,8 @@ use crate::{hart::KernelHartInfo, memory::{AddressSpaceId, Satp}};
 pub enum SyscallResult {
     Procceed { code: usize, extra: usize },
     Retry,
-    NextASID { satp: Satp }
+    NextASID { satp: Satp },
+    Terminate(i32),
 }
 
 impl SyscallResult {
@@ -22,16 +23,9 @@ impl SyscallResult {
 
 pub fn syscall(param: [usize; 2], func: usize, module: usize) -> SyscallResult {
     match module {
-        MODULE_PROCESS => SyscallResult::ok(0x1919810),
-        SWITCH_TASK => {
-            // 切换任务，需要切换地址空间
-            switch_next_task(param, func)
-        },
-        USER_EXIT => {
-            println!("user exit");
-            crate::sbi::shutdown();
-        }
-        // 完整的设计里，应该退出进程，然后完成剩下的事情
+        MODULE_PROCESS => do_process(param, func),
+        MODULE_TEST_INTERFACE => do_test_interfase(param, func),
+        MODULE_TASK => do_task(param, func),
         _ => panic!("Unknown module {:x}", module),
     }
 }
@@ -41,5 +35,21 @@ pub fn syscall(param: [usize; 2], func: usize, module: usize) -> SyscallResult {
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
 fn switch_next_task(param: [usize; 2], func: usize) -> SyscallResult {
     let next_asid = unsafe { AddressSpaceId::from_raw(param[0]) }; // a0
+    todo!()
+}
+
+fn do_process(param: [usize; 2], func: usize) -> SyscallResult {
+    match func {
+        FUNC_PROCESS_EXIT => SyscallResult::Terminate(param[0] as i32),
+        FUNC_PROCESS_PANIC => panic!("User panic!"),
+        _ => panic!("Unknown syscall process, func: {}, param: {:?}", func, param)
+    }
+}
+
+fn do_test_interfase(param: [usize; 2], func: usize) -> SyscallResult {
+    todo!()
+}
+
+fn do_task(param: [usize; 2], func: usize) -> SyscallResult {
     todo!()
 }
