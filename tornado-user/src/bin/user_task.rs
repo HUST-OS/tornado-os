@@ -21,7 +21,6 @@ fn main() -> ! {
     let mut test_v = vec![1, 2, 3, 4, 5];
     test_v.iter_mut().for_each(|x| *x += 1);
     assert_eq!(test_v, vec![2, 3, 4, 5, 6]);
-
     let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
     let task = task::UserTask::new(FibonacciFuture::new(6));
     unsafe {
@@ -32,6 +31,7 @@ fn main() -> ! {
         || unsafe { shared_payload.peek_task(shared::user_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) }
     );
+
     assert_eq!(ret, Some(8));
     // 用户态退出的系统调用
     exit(0);
