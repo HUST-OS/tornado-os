@@ -15,6 +15,6 @@ fn main() -> i32 {
     let mut test_v = vec![1, 2, 3, 4, 5];
     test_v.iter_mut().for_each(|x| *x += 1);
     assert_eq!(test_v, vec![2, 3, 4, 5, 6]);
-    println!("[User] alloc-test: success!");
+    println!("[user] alloc-test: success!");
     0
 }
