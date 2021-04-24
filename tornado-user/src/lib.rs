@@ -46,14 +46,10 @@ pub extern "C" fn _start() -> ! {
         // 从 tp 寄存器里面取出该用户态的地址空间编号
         asm!("mv {}, tp", out(reg) ret, options(nomem, nostack));
         ADDRESS_SPACE_ID = ret;
-    }
-    extern "C" {
-        fn sbss(); fn ebss();
-    } 
-    unsafe { 
+        extern "C" {
+            fn sbss(); fn ebss();
+        }
         r0::zero_bss(&mut sbss as *mut _ as *mut u32, &mut ebss as *mut _ as *mut u32);
-    }
-    unsafe {
         HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
     main()
