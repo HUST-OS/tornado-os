@@ -1,4 +1,4 @@
-use crate::task::{TaskResult, SharedTaskHandle, KernelTask};
+use crate::task::{TaskResult, KernelTask};
 use woke::waker_ref;
 use alloc::sync::Arc;
 use core::{mem, task::{Poll, Context}};

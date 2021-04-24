@@ -13,19 +13,16 @@ use core::pin::Pin;
 use alloc::boxed::Box;
 use core::future::Future;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use super::shared::{SharedTaskHandle, AddressSpaceId};
 
 /// 临时的用户态任务实现
 
 pub struct UserTask {
     /// 任务的编号
     pub id: UserTaskId,
-    /// 任务所属的地址空间
-    pub asid: AddressSpaceId,
     /// 任务信息的可变部分
     pub inner: Mutex<UserTaskInner>,
     /// 任务的 future
-    pub future: Mutex<Pin<Box<dyn Future<Output = usize> + 'static + Send + Sync>>> // 用UnsafeCell代替Mutex会好一点
+    pub future: Mutex<Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>> // 用UnsafeCell代替Mutex会好一点
 }
 
 /// 任务信息的可变部分
@@ -57,7 +54,7 @@ impl UserTaskId {
 impl UserTask {
     /// 创建一个用户态任务
     pub fn new(
-        future: impl Future<Output = usize> + 'static + Send + Sync,
+        future: impl Future<Output = ()> + 'static + Send + Sync,
     ) -> Arc<UserTask> {
         // 得到新的用户任务编号
         let id = UserTaskId::generate();
@@ -65,8 +62,6 @@ impl UserTask {
         Arc::new(
             UserTask {
                 id,
-                // todo: 地址空间编号
-                asid: unsafe { AddressSpaceId::from_raw(crate::ADDRESS_SPACE_ID) },
                 inner: Mutex::new(UserTaskInner {
                     sleeping: false,
                     finished: false,
