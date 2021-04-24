@@ -6,19 +6,7 @@ mod user_syscall;
 pub use user_syscall::user_trap_handler;
 
 use config::*;
-
-use crate::{
-    hart::KernelHartInfo,
-    memory::{
-        AddressSpaceId,
-        Satp,
-        VirtualPageNumber,
-        VirtualAddress,
-        PhysicalPageNumber,
-        KERNEL_MAP_OFFSET
-    }
-};
-use riscv::register::sstatus;
+use crate::memory::{AddressSpaceId, Satp, VirtualPageNumber, VirtualAddress,};
 use bit_field::BitField;
 
 pub enum SyscallResult {
@@ -104,9 +92,6 @@ unsafe fn get_user_buf<'a>(user_satp: Satp, buf_ptr: usize, buf_len: usize) -> &
     let ppn = user_satp.translate(vpn).expect("no page fault");
     let va = ppn.start_address().virtual_address_linear()
         .0.wrapping_add(offset);
-    let slice = unsafe {
-        let ptr = (va as *const u8).as_ref().expect("non-null pointer");
-        core::slice::from_raw_parts(ptr, buf_len)
-    };
-    slice
+    let ptr = (va as *const u8).as_ref().expect("non-null pointer");
+    core::slice::from_raw_parts(ptr, buf_len)
 }
