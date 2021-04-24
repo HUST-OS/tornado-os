@@ -35,7 +35,7 @@ pub extern "C" fn user_should_switch(_handle: &SharedTaskHandle) -> bool {
 }
 
 // 该执行器目前是测试使用，当轮询到一个完成的任务就退出了
-pub fn run_until_idle(
+pub fn run_until_ready(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,
 ) {
@@ -43,15 +43,11 @@ pub fn run_until_idle(
         let task = peek_task();
         println!(">>> user executor: next task = {:x?}", task);
         match task {
-            TaskResult::Task(task_repr) => {
-                // 在相同的（内核）地址空间里面
+            TaskResult::Task(task_repr) => { // 在相同的地址空间里面
                 let task: Arc<UserTask> = unsafe { Arc::from_raw(task_repr as *mut _) };
-                task.mark_sleep();
-                // make a waker for our task
                 let waker = waker_ref(&task);
-                // poll our future and give it a waker
                 let mut context = Context::from_waker(&*waker);
-
+                println!(">>> User executor: task = {:p}", task);
                 let ret = task.future.lock().as_mut().poll(&mut context);
                 if let Poll::Pending = ret {
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
@@ -63,7 +59,9 @@ pub fn run_until_idle(
                 // 让出操作
                 do_yield(next_asid);
             },
-            TaskResult::Finished => break
+            TaskResult::Finished => {
+                break;
+            }
         }
     }
 }

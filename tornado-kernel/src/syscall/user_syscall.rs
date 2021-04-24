@@ -12,8 +12,8 @@ pub extern "C" fn user_trap_handler() {
     unsafe {
         asm!("mv {}, t2", out(reg) user_satp, options(nomem, nostack));
     }
-    let user_satp = Satp::new(user_satp);
-    let swap_cx = unsafe { get_swap_cx(&user_satp) };
+    let user_satp_2 = Satp::new(user_satp);
+    let swap_cx = unsafe { get_swap_cx(&user_satp_2) };
     // 从 SwapContext 中读东西
     let a0 = swap_cx.x[9];
     let a1 = swap_cx.x[10];
@@ -34,18 +34,17 @@ pub extern "C" fn user_trap_handler() {
             crate::sbi::shutdown();
         },
         Trap::Exception(scause::Exception::UserEnvCall) => {
-            let func = a6;
             let param = [a0, a1, a2, a3, a4, a5];
-            match syscall(param, func, a7) {
+            match syscall(param, user_satp, a6, a7) {
                 SyscallResult::Procceed { code,  extra} => {
                     swap_cx.x[9] = code;
                     swap_cx.x[10] = extra;
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
-                    trap::switch_to_user(swap_cx, user_satp.inner())        
+                    trap::switch_to_user(swap_cx, user_satp)        
                 },
                 SyscallResult::Retry => {
                     // 不跳过指令，继续运行
-                    trap::switch_to_user(swap_cx, user_satp.inner())
+                    trap::switch_to_user(swap_cx, user_satp)
                 },
                 SyscallResult::NextASID{ satp } => {
                     // 需要转到目标地址空间去运行
