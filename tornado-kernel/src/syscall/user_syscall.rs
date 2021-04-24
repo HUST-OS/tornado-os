@@ -17,6 +17,10 @@ pub extern "C" fn user_trap_handler() {
     // 从 SwapContext 中读东西
     let a0 = swap_cx.x[9];
     let a1 = swap_cx.x[10];
+    let a2 = swap_cx.x[11];
+    let a3 = swap_cx.x[12];
+    let a4 = swap_cx.x[13];
+    let a5 = swap_cx.x[14];
     let a6 = swap_cx.x[15];
     let a7 = swap_cx.x[16];
     match scause::read().cause() {
@@ -31,7 +35,7 @@ pub extern "C" fn user_trap_handler() {
         },
         Trap::Exception(scause::Exception::UserEnvCall) => {
             let func = a6;
-            let param = [a0, a1];
+            let param = [a0, a1, a2, a3, a4, a5];
             match syscall(param, func, a7) {
                 SyscallResult::Procceed { code,  extra} => {
                     swap_cx.x[9] = code;

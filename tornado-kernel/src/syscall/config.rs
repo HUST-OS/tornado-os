@@ -4,3 +4,5 @@ pub const MODULE_TASK: usize = 0x7777777;
 
 pub const FUNC_PROCESS_EXIT: usize = 0x1919810;
 pub const FUNC_PROCESS_PANIC: usize = 0x11451419;
+
+pub const FUNC_TEST_WRITE: usize = 0x666233;

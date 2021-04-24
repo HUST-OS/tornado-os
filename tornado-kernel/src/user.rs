@@ -33,18 +33,20 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     
     // 获取用户地址空间编号
     let user_asid = process.address_space_id().into_inner();
-    
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 
+    let tp: usize;
+    unsafe { asm!("mv {}, tp", out(reg) tp, options(nomem, nostack)); }
     // 往 SwapContext 写东西
     // 目前通过 tp 寄存器把地址空间编号传给用户，后面可能会修改
     *swap_cx = trap::SwapContext::new_to_user(
-        kernel_satp, 0, user_asid, kernel_stack_top, user_stack_top, 
+        kernel_satp, 0, tp, kernel_stack_top, user_stack_top, 
         crate::syscall::user_trap_handler as usize
     );
     
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
     swap_cx.set_gp(0x8600_0000);
+    swap_cx.set_tp(user_asid);
     trap::switch_to_user(swap_cx, user_satp)
 }
