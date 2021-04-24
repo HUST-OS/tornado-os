@@ -27,11 +27,11 @@ fn main() -> ! {
         /* todo: hart_id, asid */
         shared_payload.add_task(0, tornado_user::shared::AddressSpaceId::from_raw(tornado_user::ADDRESS_SPACE_ID), task.task_repr());
     }
+    
     let ret = shared::run_until_ready(
         || unsafe { shared_payload.peek_task(shared::user_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) }
     );
-
     assert_eq!(ret, Some(8));
     // 用户态退出的系统调用
     exit(0);
