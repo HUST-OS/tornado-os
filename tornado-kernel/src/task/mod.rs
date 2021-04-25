@@ -14,6 +14,8 @@ pub use shared::{
     kernel_should_switch
 };
 
+use crate::memory::AddressSpaceId;
+
 /// 共享调度器返回的结果
 #[derive(Debug)]
 #[repr(C)]
@@ -25,4 +27,43 @@ pub enum TaskResult {
     ShouldYield(usize),
     /// 队列已空，所有任务已经结束
     Finished,
+}
+
+use alloc::sync::Arc;
+use core::future::Future;
+use core::ptr::NonNull;
+
+// 创建一个新的内核任务，打包它的环境
+pub fn new_kernel(
+    future: impl Future<Output = ()> + 'static + Send + Sync,
+    process: Arc<Process>,
+    shared_scheduler: NonNull<()>,
+    hart_id: usize,
+    address_space_id: AddressSpaceId,
+    set_task_state: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState),
+) -> Arc<KernelTaskRepr> {
+    Arc::new(KernelTaskRepr(KernelTask::new(future, process), shared_scheduler.as_ptr() as usize, hart_id, address_space_id, set_task_state))
+}
+
+#[derive(Debug)]
+pub struct KernelTaskRepr (
+    KernelTask, usize, usize, AddressSpaceId, 
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState)
+);
+
+impl KernelTaskRepr {    
+    /// 转换到共享的任务编号
+    ///
+    /// note(unsafe): 创建了一个没有边界的生命周期
+    pub unsafe fn task_repr(self: Arc<Self>) -> usize {
+        Arc::into_raw(self) as usize
+    }
+    pub unsafe fn do_wake(self: &Arc<Self>) {
+        let shared_scheduler = NonNull::new(self.1 as *mut ()).unwrap();
+        let task_repr = Arc::as_ptr(self) as usize;
+        (self.4)(shared_scheduler, self.2, self.3, task_repr, TaskState::Ready)
+    }
+    #[inline] pub fn task(&self) -> &KernelTask {
+        &self.0
+    }
 }

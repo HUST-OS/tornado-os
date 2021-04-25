@@ -1,4 +1,4 @@
-use crate::task::{TaskResult, TaskState, KernelTask};
+use crate::task::{TaskResult, TaskState, KernelTaskRepr};
 use woke::waker_ref;
 use alloc::sync::Arc;
 use core::{mem, task::{Poll, Context}};
@@ -19,10 +19,10 @@ pub fn run_until_idle(
         match task {
             TaskResult::Task(task_repr) => { // 在相同的（内核）地址空间里面
                 set_task_state(task_repr, TaskState::Sleeping);
-                let task: Arc<KernelTask> = unsafe { Arc::from_raw(task_repr as *mut _) };
+                let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
                 let waker = waker_ref(&task);
                 let mut context = Context::from_waker(&*waker);
-                let ret = task.future.lock().as_mut().poll(&mut context);
+                let ret = task.task().future.lock().as_mut().poll(&mut context);
                 if let Poll::Pending = ret {
                     set_task_state(task_repr, TaskState::Ready);
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
@@ -38,8 +38,8 @@ pub fn run_until_idle(
     }
 }
 
-impl woke::Woke for KernelTask {
-    fn wake_by_ref(_task: &Arc<Self>) {
-        //todo: use  set_task_state: impl Fn(usize, TaskState),
+impl woke::Woke for KernelTaskRepr {
+    fn wake_by_ref(task: &Arc<Self>) {
+        unsafe { task.do_wake() }
     }
 }

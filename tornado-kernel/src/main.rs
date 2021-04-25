@@ -104,9 +104,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let hart_id = crate::hart::KernelHartInfo::hart_id();
     let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
-    let task_1 = task::KernelTask::new(task_1(), process.clone());
-    let task_2 = task::KernelTask::new(task_2(), process.clone());
-    let task_3 = task::KernelTask::new(FibonacciFuture::new(6), process.clone());
+    let task_1 = task::new_kernel(task_1(), process.clone(), shared_payload.shared_scheduler, hart_id, address_space_id, shared_payload.shared_set_task_state);
+    let task_2 = task::new_kernel(task_2(), process.clone(), shared_payload.shared_scheduler, hart_id, address_space_id, shared_payload.shared_set_task_state);
+    let task_3 = task::new_kernel(FibonacciFuture::new(6), process.clone(), shared_payload.shared_scheduler, hart_id, address_space_id, shared_payload.shared_set_task_state);
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
@@ -155,9 +155,6 @@ impl FibonacciFuture {
 use core::future::Future;
 use core::task::{Context, Poll};
 use core::pin::Pin;
-
-use task::TaskState;
-
 
 impl Future for FibonacciFuture {
     type Output = ();

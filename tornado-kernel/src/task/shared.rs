@@ -45,11 +45,11 @@ pub extern "C" fn kernel_should_switch(address_space_id: AddressSpaceId) -> bool
 /// 共享载荷
 #[repr(C)]
 pub struct SharedPayload {
-    shared_scheduler: NonNull<()>,
+    pub(crate) shared_scheduler: NonNull<()>,
     shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
     shared_peek_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult,
     shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
-    shared_set_task_state: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState),
+    pub(crate) shared_set_task_state: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState),
 }
 
 unsafe impl Send for SharedPayload {}

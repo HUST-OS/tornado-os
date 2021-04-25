@@ -54,25 +54,18 @@ impl KernelTask {
     pub fn new(
         future: impl Future<Output = ()> + 'static + Send + Sync,
         process: Arc<Process>,
-    ) -> Arc<KernelTask> {
+    ) -> KernelTask {
         // 得到新的内核任务编号
         let task_id = TaskId::generate();
         // 打包为任务
-        Arc::new(KernelTask {
+        KernelTask {
             id: task_id,
             process,
             inner: Mutex::new(TaskInner {
                 stack: None,
             }),
             future: Mutex::new(Box::pin(future)),
-        })
-    }
-
-    /// 转换到共享的任务编号
-    ///
-    /// note(unsafe): 创建了一个没有边界的生命周期
-    pub unsafe fn task_repr(self: Arc<Self>) -> usize {
-        Arc::into_raw(self) as usize
+        }
     }
 }
 
@@ -94,7 +87,7 @@ impl fmt::Debug for KernelTask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let inner = self.inner.lock();
         f.debug_struct("KernelTask")
-            .field("task isd", &self.id)
+            .field("task id", &self.id)
             .field("address space id", &self.process.address_space_id())
             .field("stack", &inner.stack)
             .finish()
