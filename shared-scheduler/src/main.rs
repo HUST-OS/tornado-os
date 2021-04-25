@@ -12,12 +12,12 @@
 
 extern crate alloc;
 
-mod sbi;
 #[macro_use]
 mod console;
 mod algorithm;
 mod task;
 mod mm;
+mod syscall;
 
 use buddy_system_allocator::LockedHeap;
 use core::{mem::MaybeUninit, ptr::NonNull};
@@ -35,14 +35,21 @@ static HEAP_MEMORY: MaybeUninit<[u8; HEAP_SIZE]> = core::mem::MaybeUninit::unini
 
 #[cfg_attr(not(test), panic_handler)]
 pub fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
-    println!("[shared scheduler] panic: {:?}", panic_info);
-    sbi::shutdown()    
+    let err = panic_info.message().unwrap().as_str();
+    if let Some(location) = panic_info.location() {
+        syscall::sys_panic(Some(location.file()), location.line(), location.column(), err);
+    } else {
+        syscall::sys_panic(None, 0, 0, err);
+    }
+    unreachable!()
 }
+
+// todo: 未来尽量使用有Allocator的new_in函数，这样能处理内存不足的问题
 
 #[cfg_attr(not(test), alloc_error_handler)]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
-    println!("[shared scheduler] alloc panic: {:?}", layout);
-    sbi::shutdown()
+    println!("[shared scheduler] alloc error, layout = {:?}", layout);
+    panic!("shared scheduler alloc error: {:?}", layout)
 }
 
 /// 共享载荷虚函数表
