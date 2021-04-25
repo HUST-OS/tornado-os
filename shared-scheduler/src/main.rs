@@ -61,8 +61,8 @@ pub static SHARED_RAW_TABLE: (
     &'static SharedScheduler, // 共享调度器的地址
     unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> bool, // 添加任务
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> bool, // 删除任务
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr, TaskState), // 改变任务的状态 
+    unsafe extern "C" fn(NonNull<()>, TaskRepr) -> bool, // 删除任务
+    unsafe extern "C" fn(NonNull<()>, TaskRepr, TaskState), // 改变任务的状态 
 ) = (
     unsafe { &payload_compiled_start },
     init_payload_environment,

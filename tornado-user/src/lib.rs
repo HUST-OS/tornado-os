@@ -90,8 +90,8 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
     }
     shared::run_until_ready(
         || unsafe { shared_payload.peek_task(shared::user_should_switch) },
-        |task_repr| unsafe { shared_payload.delete_task(hart_id, address_space_id, task_repr) },
-        |task_repr, new_state| unsafe { shared_payload.set_task_state(hart_id, address_space_id, task_repr, new_state)}
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state)}
     );
     unsafe { EXIT_CODE }
 }

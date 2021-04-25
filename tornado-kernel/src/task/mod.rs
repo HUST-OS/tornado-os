@@ -14,8 +14,6 @@ pub use shared::{
     kernel_should_switch
 };
 
-use crate::memory::AddressSpaceId;
-
 /// 共享调度器返回的结果
 #[derive(Debug)]
 #[repr(C)]
@@ -38,17 +36,15 @@ pub fn new_kernel(
     future: impl Future<Output = ()> + 'static + Send + Sync,
     process: Arc<Process>,
     shared_scheduler: NonNull<()>,
-    hart_id: usize,
-    address_space_id: AddressSpaceId,
-    set_task_state: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState),
+    set_task_state: unsafe extern "C" fn(NonNull<()>, usize, TaskState),
 ) -> Arc<KernelTaskRepr> {
-    Arc::new(KernelTaskRepr(KernelTask::new(future, process), shared_scheduler.as_ptr() as usize, hart_id, address_space_id, set_task_state))
+    Arc::new(KernelTaskRepr(KernelTask::new(future, process), shared_scheduler.as_ptr() as usize, set_task_state))
 }
 
 #[derive(Debug)]
 pub struct KernelTaskRepr (
-    KernelTask, usize, usize, AddressSpaceId, 
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState)
+    KernelTask, usize, 
+    unsafe extern "C" fn(NonNull<()>, usize, TaskState)
 );
 
 impl KernelTaskRepr {    
@@ -61,7 +57,7 @@ impl KernelTaskRepr {
     pub unsafe fn do_wake(self: &Arc<Self>) {
         let shared_scheduler = NonNull::new(self.1 as *mut ()).unwrap();
         let task_repr = Arc::as_ptr(self) as usize;
-        (self.4)(shared_scheduler, self.2, self.3, task_repr, TaskState::Ready)
+        (self.2)(shared_scheduler, task_repr, TaskState::Ready)
     }
     #[inline] pub fn task(&self) -> &KernelTask {
         &self.0

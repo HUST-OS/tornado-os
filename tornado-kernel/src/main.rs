@@ -104,9 +104,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let hart_id = crate::hart::KernelHartInfo::hart_id();
     let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
-    let task_1 = task::new_kernel(task_1(), process.clone(), shared_payload.shared_scheduler, hart_id, address_space_id, shared_payload.shared_set_task_state);
-    let task_2 = task::new_kernel(task_2(), process.clone(), shared_payload.shared_scheduler, hart_id, address_space_id, shared_payload.shared_set_task_state);
-    let task_3 = task::new_kernel(FibonacciFuture::new(6), process.clone(), shared_payload.shared_scheduler, hart_id, address_space_id, shared_payload.shared_set_task_state);
+    let task_1 = task::new_kernel(task_1(), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
+    let task_2 = task::new_kernel(task_2(), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
+    let task_3 = task::new_kernel(FibonacciFuture::new(6), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
@@ -118,8 +118,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     
     task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
-        |task_repr| unsafe { shared_payload.delete_task(hart_id, address_space_id, task_repr) },
-        |task_repr, new_state| unsafe { shared_payload.set_task_state(hart_id, address_space_id, task_repr, new_state)}
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state)}
     );
 
     // 进入用户态

@@ -2,7 +2,7 @@
 //! 
 
 use super::Scheduler;
-use core::{marker::PhantomData, mem::MaybeUninit};
+use core::mem::MaybeUninit;
 use core::ptr;
 
 /// 先进先出轮转任务调度器
@@ -43,11 +43,11 @@ impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T,
         // 拿出头部的引用
         self.ring.front()
     }
+    fn peek_next_task_mut(&mut self)  -> Option<&mut T> {
+        self.ring.front_mut()
+    }
     fn current_task(&self) -> Option<T> {
         self.current.clone()
-    }
-    fn find_first_task_mut(&mut self, p: impl Fn(&T) -> bool) -> Option<&mut T> {
-        self.ring.iter_mut().find(|t| p(t))
     }
     fn remove_task(&mut self, task: &T) {
         // 移除相应的线程并且确认恰移除一个线程
@@ -110,37 +110,44 @@ impl<T, const N: usize> RingQueue<T, N> {
             Some(unsafe { &*self.elem[self.front].as_ptr() })
         }
     }
-    pub fn iter_mut(&mut self) -> IterMut<'_, T, N> {
-        IterMut {
-            ptr: &mut self.elem as *mut [MaybeUninit<T>; N] as *mut [T; N],
-            front: self.front,
-            tail: self.tail,
-            _marker: PhantomData
-        }
-    }
-}
-
-pub struct IterMut<'a, T: 'a, const N: usize> {
-    ptr: *mut [T; N],
-    front: usize,
-    tail: usize,
-    _marker: PhantomData<&'a mut T>
-}
-
-// TODO: 这里有不确定 Unsafe 代码，需检查正确性
-impl<'a, T, const N: usize> Iterator for IterMut<'a, T, N> {
-    type Item = &'a mut T;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.tail == self.front {
-            // is empty
+    pub fn front_mut(&mut self) -> Option<&mut T> {
+        if self.is_empty() {
             None
         } else {
-            let value = unsafe { &mut (*(self.ptr))[self.front] };
-            self.front = self.front.wrapping_add(1);
-            if self.front > N || self.front == 0 {
-                self.front = self.front.wrapping_sub(N);
-            }
-            Some(value)
+            Some(unsafe { &mut *self.elem[self.front].as_mut_ptr() })
         }
     }
+    // pub fn iter_mut(&mut self) -> IterMut<'_, T, N> {
+    //     IterMut {
+    //         ptr: &mut self.elem as *mut [MaybeUninit<T>; N] as *mut [T; N],
+    //         front: self.front,
+    //         tail: self.tail,
+    //         _marker: PhantomData
+    //     }
+    // }
 }
+
+// pub struct IterMut<'a, T: 'a, const N: usize> {
+//     ptr: *mut [T; N],
+//     front: usize,
+//     tail: usize,
+//     _marker: PhantomData<&'a mut T>
+// }
+
+// // TODO: 这里有不确定 Unsafe 代码，需检查正确性
+// impl<'a, T, const N: usize> Iterator for IterMut<'a, T, N> {
+//     type Item = &'a mut T;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.tail == self.front {
+//             // is empty
+//             None
+//         } else {
+//             let value = unsafe { &mut (*(self.ptr))[self.front] };
+//             self.front = self.front.wrapping_add(1);
+//             if self.front > N || self.front == 0 {
+//                 self.front = self.front.wrapping_sub(N);
+//             }
+//             Some(value)
+//         }
+//     }
+// }

@@ -116,8 +116,6 @@ pub unsafe extern "C" fn shared_peek_task(
 /// 删除一个共享调度器中的任务
 pub unsafe extern "C" fn shared_delete_task(
     shared_scheduler: NonNull<()>,
-    _hart_id: usize,
-    _address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
 ) -> bool {
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
@@ -136,23 +134,17 @@ pub unsafe extern "C" fn shared_delete_task(
 /// 设置任务的状态
 pub unsafe extern "C" fn shared_set_task_state(
     shared_scheduler: NonNull<()>,
-    hart_id: usize,
-    address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
     new_state: TaskState,
 ) {
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
-    if let Some(task) = scheduler.find_first_task_mut(|t| task_eq(t, hart_id, address_space_id, task_repr)) {
-        task.state = new_state;
+    let next_handle = scheduler.peek_next_task_mut();
+    if let Some(handle) = next_handle {
+        if handle.task_repr == task_repr {
+            handle.state = new_state;
+        } else {
+            panic!("change a previous task is not currently supported")
+        }
     }
-}
-
-fn task_eq(
-    a: &TaskMeta, 
-    hart_id: usize,
-    address_space_id: AddressSpaceId,
-    task_repr: TaskRepr,
-) -> bool {
-    a.hart_id == hart_id && a.address_space_id == address_space_id && a.task_repr == task_repr
 }

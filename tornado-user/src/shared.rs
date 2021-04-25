@@ -71,8 +71,8 @@ pub struct SharedPayload {
     shared_scheduler: NonNull<()>,
     shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
     shared_peek_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult,
-    shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
-    shared_set_task_state: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState),
+    shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize) -> bool,
+    shared_set_task_state: unsafe extern "C" fn(NonNull<()>, usize, TaskState),
 }
 
 type SharedPayloadAsUsize = [usize; 7]; // 编译时基地址，（已清空）初始化函数，共享调度器地址，添加函数，弹出函数
@@ -82,8 +82,8 @@ type SharedPayloadRaw = (
     NonNull<()>,
     unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool, // 添加任务
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool, // 删除任务
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState), // 改变任务的状态 
+    unsafe extern "C" fn(NonNull<()>, usize) -> bool, // 删除任务
+    unsafe extern "C" fn(NonNull<()>, usize, TaskState), // 改变任务的状态 
 );
 
 impl SharedPayload {
@@ -115,13 +115,13 @@ impl SharedPayload {
         let f = self.shared_peek_task;
         f(self.shared_scheduler, should_yield)
     }
-    pub unsafe fn delete_task(&self, hart_id: usize, address_space_id: AddressSpaceId, task_repr: usize) -> bool {
+    pub unsafe fn delete_task(&self, task_repr: usize) -> bool {
         let f = self.shared_delete_task;
-        f(self.shared_scheduler, hart_id, address_space_id, task_repr)
+        f(self.shared_scheduler, task_repr)
     }
 
-    pub unsafe fn set_task_state(&self, hart_id: usize, address_space_id: AddressSpaceId, task_repr: usize, new_state: TaskState) {
+    pub unsafe fn set_task_state(&self, task_repr: usize, new_state: TaskState) {
         let f = self.shared_set_task_state;
-        f(self.shared_scheduler, hart_id, address_space_id, task_repr, new_state)
+        f(self.shared_scheduler, task_repr, new_state)
     }
 }
