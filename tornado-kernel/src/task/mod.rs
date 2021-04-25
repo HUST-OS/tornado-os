@@ -9,8 +9,8 @@ pub use kernel_task::{KernelTask, TaskId};
 pub use process::{Process, ProcessId};
 pub use executor::run_until_idle;
 pub use shared::{
-    SharedTaskHandle,
     SharedPayload,
+    TaskState,
     kernel_should_switch
 };
 

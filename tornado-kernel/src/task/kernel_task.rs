@@ -3,8 +3,8 @@ use spin::Mutex;
 use core::ops::Range;
 use core::future::Future;
 use alloc::boxed::Box;
-use crate::{hart::KernelHartInfo, memory::VirtualAddress};
-use crate::task::{Process, SharedTaskHandle};
+use crate::memory::VirtualAddress;
+use crate::task::Process;
 use core::pin::Pin;
 use core::fmt;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -20,7 +20,7 @@ pub struct KernelTask {
     /// 任务信息的可变部分
     pub inner: Mutex<TaskInner>,
     /// 任务的内容
-    pub future: Mutex<Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>> // 用UnsafeCell代替Mutex会好一点
+    pub future: Mutex<Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>>, // 用UnsafeCell代替Mutex会好一点
 }
 
 /// 任务的编号
@@ -47,10 +47,6 @@ pub struct TaskInner {
     ///
     /// 内核任务复用执行器的栈。用户任务占有一个栈，下一个任务复用此栈。强制中断暂停时，下一个任务使用新分配的栈。
     pub stack: Option<Range<VirtualAddress>>,
-    /// 任务是否正在休眠
-    pub sleeping: bool,
-    /// 任务是否已经结束
-    pub ended: bool,
 }
 
 impl KernelTask {
@@ -67,8 +63,6 @@ impl KernelTask {
             process,
             inner: Mutex::new(TaskInner {
                 stack: None,
-                sleeping: false,
-                ended: false,
             }),
             future: Mutex::new(Box::pin(future)),
         })
@@ -79,26 +73,6 @@ impl KernelTask {
     /// note(unsafe): 创建了一个没有边界的生命周期
     pub unsafe fn task_repr(self: Arc<Self>) -> usize {
         Arc::into_raw(self) as usize
-    }
-}
-
-impl KernelTask {
-    fn mark_ready(&self) {
-        self.inner.lock().sleeping = false;
-    }
-
-    pub(crate) fn is_sleeping(&self) -> bool {
-        self.inner.lock().sleeping
-    }
-
-    pub(crate) fn mark_sleep(&self) {
-        self.inner.lock().sleeping = true;
-    }
-}
-
-impl woke::Woke for KernelTask {
-    fn wake_by_ref(task: &Arc<Self>) {
-        task.mark_ready();
     }
 }
 
@@ -120,11 +94,9 @@ impl fmt::Debug for KernelTask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let inner = self.inner.lock();
         f.debug_struct("KernelTask")
-            .field("task id", &self.id)
+            .field("task isd", &self.id)
             .field("address space id", &self.process.address_space_id())
             .field("stack", &inner.stack)
-            .field("is_sleeping", &inner.sleeping)
-            .field("is_ended", &inner.ended)
             .finish()
     }
 }

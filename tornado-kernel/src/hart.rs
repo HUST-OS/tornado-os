@@ -2,7 +2,7 @@
 use alloc::collections::LinkedList;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use crate::{task::{Process, SharedTaskHandle}, trap::TrapFrame};
+use crate::task::Process;
 use crate::memory::{AddressSpaceId, Satp};
 
 /// 写一个指针到上下文指针

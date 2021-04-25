@@ -118,7 +118,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     
     task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
-        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+        |task_repr| unsafe { shared_payload.delete_task(hart_id, address_space_id, task_repr) },
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(hart_id, address_space_id, task_repr, new_state)}
     );
 
     // 进入用户态
@@ -154,6 +155,8 @@ impl FibonacciFuture {
 use core::future::Future;
 use core::task::{Context, Poll};
 use core::pin::Pin;
+
+use task::TaskState;
 
 
 impl Future for FibonacciFuture {

@@ -1,4 +1,4 @@
-use crate::task::{TaskResult, KernelTask};
+use crate::task::{TaskResult, TaskState, KernelTask};
 use woke::waker_ref;
 use alloc::sync::Arc;
 use core::{mem, task::{Poll, Context}};
@@ -11,33 +11,35 @@ use core::{mem, task::{Poll, Context}};
 pub fn run_until_idle(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,
+    set_task_state: impl Fn(usize, TaskState),
 ) {
     loop {
         let task = peek_task();
         println!(">>> kernel executor: next task = {:x?}", task);
         match task {
-            TaskResult::Task(task_repr) => {
-                // 在相同的（内核）地址空间里面
+            TaskResult::Task(task_repr) => { // 在相同的（内核）地址空间里面
+                set_task_state(task_repr, TaskState::Sleeping);
                 let task: Arc<KernelTask> = unsafe { Arc::from_raw(task_repr as *mut _) };
-                task.mark_sleep();
-                // make a waker for our task
                 let waker = waker_ref(&task);
-                // poll our future and give it a waker
                 let mut context = Context::from_waker(&*waker);
-                // println!("Poll begin");
                 let ret = task.future.lock().as_mut().poll(&mut context);
-                // println!("Ret = {:?}", ret);
                 if let Poll::Pending = ret {
+                    set_task_state(task_repr, TaskState::Ready);
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 } else { // 否则，释放task的内存
                     delete_task(task_repr);
-                    // drop(task)
-                }
+                } // 隐含一个drop(task)
             },
             TaskResult::ShouldYield(next_asid) => {
                 todo!("切换到 next_asid (= {}) 对应的地址空间", next_asid)
             },
             TaskResult::Finished => break
         }
+    }
+}
+
+impl woke::Woke for KernelTask {
+    fn wake_by_ref(_task: &Arc<Self>) {
+        //todo: use  set_task_state: impl Fn(usize, TaskState),
     }
 }

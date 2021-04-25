@@ -29,22 +29,17 @@ use core::ptr::NonNull;
 use core::mem;
 use super::TaskResult;
 
-/// 共享的包含Future在用户空间的地址
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(C)]
-pub struct SharedTaskHandle {
-    /// 运行此任务的硬件线程编号
-    pub(crate) hart_id: usize,
-    /// 地址空间的编号
-    pub(crate) address_space_id: AddressSpaceId,
-    /// 对每个虚拟空间来说，task_ptr是Arc<Task>相应的虚拟地址
-    /// 比如内核中是内核虚拟地址，用户中是用户的虚拟地址
-    pub(crate) task_ptr: usize,
+/// 任务当前的状态
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum TaskState {
+    Ready = 0,
+    Sleeping = 1,
 }
 
-pub extern "C" fn kernel_should_switch(handle: &SharedTaskHandle) -> bool {
+pub extern "C" fn kernel_should_switch(address_space_id: AddressSpaceId) -> bool {
     // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
-    KernelHartInfo::current_address_space_id() != handle.address_space_id
+    KernelHartInfo::current_address_space_id() != address_space_id
 }
 
 /// 共享载荷
@@ -52,19 +47,24 @@ pub extern "C" fn kernel_should_switch(handle: &SharedTaskHandle) -> bool {
 pub struct SharedPayload {
     shared_scheduler: NonNull<()>,
     shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
-    shared_peek_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
-    shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize) -> bool,
+    shared_peek_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult,
+    shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
+    shared_set_task_state: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState),
 }
 
-type SharedPayloadAsUsize = [usize; 6]; // 编译时基地址，初始化函数，共享调度器地址，添加函数，弹出函数
+unsafe impl Send for SharedPayload {}
+unsafe impl Sync for SharedPayload {}
+
+type SharedPayloadAsUsize = [usize; 7]; // 编译时基地址，初始化函数，共享调度器地址，添加函数，弹出函数
 type InitFunction = unsafe extern "C" fn() -> PageList;
 type SharedPayloadRaw = (
     usize, // 编译时基地址，转换后类型占位，不使用
     usize, // 初始化函数，执行完之后，内核将函数指针置空
     NonNull<()>,
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
-    unsafe extern "C" fn(NonNull<()>, extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult,
-    unsafe extern "C" fn(NonNull<()>, usize) -> bool,
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool, // 添加任务
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool, // 删除任务
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize, TaskState), // 改变任务的状态 
 );
 
 impl SharedPayload {
@@ -93,6 +93,7 @@ impl SharedPayload {
             shared_add_task: raw_table.3,
             shared_peek_task: raw_table.4,
             shared_delete_task: raw_table.5,
+            shared_set_task_state: raw_table.6,
         }
     }
 
@@ -105,16 +106,22 @@ impl SharedPayload {
     }
 
     /// 从共享调度器中得到下一个任务
-    pub unsafe fn peek_task(&self, should_yield: extern "C" fn(&SharedTaskHandle) -> bool) -> TaskResult {
+    pub unsafe fn peek_task(&self, should_yield: extern "C" fn(AddressSpaceId) -> bool) -> TaskResult {
         let f = self.shared_peek_task;
         // println!("Peek = {:x}, p1 = {:p}, p2 = {:x}", f as usize, self.shared_scheduler, should_yield as usize);
         f(self.shared_scheduler, should_yield)
     }
 
     /// 从共享调度器中删除任务
-    pub unsafe fn delete_task(&self, task_repr: usize) -> bool {
+    pub unsafe fn delete_task(&self, hart_id: usize, address_space_id: AddressSpaceId, task_repr: usize) -> bool {
         let f = self.shared_delete_task;
-        f(self.shared_scheduler, task_repr)
+        f(self.shared_scheduler, hart_id, address_space_id, task_repr)
+    }
+
+    /// 设置一个任务的状态
+    pub unsafe fn set_task_state(&self, hart_id: usize, address_space_id: AddressSpaceId, task_repr: usize, new_state: TaskState) {
+        let f = self.shared_set_task_state;
+        f(self.shared_scheduler, hart_id, address_space_id, task_repr, new_state)
     }
 }
 

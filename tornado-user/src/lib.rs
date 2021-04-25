@@ -78,18 +78,20 @@ fn main() -> i32 {
 /// 运行一个异步的main函数，在用户的entry函数里调用
 /// 应该作为标准库的一部分，这里使用一个库函数来模拟有标准库的情况
 pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'static) -> i32 {
+    let hart_id = 0; // todo!
     let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
-    let asid = unsafe { shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
+    let address_space_id = unsafe { shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
     static mut EXIT_CODE: i32 = 0;
     let main_task = task::UserTask::new(async move {
         unsafe { EXIT_CODE = main.await };
     });
     unsafe {
-        shared_payload.add_task(0/* todo */, asid, main_task.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, main_task.task_repr());
     }
     shared::run_until_ready(
         || unsafe { shared_payload.peek_task(shared::user_should_switch) },
-        |task_repr| unsafe { shared_payload.delete_task(task_repr) }
+        |task_repr| unsafe { shared_payload.delete_task(hart_id, address_space_id, task_repr) },
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(hart_id, address_space_id, task_repr, new_state)}
     );
     unsafe { EXIT_CODE }
 }

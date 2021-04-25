@@ -16,6 +16,8 @@ pub trait Scheduler<T: Clone + PartialEq> {
     fn next_task(&mut self) -> Option<T>;
     /// 获取正在运行的任务，中断发生时，将保存这个任务的上下文
     fn current_task(&self) -> Option<T>;
+    /// 查找一个任务
+    fn find_first_task_mut(&mut self, p: impl Fn(&T) -> bool) -> Option<&mut T>;
     /// 移除一个任务 
     fn remove_task(&mut self, task: &T);
     /// 设置任务的优先级

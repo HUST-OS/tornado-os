@@ -25,22 +25,34 @@ pub enum TaskResult {
 pub struct TaskRepr(usize);
 
 /// 共享调度器的类型
-pub type SharedScheduler = Mutex<RingFifoScheduler<SharedTaskHandle, 100>>;
+pub type SharedScheduler = Mutex<RingFifoScheduler<TaskMeta, 100>>;
 
 /// 全局的共享调度器
 /// 放到数据段，内核或用户从这个地址里取得共享调度器
 pub static SHARED_SCHEDULER: SharedScheduler = Mutex::new(RingFifoScheduler::new());
 
-/// 共享任务的句柄
+/// 共享任务的元数据
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[repr(C)]
-pub struct SharedTaskHandle {
+pub struct TaskMeta {
     /// 运行此任务的硬件线程编号
     pub(crate) hart_id: usize,
     /// 地址空间的编号
     pub(crate) address_space_id: AddressSpaceId,
     // 元数据指针，由所在的地址空间解释
     task_repr: TaskRepr,
+    // 任务当前的状态
+    pub(crate) state: TaskState,
+}
+
+// todo: 在调度器中设计，如果任务正在休眠，就跳过
+
+/// 任务当前的状态
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum TaskState {
+    Ready = 0,
+    Sleeping = 1,
 }
 
 /// 给共享调度器添加任务
@@ -63,11 +75,12 @@ pub unsafe extern "C" fn shared_add_task(
     hart_id: usize,
     address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
-) -> SharedTaskHandle {
-    SharedTaskHandle {
+) -> TaskMeta {
+    TaskMeta {
         hart_id,
         address_space_id,
         task_repr,
+        state: TaskState::Ready, // 默认为就绪状态
     }
 }
 
@@ -76,7 +89,7 @@ pub unsafe extern "C" fn shared_add_task(
 /// 在内核态和用户态都可以调用
 pub unsafe extern "C" fn shared_peek_task(
     shared_scheduler: NonNull<()>,
-    should_switch: extern "C" fn(&SharedTaskHandle) -> bool
+    should_switch: extern "C" fn(AddressSpaceId) -> bool
 ) -> TaskResult {
     // 得到共享调度器的引用
     // println!("[Shared peek task] {:p} {:x}", shared_scheduler, should_switch as usize);
@@ -84,7 +97,7 @@ pub unsafe extern "C" fn shared_peek_task(
     let scheduler = s.as_mut().lock();
     if let Some(task) = scheduler.peek_next_task() {
         // println!("Pop task {:x?}!", task);
-        if should_switch(task) {
+        if should_switch(task.address_space_id) {
             // 如果需要跳转到其他地址空间，则不弹出任务，返回需要跳转到的地址空间编号
             return TaskResult::ShouldYield(task.address_space_id.into_inner())
         }
@@ -103,6 +116,8 @@ pub unsafe extern "C" fn shared_peek_task(
 /// 删除一个共享调度器中的任务
 pub unsafe extern "C" fn shared_delete_task(
     shared_scheduler: NonNull<()>,
+    _hart_id: usize,
+    _address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
 ) -> bool {
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
@@ -116,4 +131,28 @@ pub unsafe extern "C" fn shared_delete_task(
         }
     }
     false
+}
+
+/// 设置任务的状态
+pub unsafe extern "C" fn shared_set_task_state(
+    shared_scheduler: NonNull<()>,
+    hart_id: usize,
+    address_space_id: AddressSpaceId,
+    task_repr: TaskRepr,
+    new_state: TaskState,
+) {
+    let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
+    let mut scheduler = s.as_mut().lock();
+    if let Some(task) = scheduler.find_first_task_mut(|t| task_eq(t, hart_id, address_space_id, task_repr)) {
+        task.state = new_state;
+    }
+}
+
+fn task_eq(
+    a: &TaskMeta, 
+    hart_id: usize,
+    address_space_id: AddressSpaceId,
+    task_repr: TaskRepr,
+) -> bool {
+    a.hart_id == hart_id && a.address_space_id == address_space_id && a.task_repr == task_repr
 }
