@@ -40,7 +40,6 @@ pub fn run_until_ready(
                 let mut context = Context::from_waker(&*waker);
                 let ret = task.future.lock().as_mut().poll(&mut context);
                 if let Poll::Pending = ret {
-                    set_task_state(task_repr, TaskState::Ready);
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 } else {
                     delete_task(task_repr);
