@@ -55,6 +55,9 @@ impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T,
         todo!("还没做")
     }
     fn set_priority(&mut self, _task: T, _prio: ()) {}
+    fn queue_len(&self) -> Option<usize> {
+        Some(self.ring.len())
+    }
 }
 
 pub struct RingQueue<T, const N: usize> {
@@ -117,37 +120,4 @@ impl<T, const N: usize> RingQueue<T, N> {
             Some(unsafe { &mut *self.elem[self.front].as_mut_ptr() })
         }
     }
-    // pub fn iter_mut(&mut self) -> IterMut<'_, T, N> {
-    //     IterMut {
-    //         ptr: &mut self.elem as *mut [MaybeUninit<T>; N] as *mut [T; N],
-    //         front: self.front,
-    //         tail: self.tail,
-    //         _marker: PhantomData
-    //     }
-    // }
 }
-
-// pub struct IterMut<'a, T: 'a, const N: usize> {
-//     ptr: *mut [T; N],
-//     front: usize,
-//     tail: usize,
-//     _marker: PhantomData<&'a mut T>
-// }
-
-// // TODO: 这里有不确定 Unsafe 代码，需检查正确性
-// impl<'a, T, const N: usize> Iterator for IterMut<'a, T, N> {
-//     type Item = &'a mut T;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.tail == self.front {
-//             // is empty
-//             None
-//         } else {
-//             let value = unsafe { &mut (*(self.ptr))[self.front] };
-//             self.front = self.front.wrapping_add(1);
-//             if self.front > N || self.front == 0 {
-//                 self.front = self.front.wrapping_sub(N);
-//             }
-//             Some(value)
-//         }
-//     }
-// }

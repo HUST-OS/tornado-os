@@ -21,4 +21,12 @@ pub trait Scheduler<T: Clone + PartialEq> {
     fn remove_task(&mut self, task: &T);
     /// 设置任务的优先级
     fn set_priority(&mut self, task: T, priority: Self::Priority);
+    /// 返回调度队列的总长度
+    /// 如果有队列，则返回 Some，否则返回 None
+    /// 
+    /// 目前这里是实现上的需要，后面需要移除这个方法
+    /// 因为具体调度器实现里面可能没有队列，这个不是调度器的共性
+    fn queue_len(&self) -> Option<usize> {
+        None
+    }
 }

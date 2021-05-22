@@ -15,6 +15,8 @@ pub enum TaskResult {
     /// 其他地址空间的任务要运行，应当让出时间片
     /// 并返回下一个地址空间的编号
     ShouldYield(usize),
+    /// 调度器里面没有醒着的任务，但存在睡眠任务
+    NoWakeTask,
     /// 队列已空，所有任务已经结束
     Finished
 }
@@ -106,12 +108,56 @@ pub unsafe extern "C" fn shared_peek_task(
         drop(scheduler); // 释放锁
         return TaskResult::Task(task_repr)
         // 调用者拿到任务后，执行此任务，然后必须销毁任务，否则任务会被重新拿出来再执行一次
-        // CCC: 这样的设计好像会增加一些时间复杂度，后面需要再考虑一下这部分的设计
     } else {
         // 没有任务了，返回已完成
         return TaskResult::Finished;
     }
 }
+
+/// 从共享调度器中找到下一个任务
+/// 如果任务处于睡眠状态则重新放入调度队列尾部
+/// 
+/// 内核态和用户态都可以调用
+pub unsafe extern "C" fn shared_peek_wake_task(
+    shared_scheduler: NonNull<()>,
+    should_switch: extern "C" fn(AddressSpaceId) -> bool
+) -> TaskResult {
+    let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
+    let mut scheduler = s.as_mut().lock();
+    let mut ret_task;
+    let mut count = 0; // 计数器，防止无限循环
+    loop {
+        ret_task = scheduler.peek_next_task();
+        match ret_task {
+            Some(task) => {
+                if task.state == TaskState::Sleeping {
+                    if count >= scheduler.queue_len().unwrap() {
+                        // 已经全部遍历过一遍，没有找到醒着的任务
+                        // 返回 TaskResult::NoWakeTask, 提示执行器调度器里面还有睡眠任务
+                        // 如果等待时间过长，则下一次时间中断的时候切换地址空间
+                        return TaskResult::NoWakeTask;
+                    }
+                    // 睡眠状态，将当前任务放到调度队列尾部
+                    let sleep_task = scheduler.next_task().unwrap();
+                    scheduler.add_task(sleep_task);
+                    count = count.wrapping_add(1);
+                    // 进行下一个循环
+                } else {
+                    if should_switch(task.address_space_id) {
+                        // 需要跳转到其他地址空间
+                        return TaskResult::ShouldYield(task.address_space_id.into_inner());
+                    } else {
+                        let task_repr = task.task_repr;
+                        drop(scheduler);
+                        return TaskResult::Task(task_repr);
+                    }
+                }
+            },
+            None => return TaskResult::Finished
+        }
+    }
+}
+
 
 /// 删除一个共享调度器中的任务
 pub unsafe extern "C" fn shared_delete_task(

@@ -48,6 +48,7 @@ pub struct SharedPayload {
     pub(crate) shared_scheduler: NonNull<()>,
     shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
     shared_peek_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult,
+    shared_peek_wake_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult,
     shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize) -> bool,
     pub(crate) shared_set_task_state: unsafe extern "C" fn(NonNull<()>, usize, TaskState),
 }
@@ -55,7 +56,7 @@ pub struct SharedPayload {
 unsafe impl Send for SharedPayload {}
 unsafe impl Sync for SharedPayload {}
 
-type SharedPayloadAsUsize = [usize; 7]; // 编译时基地址，初始化函数，共享调度器地址，添加函数，弹出函数
+type SharedPayloadAsUsize = [usize; 8]; // 编译时基地址，初始化函数，共享调度器地址，添加函数，弹出函数
 type InitFunction = unsafe extern "C" fn() -> PageList;
 type SharedPayloadRaw = (
     usize, // 编译时基地址，转换后类型占位，不使用
@@ -63,6 +64,7 @@ type SharedPayloadRaw = (
     NonNull<()>,
     unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool, // 添加任务
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出非睡眠任务
     unsafe extern "C" fn(NonNull<()>, usize) -> bool, // 删除任务
     unsafe extern "C" fn(NonNull<()>, usize, TaskState), // 改变任务的状态 
 );
@@ -92,8 +94,9 @@ impl SharedPayload {
             shared_scheduler: raw_table.2,
             shared_add_task: raw_table.3,
             shared_peek_task: raw_table.4,
-            shared_delete_task: raw_table.5,
-            shared_set_task_state: raw_table.6,
+            shared_peek_wake_task: raw_table.5,
+            shared_delete_task: raw_table.6,
+            shared_set_task_state: raw_table.7,
         }
     }
 
@@ -109,6 +112,13 @@ impl SharedPayload {
     pub unsafe fn peek_task(&self, should_yield: extern "C" fn(AddressSpaceId) -> bool) -> TaskResult {
         let f = self.shared_peek_task;
         // println!("Peek = {:x}, p1 = {:p}, p2 = {:x}", f as usize, self.shared_scheduler, should_yield as usize);
+        f(self.shared_scheduler, should_yield)
+    }
+
+    /// 从共享调度器中得到下一个非睡眠任务
+    pub unsafe fn peek_wake_task(&self, should_yield: extern "C" fn(AddressSpaceId) -> bool) -> TaskResult {
+        let f = self.shared_peek_wake_task;
+        // println!("Peek wake = {:x}, p1 = {:p}, p2 = {:x}", f as usize, self.shared_scheduler, should_yield as usize);
         f(self.shared_scheduler, should_yield)
     }
 
