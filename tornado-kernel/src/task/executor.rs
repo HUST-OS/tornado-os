@@ -32,6 +32,9 @@ pub fn run_until_idle(
             TaskResult::ShouldYield(next_asid) => {
                 todo!("切换到 next_asid (= {}) 对应的地址空间", next_asid)
             },
+            TaskResult::NoWakeTask => {
+                todo!()
+            },
             TaskResult::Finished => break
         }
     }

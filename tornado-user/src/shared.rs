@@ -23,7 +23,6 @@ pub extern "C" fn user_should_switch(_asid: AddressSpaceId) -> bool {
     false // todo
 }
 
-// 该执行器目前是测试使用，当轮询到一个完成的任务就退出了
 pub fn run_until_ready(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,
@@ -49,6 +48,7 @@ pub fn run_until_ready(
                 // 让出操作
                 do_yield(next_asid);
             },
+            TaskResult::NoWakeTask => todo!(),
             TaskResult::Finished => {
                 break;
             }
@@ -114,6 +114,7 @@ impl SharedPayload {
         let f = self.shared_peek_task;
         f(self.shared_scheduler, should_yield)
     }
+
     pub unsafe fn delete_task(&self, task_repr: usize) -> bool {
         let f = self.shared_delete_task;
         f(self.shared_scheduler, task_repr)
