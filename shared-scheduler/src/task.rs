@@ -95,6 +95,7 @@ pub unsafe extern "C" fn shared_peek_task(
     shared_scheduler: NonNull<()>,
     should_switch: extern "C" fn(AddressSpaceId) -> bool
 ) -> TaskResult {
+    // 得到共享调度器的引用
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
     let mut ret_task;
@@ -117,15 +118,17 @@ pub unsafe extern "C" fn shared_peek_task(
                     // 进行下一个循环
                 } else {
                     if should_switch(task.address_space_id) {
-                        // 需要跳转到其他地址空间
+                        // 如果需要跳转到其他地址空间，则不弹出任务，返回需要跳转到的地址空间编号
                         return TaskResult::ShouldYield(task.address_space_id.into_inner());
                     } else {
+                        // 直接把任务交给调用者
                         let task_repr = task.task_repr;
-                        drop(scheduler);
+                        drop(scheduler); // 释放锁
                         return TaskResult::Task(task_repr);
                     }
                 }
             },
+            // 没有任务了，返回已完成
             None => return TaskResult::Finished
         }
     }
