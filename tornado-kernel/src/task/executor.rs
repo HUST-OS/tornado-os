@@ -40,38 +40,6 @@ pub fn run_until_idle(
     }
 }
 
-pub fn run_wake_until_idle(
-    peek_wake_task: impl Fn() -> TaskResult,
-    delete_task: impl Fn(usize) -> bool,
-    set_task_state: impl Fn(usize, TaskState),
-) {
-    loop {
-        let task = peek_wake_task();
-        println!(">>> kernel executor: next task = {:x?}", task);
-        match task {
-            TaskResult::Task(task_repr) => { // 在相同的（内核）地址空间里面
-                set_task_state(task_repr, TaskState::Sleeping);
-                let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
-                let waker = waker_ref(&task);
-                let mut context = Context::from_waker(&*waker);
-                let ret = task.task().future.lock().as_mut().poll(&mut context);
-                if let Poll::Pending = ret {
-                    mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
-                } else { // 否则，释放task的内存
-                    delete_task(task_repr);
-                } // 隐含一个drop(task)
-            },
-            TaskResult::ShouldYield(next_asid) => {
-                todo!("切换到 next_asid (= {}) 对应的地址空间", next_asid)
-            },
-            TaskResult::NoWakeTask => {
-                todo!()
-            },
-            TaskResult::Finished => break
-        }
-    }
-}
-
 impl woke::Woke for KernelTaskRepr {
     fn wake_by_ref(task: &Arc<Self>) {
         unsafe { task.do_wake() }

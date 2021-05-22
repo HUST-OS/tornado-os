@@ -86,39 +86,12 @@ pub unsafe extern "C" fn shared_add_task(
     }
 }
 
-/// 从共享调度器中找到下一个任务
-/// 
-/// 在内核态和用户态都可以调用
-pub unsafe extern "C" fn shared_peek_task(
-    shared_scheduler: NonNull<()>,
-    should_switch: extern "C" fn(AddressSpaceId) -> bool
-) -> TaskResult {
-    // 得到共享调度器的引用
-    // println!("[Shared peek task] {:p} {:x}", shared_scheduler, should_switch as usize);
-    let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
-    let scheduler = s.as_mut().lock();
-    if let Some(task) = scheduler.peek_next_task() {
-        // println!("Pop task {:x?}!", task);
-        if should_switch(task.address_space_id) {
-            // 如果需要跳转到其他地址空间，则不弹出任务，返回需要跳转到的地址空间编号
-            return TaskResult::ShouldYield(task.address_space_id.into_inner())
-        }
-        // 直接把任务交给调用者
-        let task_repr = task.task_repr;
-        drop(scheduler); // 释放锁
-        return TaskResult::Task(task_repr)
-        // 调用者拿到任务后，执行此任务，然后必须销毁任务，否则任务会被重新拿出来再执行一次
-    } else {
-        // 没有任务了，返回已完成
-        return TaskResult::Finished;
-    }
-}
 
 /// 从共享调度器中找到下一个任务
 /// 如果任务处于睡眠状态则重新放入调度队列尾部
 /// 
 /// 内核态和用户态都可以调用
-pub unsafe extern "C" fn shared_peek_wake_task(
+pub unsafe extern "C" fn shared_peek_task(
     shared_scheduler: NonNull<()>,
     should_switch: extern "C" fn(AddressSpaceId) -> bool
 ) -> TaskResult {

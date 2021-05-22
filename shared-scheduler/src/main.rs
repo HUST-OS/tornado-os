@@ -23,7 +23,7 @@ use buddy_system_allocator::LockedHeap;
 use core::{mem::MaybeUninit, ptr::NonNull};
 use crate::task::{
     TaskResult, TaskRepr, TaskState, SharedScheduler, SHARED_SCHEDULER, 
-    shared_add_task, shared_peek_task, shared_peek_wake_task, shared_delete_task, shared_set_task_state,
+    shared_add_task, shared_peek_task, shared_delete_task, shared_set_task_state,
 };
 use crate::mm::AddressSpaceId;
 
@@ -61,7 +61,6 @@ pub static SHARED_RAW_TABLE: (
     &'static SharedScheduler, // 共享调度器的地址
     unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> bool, // 添加任务
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务
-    unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出非睡眠任务
     unsafe extern "C" fn(NonNull<()>, TaskRepr) -> bool, // 删除任务
     unsafe extern "C" fn(NonNull<()>, TaskRepr, TaskState), // 改变任务的状态 
 ) = (
@@ -70,7 +69,6 @@ pub static SHARED_RAW_TABLE: (
     &SHARED_SCHEDULER,
     shared_add_task,
     shared_peek_task,
-    shared_peek_wake_task,
     shared_delete_task,
     shared_set_task_state,
 );
