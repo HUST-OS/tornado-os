@@ -113,7 +113,8 @@ pub unsafe extern "C" fn shared_peek_task(
                     }
                     // 睡眠状态，将当前任务放到调度队列尾部
                     let sleep_task = scheduler.next_task().unwrap();
-                    scheduler.add_task(sleep_task);
+                    let add_ret = scheduler.add_task(sleep_task);
+                    assert!(add_ret.is_none());
                     count = count.wrapping_add(1);
                     // 进行下一个循环
                 } else {
@@ -147,7 +148,8 @@ pub unsafe extern "C" fn shared_delete_task(
         if handle.task_repr == task_repr {
             return true
         } else {
-            return false // panic!("delete a previous task is not currently supported")
+            // return false
+            panic!("delete a previous task is not currently supported")
         }
     }
     false
