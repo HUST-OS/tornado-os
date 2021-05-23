@@ -13,7 +13,6 @@ pub struct RingFifoScheduler<T, const N: usize> {
 
 impl<T, const N: usize> RingFifoScheduler<T, N> {
     /// 创建一个空的调度器
-    
     pub const fn new() -> Self {
         Self {
             ring: RingQueue::new(),
