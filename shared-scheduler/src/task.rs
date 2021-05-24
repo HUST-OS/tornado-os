@@ -27,7 +27,7 @@ pub enum TaskResult {
 pub struct TaskRepr(usize);
 
 /// 共享调度器的类型
-pub type SharedScheduler = Mutex<RingFifoScheduler<TaskMeta, 100>>;
+pub type SharedScheduler = Mutex<RingFifoScheduler<TaskMeta, 200>>;
 
 /// 全局的共享调度器
 /// 放到数据段，内核或用户从这个地址里取得共享调度器
