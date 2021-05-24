@@ -135,26 +135,6 @@ pub unsafe extern "C" fn shared_peek_task(
     }
 }
 
-
-/// 删除一个共享调度器中的任务
-// pub unsafe extern "C" fn shared_delete_task(
-//     shared_scheduler: NonNull<()>,
-//     task_repr: TaskRepr,
-// ) -> bool {
-//     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
-//     let mut scheduler = s.as_mut().lock();
-//     let next_handle = scheduler.next_task();
-//     if let Some(handle) = next_handle {
-//         if handle.task_repr == task_repr {
-//             return true
-//         } else {
-//             // return false
-//             panic!("delete a previous task is not currently supported")
-//         }
-//     }
-//     false
-// }
-
 /// 删除一个共享调度器中的任务
 pub unsafe extern "C" fn shared_delete_task(
     shared_scheduler: NonNull<()>,
@@ -192,25 +172,7 @@ pub unsafe extern "C" fn shared_delete_task(
     }
 }
 
-
 /// 设置任务的状态
-// pub unsafe extern "C" fn shared_set_task_state(
-//     shared_scheduler: NonNull<()>,
-//     task_repr: TaskRepr,
-//     new_state: TaskState,
-// ) {
-//     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
-//     let mut scheduler = s.as_mut().lock();
-//     let next_handle = scheduler.peek_next_task_mut();
-//     if let Some(handle) = next_handle {
-//         if handle.task_repr == task_repr {
-//             handle.state = new_state;
-//         } else {
-//             panic!("change a previous task is not currently supported")
-//         }
-//     }
-// }
-
 pub unsafe extern "C" fn shared_set_task_state(
     shared_scheduler: NonNull<()>,
     task_repr: TaskRepr,
