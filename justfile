@@ -61,4 +61,4 @@ debug app: build build-shared (build-user app)
             -gdb tcp::1234 -S \
             
 gdb: 
-    @{{gdb}} --eval-command="file {{kernel-elf}}" --eval-command="file {{shared-elf}}" --eval-command="target remote localhost:1234"
+    @{{gdb}} --eval-command="file {{kernel-elf}}" --eval-command="target remote localhost:1234"
