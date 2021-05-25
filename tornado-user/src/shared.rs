@@ -48,7 +48,7 @@ pub fn run_until_ready(
                 // 让出操作
                 do_yield(next_asid);
             },
-            TaskResult::NoWakeTask => todo!(),
+            TaskResult::NoWakeTask => {},
             TaskResult::Finished => {
                 break;
             }

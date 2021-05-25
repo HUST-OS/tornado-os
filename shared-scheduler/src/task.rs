@@ -27,7 +27,7 @@ pub enum TaskResult {
 pub struct TaskRepr(usize);
 
 /// 共享调度器的类型
-pub type SharedScheduler = Mutex<RingFifoScheduler<TaskMeta, 100>>;
+pub type SharedScheduler = Mutex<RingFifoScheduler<TaskMeta, 200>>;
 
 /// 全局的共享调度器
 /// 放到数据段，内核或用户从这个地址里取得共享调度器
@@ -113,7 +113,8 @@ pub unsafe extern "C" fn shared_peek_task(
                     }
                     // 睡眠状态，将当前任务放到调度队列尾部
                     let sleep_task = scheduler.next_task().unwrap();
-                    scheduler.add_task(sleep_task);
+                    let add_ret = scheduler.add_task(sleep_task);
+                    assert!(add_ret.is_none());
                     count = count.wrapping_add(1);
                     // 进行下一个循环
                 } else {
@@ -134,23 +135,41 @@ pub unsafe extern "C" fn shared_peek_task(
     }
 }
 
-
 /// 删除一个共享调度器中的任务
 pub unsafe extern "C" fn shared_delete_task(
     shared_scheduler: NonNull<()>,
-    task_repr: TaskRepr,
-) -> bool {
+    task_repr: TaskRepr
+) -> bool  {
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
-    let next_handle = scheduler.next_task();
-    if let Some(handle) = next_handle {
-        if handle.task_repr == task_repr {
-            return true
-        } else {
-            return false // panic!("delete a previous task is not currently supported")
+    let len = scheduler.queue_len().unwrap();
+    let mut count = 0;
+    loop {
+        if count >= len { return false; }
+        let next_handle = scheduler.peek_next_task();
+        match next_handle {
+            Some(task) => {
+                if task.task_repr == task_repr {
+                    // 找到了需要删除的任务
+                    let _drop_task = scheduler.next_task().unwrap();
+                    // 之前已经把 count 个任务从头部拿出来放到尾部了，现在要恢复它们
+                    let current_len = scheduler.queue_len().unwrap();
+                    for _ in 0..(current_len - count) {
+                        let next_task = scheduler.next_task().unwrap();
+                        scheduler.add_task(next_task);
+                    }
+                    return true;
+                } else {
+                    // 把任务从头部拿出来再放队列尾部
+                    let next_task = scheduler.next_task().unwrap();
+                    scheduler.add_task(next_task);
+                    count += 1;
+                    // 进入下一次循环
+                }
+            },
+            None => return false
         }
     }
-    false
 }
 
 /// 设置任务的状态
@@ -161,12 +180,32 @@ pub unsafe extern "C" fn shared_set_task_state(
 ) {
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
-    let next_handle = scheduler.peek_next_task_mut();
-    if let Some(handle) = next_handle {
-        if handle.task_repr == task_repr {
-            handle.state = new_state;
-        } else {
-            panic!("change a previous task is not currently supported")
+    let len = scheduler.queue_len().unwrap();
+    let mut count = 0;
+    loop {
+        if count >= len { panic!("task not found!") }
+        let next_handle = scheduler.peek_next_task();
+        match next_handle {
+            Some(task) => {
+                if task.task_repr == task_repr {
+                    // 找到了需要设置状态的任务
+                    let change_task = scheduler.peek_next_task_mut().unwrap();
+                    change_task.state = new_state;
+                    // 之前已经把 count 个任务从头部拿出来放到尾部了，现在要恢复它们
+                    for _ in 0..(len - count) {
+                        let next_task = scheduler.next_task().unwrap();
+                        scheduler.add_task(next_task);
+                    }
+                    break;
+                } else {
+                    // 把任务从头部拿出来再放队列尾部
+                    let next_task = scheduler.next_task().unwrap();
+                    scheduler.add_task(next_task);
+                    count += 1;
+                    // 进入下一次循环
+                }
+            },
+            None => panic!("task not found!")
         }
     }
 }

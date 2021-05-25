@@ -13,7 +13,6 @@ pub struct RingFifoScheduler<T, const N: usize> {
 
 impl<T, const N: usize> RingFifoScheduler<T, N> {
     /// 创建一个空的调度器
-    
     pub const fn new() -> Self {
         Self {
             ring: RingQueue::new(),
@@ -90,7 +89,8 @@ impl<T, const N: usize> RingQueue<T, N> {
         }
         unsafe { *self.elem[self.tail].as_mut_ptr() = value };
         self.tail = self.tail.wrapping_add(1);
-        if self.tail > N || self.tail == 0 {
+        // '>' -> '>='
+        if self.tail >= N || self.tail == 0 {
             self.tail = self.tail.wrapping_sub(N);
         }
         None // success
@@ -101,7 +101,8 @@ impl<T, const N: usize> RingQueue<T, N> {
         }
         let value = unsafe { ptr::read(self.elem[self.front].as_ptr()) };
         self.front = self.front.wrapping_add(1); // assured non empty
-        if self.front > N || self.front == 0 {
+        // '>' -> '>='
+        if self.front >= N || self.front == 0 {
             self.front = self.front.wrapping_sub(N);
         }
         Some(value)

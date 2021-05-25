@@ -106,7 +106,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
     let task_1 = task::new_kernel(task_1(), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
     let task_2 = task::new_kernel(task_2(), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
-    let task_3 = task::new_kernel(FibonacciFuture::new(6), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
+    let task_3 = task::new_kernel(FibonacciFuture::new(8), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
@@ -125,9 +125,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // 进入用户态
     user::first_enter_user(stack_handle.end.0 - 4)
 
-    // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
+    // // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
     // unsafe { hart::KernelHartInfo::unload_hart() };
-    // 没有任务了，关机
+    // // 没有任务了，关机
     // sbi::shutdown()
 }
 
@@ -138,6 +138,8 @@ async fn task_1() {
 async fn task_2() {
     println!("hello world from 2!");
 }
+
+
 
 struct FibonacciFuture {
     a: usize,
