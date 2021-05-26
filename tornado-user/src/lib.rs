@@ -82,9 +82,9 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
     let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
     let address_space_id = unsafe { shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
     static mut EXIT_CODE: i32 = 0;
-    let main_task = task::UserTask::new(async move {
+    let main_task = task::new_user(async move {
         unsafe { EXIT_CODE = main.await };
-    });
+    }, shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, main_task.task_repr());
     }
@@ -100,7 +100,7 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
 pub fn spawn(future: impl Future<Output = ()> + Send + Sync + 'static) {
     let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
     let asid = unsafe { shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
-    let task = task::UserTask::new(future);
+    let task = task::new_user(future, shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
     unsafe {
         shared_payload.add_task(0/* todo */, asid, task.task_repr());
     }
