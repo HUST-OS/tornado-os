@@ -1,8 +1,9 @@
 use crate::do_yield;
 use crate::println;
+use crate::task::UserTaskRepr;
 
 //！ 尝试在用户态给共享调度器添加任务
-use super::task::{TaskResult, UserTask};
+use super::TaskResult;
 use woke::waker_ref;
 use alloc::sync::Arc;
 use core::{mem, task::{Poll, Context}};
@@ -34,10 +35,10 @@ pub fn run_until_ready(
         match task {
             TaskResult::Task(task_repr) => { // 在相同的地址空间里面
                 set_task_state(task_repr, TaskState::Sleeping);
-                let task: Arc<UserTask> = unsafe { Arc::from_raw(task_repr as *mut _) };
+                let task: Arc<UserTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
                 let waker = waker_ref(&task);
                 let mut context = Context::from_waker(&*waker);
-                let ret = task.future.lock().as_mut().poll(&mut context);
+                let ret = task.task().future.lock().as_mut().poll(&mut context);
                 if let Poll::Pending = ret {
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 } else {
@@ -67,11 +68,11 @@ pub enum TaskState {
 /// 共享载荷
 #[repr(C)]
 pub struct SharedPayload {
-    shared_scheduler: NonNull<()>,
+    pub(crate)shared_scheduler: NonNull<()>,
     shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
     shared_peek_task: unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult,
     shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize) -> bool,
-    shared_set_task_state: unsafe extern "C" fn(NonNull<()>, usize, TaskState),
+    pub(crate)shared_set_task_state: unsafe extern "C" fn(NonNull<()>, usize, TaskState),
 }
 
 type SharedPayloadAsUsize = [usize; 7]; // 编译时基地址，（已清空）初始化函数，共享调度器地址，添加函数，弹出函数
