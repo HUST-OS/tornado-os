@@ -45,7 +45,6 @@ pub fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
 }
 
 // todo: 未来尽量使用有Allocator的new_in函数，这样能处理内存不足的问题
-
 #[cfg_attr(not(test), alloc_error_handler)]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     println!("[shared scheduler] alloc error, layout = {:?}", layout);

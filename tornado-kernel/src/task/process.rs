@@ -58,10 +58,7 @@ impl Process {
         };
         Some(process)
     }
-    // /// 得到进程编号
-    // pub fn process_id(&self) -> ProcessId {
-    //     self.id
-    // }
+    
     /// 得到进程*所在*的地址空间编号。进程不*对应*地址空间编号
     pub fn address_space_id(&self) -> AddressSpaceId {
         self.inner.lock().memory_set.address_space_id

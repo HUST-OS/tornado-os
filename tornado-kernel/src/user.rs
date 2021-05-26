@@ -1,7 +1,5 @@
-use riscv::register::scause::{self, Trap, Interrupt};
-use riscv::register::{sepc, stval};
 
-use crate::memory::{self, PAGE_SIZE};
+use crate::memory;
 use crate::trap;
 use crate::task;
 

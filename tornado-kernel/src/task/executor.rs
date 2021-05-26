@@ -8,6 +8,7 @@ use core::{mem, task::{Poll, Context}};
 切换上下文时，要把上下文保存好，最终还是要回到切换的地方继续运行。
 */
 
+/// 内核态的执行器，不断轮询共享调度器中的任务
 pub fn run_until_idle(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,
@@ -17,9 +18,10 @@ pub fn run_until_idle(
         let task = peek_task();
         println!(">>> kernel executor: next task = {:x?}", task);
         match task {
-            TaskResult::Task(task_repr) => { // 在相同的（内核）地址空间里面
+            TaskResult::Task(task_repr) => { // 轮询到的任务在相同的（内核）地址空间里面
                 set_task_state(task_repr, TaskState::Sleeping);
                 let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
+                // 注册 waker
                 let waker = waker_ref(&task);
                 let mut context = Context::from_waker(&*waker);
                 let ret = task.task().future.lock().as_mut().poll(&mut context);
@@ -33,8 +35,10 @@ pub fn run_until_idle(
                 todo!("切换到 next_asid (= {}) 对应的地址空间", next_asid)
             },
             TaskResult::NoWakeTask => {
+                // 当前共享调度器里面没有醒着的任务
                 todo!()
             },
+            // 没有任务了，退出
             TaskResult::Finished => break
         }
     }

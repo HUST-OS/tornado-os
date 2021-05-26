@@ -94,7 +94,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     println!("Current hart: {}", hart::KernelHartInfo::hart_id());
     
-    // todo: 这里要有个地方往tp里写东西，目前会出错
+    // todo: 这里要有个地方往tp里写东西，否则目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
     

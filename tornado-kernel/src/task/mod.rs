@@ -33,7 +33,7 @@ use alloc::sync::Arc;
 use core::future::Future;
 use core::ptr::NonNull;
 
-// 创建一个新的内核任务，打包它的环境
+/// 创建一个新的内核任务，打包它的环境
 pub fn new_kernel(
     future: impl Future<Output = ()> + 'static + Send + Sync,
     process: Arc<Process>,

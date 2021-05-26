@@ -1,6 +1,6 @@
 use spin::{Mutex, MutexGuard};
-
 /// 关闭中断的互斥锁
+/// 这个锁目前用不上，但先留着
 #[derive(Default)]
 pub struct Lock<T>(pub(self) Mutex<T>);
 

@@ -4,7 +4,6 @@ use riscv::register::{sepc, stval};
 use crate::{memory::{self, Satp}, trap::SwapContext};
 use crate::trap;
 use super::{SyscallResult, syscall};
-use alloc::vec::Vec;
 
 /// 测试用的中断处理函数，用户态发生中断会陷入到这里
 pub extern "C" fn user_trap_handler() {

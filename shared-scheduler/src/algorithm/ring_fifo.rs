@@ -23,6 +23,7 @@ impl<T, const N: usize> RingFifoScheduler<T, N> {
 
 impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T, N> {
     type Priority = ();
+    /// 添加任务
     fn add_task(&mut self, task: T) -> Option<T> {
         // 加入环形队列
         let ans = self.ring.push_back(task);
@@ -32,28 +33,34 @@ impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T,
         }
         None
     }
+    /// 取出下一个任务，成功返回 Some(T)
     fn next_task(&mut self) -> Option<T> {
         // 从头部取出
         let ans = self.ring.pop_front();
         self.current = ans.clone();
         ans
     }
+    /// 拿出下一个任务的不可变引用，不弹出
     fn peek_next_task(&self) -> Option<&T> {
-        // 拿出头部的引用
         self.ring.front()
     }
+    /// 拿出下一个任务的可变引用，不弹出
     fn peek_next_task_mut(&mut self)  -> Option<&mut T> {
         self.ring.front_mut()
     }
+    /// 获取当前任务
     fn current_task(&self) -> Option<T> {
         self.current.clone()
     }
+    /// 移除一个特定的任务
     fn remove_task(&mut self, task: &T) {
         // 移除相应的线程并且确认恰移除一个线程
         drop(task);
         todo!("还没做")
     }
+    /// 设置任务优先级
     fn set_priority(&mut self, _task: T, _prio: ()) {}
+    /// 当前调度器的任务数，如果是队列实现则返回 Some(T)
     fn queue_len(&self) -> Option<usize> {
         Some(self.ring.len())
     }

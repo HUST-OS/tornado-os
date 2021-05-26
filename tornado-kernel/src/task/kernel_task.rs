@@ -10,7 +10,6 @@ use core::fmt;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 /// 任务的信息
-// TODO: 只是内核任务，用户任务由用户自己定义表现方式
 // 如果要运行用户的进程，首先切换到用户的地址空间，其中包含一个初始化好的栈和剩余空间，然后在里面增加用户的任务
 pub struct KernelTask {
     /// 任务的编号
@@ -66,20 +65,6 @@ impl KernelTask {
             }),
             future: Mutex::new(Box::pin(future)),
         }
-    }
-}
-
-impl PartialEq for KernelTask {
-    fn eq(&self, other: &KernelTask) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for KernelTask {}
-
-impl core::hash::Hash for KernelTask {
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
     }
 }
 

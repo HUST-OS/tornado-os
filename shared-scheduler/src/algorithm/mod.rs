@@ -4,14 +4,14 @@ mod ring_fifo;
 pub use ring_fifo::RingFifoScheduler;
 
 /// 调度器实例需要实现的 Trait
-/// 
 pub trait Scheduler<T: Clone + PartialEq> {
     /// 优先级的类型
     type Priority;
     /// 向调度器中添加一个任务，成功返回 None，不成功返回 Some(T)
     fn add_task(&mut self, task: T) -> Option<T>;
-    /// 获取下一个任务的引用，但不弹出任务
+    /// 获取下一个任务的不可变引用，但不弹出任务
     fn peek_next_task(&self)  -> Option<&T>;
+    /// 获取下一个任务的可变引用，但不弹出任务
     fn peek_next_task_mut(&mut self)  -> Option<&mut T>;
     /// 弹出下一个时间段应当执行的任务
     fn next_task(&mut self) -> Option<T>;

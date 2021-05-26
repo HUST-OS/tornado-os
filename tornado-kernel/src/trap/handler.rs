@@ -1,6 +1,5 @@
 use riscv::register::{stvec, sstatus::{self, SPP, Sstatus}, sepc, scause::{self, Trap, Exception}, stval};
 use core::fmt;
-use crate::{hart::KernelHartInfo, println};
 use crate::syscall::{SyscallResult, syscall as do_syscall};
 use super::timer;
 

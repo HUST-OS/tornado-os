@@ -2,6 +2,7 @@ use super::Allocator;
 use alloc::{vec, vec::Vec};
 use core::ops::Range;
 
+/// 栈分配器
 pub struct StackedAllocator {
     list: Vec<Range<usize>>,
 }
