@@ -9,7 +9,6 @@ extern crate alloc;
 
 #[macro_use]
 pub mod console;
-pub mod shared;
 pub mod task;
 
 use buddy_system_allocator::LockedHeap;
@@ -79,8 +78,8 @@ fn main() -> i32 {
 /// 应该作为标准库的一部分，这里使用一个库函数来模拟有标准库的情况
 pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'static) -> i32 {
     let hart_id = 0; // todo!
-    let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
-    let address_space_id = unsafe { shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
+    let shared_payload = unsafe { task::shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
+    let address_space_id = unsafe { task::shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
     static mut EXIT_CODE: i32 = 0;
     let main_task = task::new_user(async move {
         unsafe { EXIT_CODE = main.await };
@@ -88,8 +87,8 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, main_task.task_repr());
     }
-    shared::run_until_ready(
-        || unsafe { shared_payload.peek_task(shared::user_should_switch) },
+    task::shared::run_until_ready(
+        || unsafe { shared_payload.peek_task(task::shared::user_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state)}
     );
@@ -98,8 +97,8 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
 
 /// 生成一个新的任务
 pub fn spawn(future: impl Future<Output = ()> + Send + Sync + 'static) {
-    let shared_payload = unsafe { shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
-    let asid = unsafe { shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
+    let shared_payload = unsafe { task::shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
+    let asid = unsafe { task::shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
     let task = task::new_user(future, shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
     unsafe {
         shared_payload.add_task(0/* todo */, asid, task.task_repr());

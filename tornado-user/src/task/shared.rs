@@ -3,7 +3,7 @@ use crate::println;
 use crate::task::UserTaskRepr;
 
 //！ 尝试在用户态给共享调度器添加任务
-use super::task::TaskResult;
+use super::TaskResult;
 use woke::waker_ref;
 use alloc::sync::Arc;
 use core::{mem, task::{Poll, Context}};
