@@ -5,6 +5,7 @@
 操作系统内核经历了几个主要的发展阶段，从裸机应用，批处理系统到多道任务系统，演变为至今主流的线程操作系统。这种系统基于线程的切换来调度任务；为了进一步提升性能，一些现代编程语言在应用层复用线程资源，提出了“协程的”的概念，节省任务调度的开销。  
 在本项目中我们提出一种新的内核开发思想：由不同资源共享调度器，在操作系统层面提供协程。我们希望这种全新设计的内核在满足传统内核的易用性的同时，拥有着专有内核的高性能特点，“像风一样快”，因此取名**飓风内核**——**tornado-os**。  
 设计文档请参考[这里](https://qf.rs/2021/04/23/%E5%BC%82%E6%AD%A5%E5%86%85%E6%A0%B8%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0.html)  
+同时这里有开发成员制作的[PPT](doc/shared_scheduler_based_async_kernel_design.pdf)
 ## 如何运行
 依赖工具：  
 + Rust 环境(nightly-2021-03-01或以上)
@@ -25,8 +26,19 @@ cd tornado-os
 just qemu user_task
 ```
 
+## 源码阅读小助手
+该项目主要由三个目录组成：  
++ shared-scheduler: 共享调度器实现
++ tornado-kernel: 飓风内核实验
++ tornado-user: 用户态代码实现
+
+其中飓风内核中与共享调度器交互的代码在[这里](tornado-kernel/src/task/shared.rs)，用户态代码和共享调度器交互的代码在[这里](tornado-user/src/task/shared.rs)。  
+内核态和用户态都分别实现了一个`执行器`，分别是[内核态执行器](tornado-kernel/src/task/executor.rs)和[用户态执行器](tornado-user/src/task/shared.rs)。  
+内核中任务的定义在[这里](tornado-kernel/src/task/kernel_task.rs)，用户态中任务的定义在[这里](tornado-user/src/task/user_task.rs)，不同的地址空间可以定义自己的任务语义，其他地址空间无法解析。  
+
 ## 开发文档
 + [无相之风战队官方网站](https://qf.rs/)
++ [doc](doc)目录
 + 代码注释
 
 ## 衍生项目
