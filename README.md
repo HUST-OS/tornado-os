@@ -26,6 +26,13 @@ cd tornado-os
 just qemu user_task
 ```
 
+## 进度
++ 内核开发基础设施(内存管理，页表机制，中断处理等)已经基本完成
++ 共享调度器的设计与实现已经完成，将来或许会有些改动，但总体实现思路已经比较成熟
++ 内核态和用户态的异步运行时的实现初步完成，由于 Rust 语言异步运行时的灵活性，将来可能有较为频繁的改动
++ 异步版的 virtio 块设备驱动已经基本完成，下一步可以继续写文件系统了(参考代码：[如何在飓风内核中运行virtio块设备读写任务](https://github.com/HUST-OS/tornado-os/tree/virtio/tornado-kernel/src/virtio))
++ **内核生成器语法**有了[可以运行的代码](https://github.com/HUST-OS/luojia-os-labs/blob/main/01b-magic-return-kern/kernel/src/executor.rs)，下一步可以考虑用在飓风内核的开发上
+
 ## 源码阅读小助手
 该项目主要由三个目录组成：  
 + shared-scheduler: 共享调度器实现
