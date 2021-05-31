@@ -11,7 +11,8 @@ shared-elf := "target/" + target + "/" + mode + "/" + "shared-scheduler"
 shared-bin := "target/" + target + "/" + mode + "/" + "shared-scheduler.bin"
 
 objdump := "riscv64-linux-gnu-objdump"
-gdb := "riscv64-unknown-elf-gdb.exe"
+gdb := "riscv64-unknown-elf-gdb"
+# gdb := "riscv64-unknown-elf-gdb.exe"
 # gdb := "/mnt/d/riscv-binutils-gdb/build_riscv/gdb/gdb"
 size := "rust-size"
 
