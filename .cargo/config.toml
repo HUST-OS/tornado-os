@@ -1,3 +1,7 @@
 [alias]
 xtask = "run --package xtask --"
-xtest = "xtask xtest"
+xbuild = "xtask build"
+qemu = "xtask qemu"
+asm = "xtask asm"
+debug = "xtask debug"
+gdb = "xtask gdb"
