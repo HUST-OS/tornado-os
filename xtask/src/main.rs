@@ -78,7 +78,7 @@ fn main() -> Result {
         let app = matches.args.get("user").unwrap();
         xtask.build_kernel()?;
         xtask.build_shared_scheduler()?;
-        xtask.build_all_user_app()?;
+        xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
         xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
@@ -284,6 +284,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             return Err(XTaskError::CommandNotFound)
         }
     }
+    /// 运行 qemu
     fn execute_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
         /* @qemu-system-riscv64 \
                 -machine virt \
@@ -303,7 +304,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         // qemu.args(&["-device", "loader,file=tornado-kernel.bin,addr=0x80200000"]);
         qemu.args(&["-bios", "../../../SBI/rustsbi-qemu.bin"]);
         qemu.args(&["-kernel", "tornado-kernel.bin"]);
-        qemu.args(&["-device", "loader,file=shared-scheduler.bin,addr=0x86000000"]);
+        qemu.args(&["-device", "loader,file=shared-scheduler.bin,addr=0x86000000"]);  // todo: 这里的地址需要可配置
         qemu.args(&["-device", format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str()]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
         qemu.arg("-nographic");
