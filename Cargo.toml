@@ -2,8 +2,10 @@
 members = [
     "tornado-kernel",
     "tornado-user",
-    "shared-scheduler"
+    "shared-scheduler",
+    "xtask"
 ]
+default-members = ["xtask"]
 
 [profile.dev]
 panic = "abort"
