@@ -19,6 +19,7 @@ struct Xtask<'x, S: AsRef<OsStr>> {
     target: &'x str,
     cargo: S,
     qemu: S,
+    gdb: S,
     objdump: S,
     objcopy: S,
     size: S,
@@ -40,6 +41,10 @@ enum XTaskError {
     SharedSchedulerObjcopyError,
     UserAppObjcopyError,
     QemuExecuteError,
+    QemuDebugError,
+    GDBError,
+    AsmError,
+    SizeError,
 }
 
 fn main() -> Result {
@@ -58,8 +63,11 @@ fn main() -> Result {
         )
         (@subcommand asm =>
             (about: "Dump asm code")
-            (@arg bin: +required "Select binary to dump")
-            (@arg release: --release "Build artifacts in release mode, with optimizations")
+            (@arg elf: +required "Select elf to dump")
+        )
+        (@subcommand size =>
+            (about: "Size")
+            (@arg elf: +required "Select elf to size")
         )
         (@subcommand debug =>
             (about: "Debug with qemu and gdb stub")
@@ -80,6 +88,9 @@ fn main() -> Result {
         xtask.build_all_user_app()?;
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
         let app = matches.args.get("user").unwrap();
+        if matches.is_present("release") {
+            xtask.set_release();
+        }
         xtask.build_kernel()?;
         xtask.build_shared_scheduler()?;
         xtask.build_user_app(app.vals[0].to_str().unwrap())?;
@@ -88,10 +99,30 @@ fn main() -> Result {
         xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
         xtask.execute_qemu(app.vals[0].to_str().unwrap(), 1)?;
     } else if let Some(matches) = matches.subcommand_matches("asm") {
-        // todo
+        let elf = matches.args.get("elf").unwrap().vals[0].to_str().unwrap();
+        match elf {
+            "kernel" => xtask.kernel_asm()?,
+            "shared_scheduler" => xtask.shared_scheduler_asm()?,
+            app => xtask.user_app_asm(app)?
+        };
+    } else if let Some(matches) = matches.subcommand_matches("size") {
+        let elf = matches.args.get("elf").unwrap().vals[0].to_str().unwrap();
+        match elf {
+            "kernel" => xtask.kernel_size()?,
+            "shared_scheduler" => xtask.shared_scheduler_size()?,
+            app => xtask.user_app_size(app)?
+        };
     } else if let Some(matches) = matches.subcommand_matches("debug") {
-    } else if let Some(matches) = matches.subcommand_matches("gdb") {
-        // todo
+        let app = matches.args.get("user").unwrap();
+        xtask.build_kernel()?;
+        xtask.build_shared_scheduler()?;
+        xtask.build_user_app(app.vals[0].to_str().unwrap())?;
+        xtask.kernel_binary()?;
+        xtask.shared_scheduler_binary()?;
+        xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
+        xtask.debug_qemu(app.vals[0].to_str().unwrap(), 1)?;
+    } else if let Some(_matches) = matches.subcommand_matches("gdb") {
+        xtask.gdb()?;
     } else {
         // todo
     }
@@ -111,12 +142,14 @@ impl<'x> Xtask<'x, String> {
             root,
             target: DEFAULT_TARGET,
             cargo,
-            qemu: String::from("qemu-system-riscv64"),
-            objcopy: String::from("rust-objcopy"), // todo: 检查系统中有哪些 objcopy
-            objdump: String::from("rust-objdump"), // todo: 检查系统中有哪些 objdump
-            size: String::from("rust-size"),       // todo: 检查系统中有哪些 size
+            qemu: "qemu-system-riscv64".to_string(),
+            gdb: "riscv64-unknown-elf-gdb".to_string(), // todo: 检查系统中 riscv gdb 的位置
+            objcopy: "rust-objcopy".to_string(), // todo: 检查系统中有哪些 objcopy
+            objdump: "rust-objdump".to_string(), // todo: 检查系统中有哪些 objdump
+            size: "rust-size".to_string(),       // todo: 检查系统中有哪些 size
         }
     }
+    #[allow(unused)]
     fn release() -> Self {
         let root = Path::new(&env!("CARGO_MANIFEST_DIR"))
             .ancestors()
@@ -129,15 +162,17 @@ impl<'x> Xtask<'x, String> {
             root,
             target: DEFAULT_TARGET,
             cargo,
-            qemu: String::from("qemu-system-riscv64"),
-            objcopy: String::from("rust-objcopy"), // todo: 检查系统中有哪些 objcopy
-            objdump: String::from("rust-objdump"), // todo: 检查系统中有哪些 objdump
-            size: String::from("rust-size"),       // todo: 检查系统中有哪些 size
+            qemu: "qemu-system-riscv64".to_string(),
+            gdb: "riscv64-unknown-elf-gdb".to_string(), // todo: 检查系统中 riscv gdb 的位置
+            objcopy: "rust-objcopy".to_string(), // todo: 检查系统中有哪些 objcopy
+            objdump: "rust-objdump".to_string(), // todo: 检查系统中有哪些 objdump
+            size: "rust-size".to_string(),       // todo: 检查系统中有哪些 size
         }
     }
 }
 
 impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
+    #[allow(unused)]
     fn set_debug(&mut self) {
         self.mode = CompileMode::Debug;
     }
@@ -305,6 +340,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         let mut qemu = Command::new(&self.qemu);
         qemu.current_dir(self.target_dir());
         qemu.args(&["-machine", "virt"]);
+        qemu.arg("-nographic");
         // qemu.args(&["-bios", "none"]);
         // qemu.args(&["-device", "loader,file=../../../SBI/rustsbi-qemu.bin,addr=0x80000000"]); // todo: 这里的地址需要可配置
         // qemu.args(&["-device", "loader,file=tornado-kernel.bin,addr=0x80200000"]);
@@ -319,13 +355,124 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
         ]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
-        qemu.arg("-nographic");
 
         if let Ok(status) = qemu.status() {
             if status.success() {
                 return Ok(());
             } else {
                 return Err(XTaskError::QemuExecuteError);
+            }
+        } else {
+            return Err(XTaskError::CommandNotFound);
+        }
+    }
+    /// 反汇编
+    fn asm<ELF: AsRef<str>>(&self, elf: ELF) -> Result {
+        let mut dump = Command::new(&self.objdump);
+        dump.current_dir(self.target_dir());
+        dump.args(&["-D", elf.as_ref()]);
+        if let Ok(status) = dump.status() {
+            if status.success() {
+                return Ok(());
+            } else {
+                return Err(XTaskError::AsmError);
+            }
+        } else {
+            return Err(XTaskError::CommandNotFound);
+        }
+    }
+    /// 内核反汇编
+    fn kernel_asm(&self) -> Result {
+        // @{{objdump}} -D {{kernel-elf}} | less
+        self.asm("tornado-kernel")
+    }
+    /// 共享调度器反汇编
+    fn shared_scheduler_asm(&self) -> Result {
+        // @{{objdump}} -D {{shared-elf}} | less
+        self.asm("shared-scheduler")
+    }
+    /// 用户程序反汇编
+    fn user_app_asm<APP: AsRef<str>>(&self, app: APP) -> Result {
+        // @{{objdump}} -D {{build-path}}/{{app}} | less
+        self.asm(app)
+    }
+    /// size
+    fn size<ELF: AsRef<str>>(&self, elf: ELF) -> Result {
+        let mut size = Command::new(&self.size);
+        size.current_dir(self.target_dir());
+        size.args(&["-A", "-x", elf.as_ref()]);
+        if let Ok(status) = size.status() {
+            if status.success() {
+                return Ok(());
+            } else {
+                return Err(XTaskError::SizeError);
+            }
+        } else {
+            return Err(XTaskError::CommandNotFound);
+        }
+    }
+    fn kernel_size(&self) -> Result {
+        self.size("tornado-kernel")
+    }
+    fn shared_scheduler_size(&self) -> Result {
+        self.size("shared-scheduler")
+    }
+    fn user_app_size<APP: AsRef<str>>(&self, app: APP) -> Result {
+        self.size(app)
+    }
+    fn debug_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
+        /* @qemu-system-riscv64 \
+        -machine virt \
+        -nographic \
+        -bios none \
+        -device loader,file={{bootloader-bin}},addr=0x80000000 \
+        -device loader,file={{kernel-bin}},addr=0x80200000 \
+        -device loader,file={{shared-bin}},addr=0x86000000 \
+        -device loader,file={{app-path}}{{app}}.bin,addr=0x87000000 \
+        -smp threads={{threads}} \
+        -gdb tcp::1234 -S \ */
+
+        let mut qemu = Command::new(&self.qemu);
+        qemu.current_dir(self.target_dir());
+        qemu.args(&["-machine", "virt"]);
+        qemu.arg("-nographic");
+
+        qemu.args(&["-bios", "../../../SBI/rustsbi-qemu.bin"]);
+        qemu.args(&["-kernel", "tornado-kernel.bin"]);
+        qemu.args(&[
+            "-device",
+            "loader,file=shared-scheduler.bin,addr=0x86000000",
+        ]); // todo: 这里的地址需要可配置
+        qemu.args(&[
+            "-device",
+            format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
+        ]);
+        qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
+        qemu.args(&["-gdb", "tcp::1234", "-S"]);
+        
+
+        if let Ok(status) = qemu.status() {
+            if status.success() {
+                return Ok(());
+            } else {
+                return Err(XTaskError::QemuDebugError);
+            }
+        } else {
+            return Err(XTaskError::CommandNotFound);
+        }
+    }
+    fn gdb(&self) -> Result {
+        // @{{gdb}} --eval-command="file {{kernel-elf}}" --eval-command="target remote localhost:1234"
+        let mut gdb = Command::new(&self.gdb);
+        gdb.current_dir(self.target_dir());
+        gdb.args(&["--eval-command", "file tornado-kernel"]);
+        gdb.args(&["--eval-command", "target remote localhost:1234"]);
+        gdb.arg("-q");
+        if let Ok(status) = gdb.status() {
+            if status.success() {
+                return Ok(());
+            } else {
+                return Err(XTaskError::GDBError);
             }
         } else {
             return Err(XTaskError::CommandNotFound);
