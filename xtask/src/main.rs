@@ -2,7 +2,7 @@ use std::{
     env,
     ffi::OsStr,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
 };
 
 #[macro_use]
@@ -103,14 +103,14 @@ fn main() -> Result {
         match elf {
             "kernel" => xtask.kernel_asm()?,
             "shared_scheduler" => xtask.shared_scheduler_asm()?,
-            app => xtask.user_app_asm(app)?
+            app => xtask.user_app_asm(app)?,
         };
     } else if let Some(matches) = matches.subcommand_matches("size") {
         let elf = matches.args.get("elf").unwrap().vals[0].to_str().unwrap();
         match elf {
             "kernel" => xtask.kernel_size()?,
             "shared_scheduler" => xtask.shared_scheduler_size()?,
-            app => xtask.user_app_size(app)?
+            app => xtask.user_app_size(app)?,
         };
     } else if let Some(matches) = matches.subcommand_matches("debug") {
         let app = matches.args.get("user").unwrap();
@@ -137,6 +137,10 @@ impl<'x> Xtask<'x, String> {
             .unwrap()
             .to_path_buf();
         let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+        let mut toolchain = Self::available_toolchain();
+        let size = toolchain.pop().unwrap();
+        let objdump = toolchain.pop().unwrap();
+        let objcopy = toolchain.pop().unwrap();
         Self {
             mode: CompileMode::Debug,
             root,
@@ -144,9 +148,9 @@ impl<'x> Xtask<'x, String> {
             cargo,
             qemu: "qemu-system-riscv64".to_string(),
             gdb: "riscv64-unknown-elf-gdb".to_string(), // todo: 检查系统中 riscv gdb 的位置
-            objcopy: "rust-objcopy".to_string(), // todo: 检查系统中有哪些 objcopy
-            objdump: "rust-objdump".to_string(), // todo: 检查系统中有哪些 objdump
-            size: "rust-size".to_string(),       // todo: 检查系统中有哪些 size
+            objcopy,
+            objdump,
+            size,
         }
     }
     #[allow(unused)]
@@ -157,6 +161,10 @@ impl<'x> Xtask<'x, String> {
             .unwrap()
             .to_path_buf();
         let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+        let mut toolchain = Self::available_toolchain();
+        let size = toolchain.pop().unwrap();
+        let objdump = toolchain.pop().unwrap();
+        let objcopy = toolchain.pop().unwrap();
         Self {
             mode: CompileMode::Release,
             root,
@@ -164,10 +172,74 @@ impl<'x> Xtask<'x, String> {
             cargo,
             qemu: "qemu-system-riscv64".to_string(),
             gdb: "riscv64-unknown-elf-gdb".to_string(), // todo: 检查系统中 riscv gdb 的位置
-            objcopy: "rust-objcopy".to_string(), // todo: 检查系统中有哪些 objcopy
-            objdump: "rust-objdump".to_string(), // todo: 检查系统中有哪些 objdump
-            size: "rust-size".to_string(),       // todo: 检查系统中有哪些 size
+            objcopy,
+            objdump,
+            size,
         }
+    }
+    fn available_toolchain() -> Vec<String> {
+        let mut toolchain = Vec::new();
+        match Self::check_tool("objcopy") {
+            Some(objcopy) => {
+                toolchain.push(objcopy);
+            }
+            None => {
+                eprintln!("objcopy tool not found.");
+                std::process::exit(1);
+            }
+        }
+        match Self::check_tool("objdump") {
+            Some(objdump) => {
+                toolchain.push(objdump);
+            }
+            None => {
+                eprintln!("objdump tool not found.");
+                std::process::exit(1);
+            }
+        }
+        match Self::check_tool("size") {
+            Some(size) => {
+                toolchain.push(size);
+            }
+            None => {
+                eprintln!("size tool not found.");
+                std::process::exit(1);
+            }
+        }
+        toolchain
+    }
+    fn check_tool<S: AsRef<str>>(tool: S) -> Option<String> {
+        // 先看系统中有没有 `rust-x` 工具
+        if let Ok(status) = Command::new(format!("rust-{}", tool.as_ref()))
+            .arg("--version")
+            .stdout(Stdio::null())
+            .status()
+        {
+            if status.success() {
+                return Some(format!("rust-{}", tool.as_ref()));
+            }
+        }
+        // 再检查系统中有没有 `riscv64-linux-gnu-x` 工具
+        if let Ok(status) = Command::new(format!("riscv64-linux-gnu-{}", tool.as_ref()))
+            .arg("--version")
+            .stdout(Stdio::null())
+            .status()
+        {
+            if status.success() {
+                return Some(format!("riscv64-linux-gnu-{}", tool.as_ref()));
+            }
+        }
+        // 最后检查系统中有没有 `riscv64-unknown-elf-x` 工具
+        if let Ok(status) = Command::new(format!("riscv64-unknown-elf-{}", tool.as_ref()))
+            .arg("--version")
+            .stdout(Stdio::null())
+            .status()
+        {
+            if status.success() {
+                return Some(format!("riscv64-unknown-elf-{}", tool.as_ref()));
+            }
+        }
+        return None;
     }
 }
 
@@ -449,7 +521,6 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         ]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
         qemu.args(&["-gdb", "tcp::1234", "-S"]);
-        
 
         if let Ok(status) = qemu.status() {
             if status.success() {
