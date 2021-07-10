@@ -1,7 +1,12 @@
-use riscv::register::{stvec, sstatus::{self, SPP, Sstatus}, sepc, scause::{self, Trap, Exception}, stval};
-use core::fmt;
-use crate::syscall::{SyscallResult, syscall as do_syscall};
 use super::timer;
+use crate::syscall::{syscall as do_syscall, SyscallResult};
+use core::fmt;
+use riscv::register::{
+    scause::{self, Exception, Trap},
+    sepc,
+    sstatus::{self, Sstatus, SPP},
+    stval, stvec,
+};
 
 macro_rules! save_non_switch {
     () => {
@@ -129,12 +134,12 @@ macro_rules! restore_switch {
         LOAD	sp, 2"
     };
 }
-  
+
 impl TrapFrame {
     // 新建任务时，构建它的上下文
     pub fn new_task_context(is_user: bool, pc: usize, tp: usize, stack_top: usize) -> TrapFrame {
         // 设置sstatus的特权级
-        if is_user {    
+        if is_user {
             unsafe { sstatus::set_spp(SPP::User) };
         } else {
             unsafe { sstatus::set_spp(SPP::Supervisor) };
@@ -145,7 +150,7 @@ impl TrapFrame {
         let mut ans = TrapFrame {
             x: [0; 32],
             sstatus,
-            sepc: pc
+            sepc: pc,
         };
         // 设置栈顶
         ans.x[2] = stack_top;
@@ -211,7 +216,7 @@ pub unsafe extern "C" fn supervisor_timer() {
         restore_non_switch!(),
         "sret",
         REGBYTES = const core::mem::size_of::<usize>(),
-        supervisor_timer = sym rust_supervisor_timer,    
+        supervisor_timer = sym rust_supervisor_timer,
         options(noreturn)
     )
 }
@@ -219,8 +224,8 @@ pub unsafe extern "C" fn supervisor_timer() {
 pub extern "C" fn rust_supervisor_timer(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     // panic!("Supervisor timer: {:08x}", sepc::read());
     timer::tick(); // 设置下一个时钟中断时间
-    // 保存当前任务的上下文
-    // todo
+                   // 保存当前任务的上下文
+                   // todo
     trap_frame
 }
 
@@ -242,7 +247,7 @@ pub unsafe extern "C" fn trap_exception() {
         restore_switch!(),
         "sret",
         REGBYTES = const core::mem::size_of::<usize>(),
-        trap_exception = sym rust_trap_exception,    
+        trap_exception = sym rust_trap_exception,
         options(noreturn)
     )
 }
@@ -251,9 +256,14 @@ pub extern "C" fn rust_trap_exception(trap_frame: &mut TrapFrame) -> *mut TrapFr
     match scause::read().cause() {
         Trap::Exception(Exception::Breakpoint) => breakpoint(trap_frame),
         Trap::Exception(Exception::UserEnvCall) => syscall(trap_frame),
-        Trap::Exception(e) => 
-            panic!("Exception! {:?}, sepc: {:#08x}, stval: {:#08x}, trap_frame: {}", e, sepc::read(), stval::read(), trap_frame),
-        Trap::Interrupt(_) => unreachable!("SBI or CPU design fault")
+        Trap::Exception(e) => panic!(
+            "Exception! {:?}, sepc: {:#08x}, stval: {:#08x}, trap_frame: {}",
+            e,
+            sepc::read(),
+            stval::read(),
+            trap_frame
+        ),
+        Trap::Interrupt(_) => unreachable!("SBI or CPU design fault"),
     }
 }
 
@@ -264,9 +274,13 @@ fn breakpoint(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
 }
 
 fn syscall(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
-    println!("Syscall at {:#08x}; note that user_satp /*todo*/", trap_frame.sepc);
+    println!(
+        "Syscall at {:#08x}; note that user_satp /*todo*/",
+        trap_frame.sepc
+    );
     let param = [trap_frame.x[10], trap_frame.x[11], 0, 0, 0, 0]; // a0, a1
-    match do_syscall(param, 0/* todo */, trap_frame.x[16], trap_frame.x[17]) { // a6, a7
+    match do_syscall(param, 0 /* todo */, trap_frame.x[16], trap_frame.x[17]) {
+        // a6, a7
         SyscallResult::Procceed { code, extra } => {
             trap_frame.x[10] = code; // a0
             trap_frame.x[11] = extra; // a1
@@ -274,7 +288,7 @@ fn syscall(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
             trap_frame
         }
         SyscallResult::Retry => trap_frame, // don't skip
-        _ => unimplemented!()
+        _ => unimplemented!(),
     }
 }
 
@@ -291,13 +305,45 @@ impl fmt::Display for TrapFrame {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let x = self.x;
         writeln!(f, "")?;
-        writeln!(f, "x0: {:016x}, ra: {:016x}, sp: {:016x}, gp: {:016x}", 0, x[1], x[2], x[3])?;
-        writeln!(f, "tp: {:016x}, t0: {:016x}, t1: {:016x}, t2: {:016x}", x[4], x[5], x[6], x[7])?;
-        writeln!(f, "s0: {:016x}, s1: {:016x}, a0: {:016x}, a1: {:016x}", x[8], x[9], x[10], x[11])?;
-        writeln!(f, "a2: {:016x}, a3: {:016x}, a4: {:016x}, a5: {:016x}", x[12], x[13], x[14], x[15])?;
-        writeln!(f, "a6: {:016x}, a7: {:016x}, s2: {:016x}, s3: {:016x}", x[16], x[17], x[18], x[19])?;
-        writeln!(f, "s4: {:016x}, s5: {:016x}, s6: {:016x}, s7: {:016x}", x[20], x[21], x[22], x[23])?;
-        writeln!(f, "s8: {:016x}, s9: {:016x}, s10:{:016x}, s11:{:016x}", x[24], x[25], x[26], x[27])?;
-        writeln!(f, "t3: {:016x}, t4: {:016x}, t5: {:016x}, t6: {:016x}", x[28], x[29], x[30], x[31])
+        writeln!(
+            f,
+            "x0: {:016x}, ra: {:016x}, sp: {:016x}, gp: {:016x}",
+            0, x[1], x[2], x[3]
+        )?;
+        writeln!(
+            f,
+            "tp: {:016x}, t0: {:016x}, t1: {:016x}, t2: {:016x}",
+            x[4], x[5], x[6], x[7]
+        )?;
+        writeln!(
+            f,
+            "s0: {:016x}, s1: {:016x}, a0: {:016x}, a1: {:016x}",
+            x[8], x[9], x[10], x[11]
+        )?;
+        writeln!(
+            f,
+            "a2: {:016x}, a3: {:016x}, a4: {:016x}, a5: {:016x}",
+            x[12], x[13], x[14], x[15]
+        )?;
+        writeln!(
+            f,
+            "a6: {:016x}, a7: {:016x}, s2: {:016x}, s3: {:016x}",
+            x[16], x[17], x[18], x[19]
+        )?;
+        writeln!(
+            f,
+            "s4: {:016x}, s5: {:016x}, s6: {:016x}, s7: {:016x}",
+            x[20], x[21], x[22], x[23]
+        )?;
+        writeln!(
+            f,
+            "s8: {:016x}, s9: {:016x}, s10:{:016x}, s11:{:016x}",
+            x[24], x[25], x[26], x[27]
+        )?;
+        writeln!(
+            f,
+            "t3: {:016x}, t4: {:016x}, t5: {:016x}, t6: {:016x}",
+            x[28], x[29], x[30], x[31]
+        )
     }
 }

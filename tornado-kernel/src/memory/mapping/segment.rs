@@ -1,5 +1,5 @@
-use crate::memory::{VirtualAddress, VirtualPageNumber};
 use crate::memory::mapping::Flags;
+use crate::memory::{VirtualAddress, VirtualPageNumber};
 use core::ops::Range;
 
 /// 映射的类型
@@ -8,7 +8,7 @@ pub enum MapType {
     /// 线性映射，操作系统使用
     Linear,
     /// 按帧分配映射
-     // 后面给用户上下文用
+    // 后面给用户上下文用
     Framed,
 }
 

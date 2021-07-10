@@ -1,9 +1,9 @@
 //! 和处理核相关的函数
-use alloc::collections::LinkedList;
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use crate::task::Process;
 use crate::memory::{AddressSpaceId, Satp};
+use crate::task::Process;
+use alloc::boxed::Box;
+use alloc::collections::LinkedList;
+use alloc::sync::Arc;
 
 /// 写一个指针到上下文指针
 #[inline]
@@ -15,7 +15,9 @@ pub unsafe fn write_tp(tp: usize) {
 #[inline]
 pub fn read_tp() -> usize {
     let tp: usize;
-    unsafe { asm!("mv {}, tp", out(reg) tp, options(nomem, nostack)); }; // rust-lang/rust#82753 Thank you @Amanieu :)
+    unsafe {
+        asm!("mv {}, tp", out(reg) tp, options(nomem, nostack));
+    }; // rust-lang/rust#82753 Thank you @Amanieu :)
     tp
 }
 
@@ -27,7 +29,7 @@ pub struct KernelHartInfo {
     current_process: Option<Arc<Process>>,
     hart_max_asid: AddressSpaceId,
     asid_alloc: (LinkedList<usize>, usize), // 空余的编号回收池；目前已分配最大的编号
-    satps: LinkedList<(AddressSpaceId, Satp)> // 记录地址空间与 satp 寄存器的对应关系 
+    satps: LinkedList<(AddressSpaceId, Satp)>, // 记录地址空间与 satp 寄存器的对应关系
 }
 
 impl KernelHartInfo {
@@ -39,7 +41,7 @@ impl KernelHartInfo {
             current_process: None,
             hart_max_asid: crate::memory::max_asid(),
             asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
-            satps: LinkedList::new()
+            satps: LinkedList::new(),
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
@@ -55,7 +57,7 @@ impl KernelHartInfo {
     /// 得到当前硬件线程的编号，必须在load_hart之后使用
     pub fn hart_id() -> usize {
         use_tp_box(|b| b.hart_id)
-    }  
+    }
 
     pub unsafe fn load_address_space_id(asid: AddressSpaceId) {
         use_tp_box(|b| b.current_address_space_id = asid);
@@ -70,7 +72,6 @@ impl KernelHartInfo {
         use_tp_box(|b| b.current_process = Some(process.clone()));
     }
 
-    
     pub fn current_process() -> Option<Arc<Process>> {
         use_tp_box(|b| b.current_process.clone())
     }
@@ -79,8 +80,11 @@ impl KernelHartInfo {
     pub fn alloc_address_space_id() -> Option<AddressSpaceId> {
         use_tp_box(|b| {
             let (free, max) = &mut b.asid_alloc;
-            if let Some(_) = free.front() { // 如果链表有内容，返回内容
-                return free.pop_front().map(|idx| unsafe { AddressSpaceId::from_raw(idx) })
+            if let Some(_) = free.front() {
+                // 如果链表有内容，返回内容
+                return free
+                    .pop_front()
+                    .map(|idx| unsafe { AddressSpaceId::from_raw(idx) });
             }
             // 如果链表是空的
             if *max < b.hart_max_asid.into_inner() {
@@ -111,7 +115,7 @@ impl KernelHartInfo {
                         satps.push_back((x.0, x.1));
                     }
                 }
-            }            
+            }
         });
     }
 

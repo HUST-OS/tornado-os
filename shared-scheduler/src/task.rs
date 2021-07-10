@@ -1,5 +1,5 @@
 //! 共享任务调度器
-use crate::algorithm::{Scheduler, RingFifoScheduler};
+use crate::algorithm::{RingFifoScheduler, Scheduler};
 use crate::mm::AddressSpaceId;
 use core::ptr::NonNull;
 use spin::Mutex;
@@ -18,7 +18,7 @@ pub enum TaskResult {
     /// 调度器里面没有醒着的任务，但存在睡眠任务
     NoWakeTask,
     /// 队列已空，所有任务已经结束
-    Finished
+    Finished,
 }
 
 /// 任务的表示形式
@@ -58,14 +58,15 @@ pub enum TaskState {
 }
 
 /// 给共享调度器添加任务
-/// 
+///
 /// 在内核态和用户态都可以调用
 pub unsafe extern "C" fn shared_add_task(
     shared_scheduler: NonNull<()>,
     hart_id: usize,
     address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
-) -> bool { // 本次比赛的设计比较简单，true表示成功，false表示失败
+) -> bool {
+    // 本次比赛的设计比较简单，true表示成功，false表示失败
     // println!("[Shared add task] {:p} {} {:?} {:x?}", shared_scheduler, hart_id, address_space_id, task_repr);
     let s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let handle = prepare_handle(hart_id, address_space_id, task_repr);
@@ -73,7 +74,8 @@ pub unsafe extern "C" fn shared_add_task(
     scheduler.add_task(handle).is_none()
 }
 
-#[inline] unsafe fn prepare_handle(
+#[inline]
+unsafe fn prepare_handle(
     hart_id: usize,
     address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
@@ -86,14 +88,13 @@ pub unsafe extern "C" fn shared_add_task(
     }
 }
 
-
 /// 从共享调度器中找到下一个任务
 /// 如果任务处于睡眠状态则重新放入调度队列尾部
-/// 
+///
 /// 内核态和用户态都可以调用
 pub unsafe extern "C" fn shared_peek_task(
     shared_scheduler: NonNull<()>,
-    should_switch: extern "C" fn(AddressSpaceId) -> bool
+    should_switch: extern "C" fn(AddressSpaceId) -> bool,
 ) -> TaskResult {
     // 得到共享调度器的引用
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
@@ -128,9 +129,9 @@ pub unsafe extern "C" fn shared_peek_task(
                         return TaskResult::Task(task_repr);
                     }
                 }
-            },
+            }
             // 没有任务了，返回已完成
-            None => return TaskResult::Finished
+            None => return TaskResult::Finished,
         }
     }
 }
@@ -138,14 +139,16 @@ pub unsafe extern "C" fn shared_peek_task(
 /// 删除一个共享调度器中的任务
 pub unsafe extern "C" fn shared_delete_task(
     shared_scheduler: NonNull<()>,
-    task_repr: TaskRepr
-) -> bool  {
+    task_repr: TaskRepr,
+) -> bool {
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
     let len = scheduler.queue_len().unwrap();
     let mut count = 0;
     loop {
-        if count >= len { return false; }
+        if count >= len {
+            return false;
+        }
         let next_handle = scheduler.peek_next_task();
         match next_handle {
             Some(task) => {
@@ -166,8 +169,8 @@ pub unsafe extern "C" fn shared_delete_task(
                     count += 1;
                     // 进入下一次循环
                 }
-            },
-            None => return false
+            }
+            None => return false,
         }
     }
 }
@@ -183,7 +186,9 @@ pub unsafe extern "C" fn shared_set_task_state(
     let len = scheduler.queue_len().unwrap();
     let mut count = 0;
     loop {
-        if count >= len { panic!("task not found!") }
+        if count >= len {
+            panic!("task not found!")
+        }
         let next_handle = scheduler.peek_next_task();
         match next_handle {
             Some(task) => {
@@ -204,8 +209,8 @@ pub unsafe extern "C" fn shared_set_task_state(
                     count += 1;
                     // 进入下一次循环
                 }
-            },
-            None => panic!("task not found!")
+            }
+            None => panic!("task not found!"),
         }
     }
 }

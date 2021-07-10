@@ -1,6 +1,6 @@
 use crate::algorithm::{Allocator, StackedAllocator};
-use crate::memory::{PhysicalPageNumber, frame::FrameTracker};
 use crate::memory::config::{FREE_MEMORY_START, MEMORY_END_ADDRESS};
+use crate::memory::{frame::FrameTracker, PhysicalPageNumber};
 use core::ops::Range;
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -18,7 +18,6 @@ lazy_static! {
     };
 }
 
-
 pub struct FrameAllocator<A> {
     allocator: A,
     start_ppn: PhysicalPageNumber,
@@ -33,7 +32,8 @@ impl<A: Allocator> FrameAllocator<A> {
     }
 
     pub fn alloc(&mut self) -> Option<FrameTracker> {
-        self.allocator.alloc()
+        self.allocator
+            .alloc()
             .map(|idx| FrameTracker(self.start_ppn + idx))
     }
 }

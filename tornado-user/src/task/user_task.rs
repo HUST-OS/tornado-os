@@ -1,9 +1,9 @@
-use spin::Mutex;
-use core::pin::Pin;
 use alloc::boxed::Box;
-use core::future::Future;
-use core::sync::atomic::{AtomicUsize, Ordering};
 use core::fmt;
+use core::future::Future;
+use core::pin::Pin;
+use core::sync::atomic::{AtomicUsize, Ordering};
+use spin::Mutex;
 
 /// 临时的用户态任务实现
 pub struct UserTask {
@@ -12,7 +12,7 @@ pub struct UserTask {
     /// 任务信息的可变部分
     pub inner: Mutex<UserTaskInner>,
     /// 任务的 future
-    pub future: Mutex<Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>> // 用UnsafeCell代替Mutex会好一点
+    pub future: Mutex<Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>>, // 用UnsafeCell代替Mutex会好一点
 }
 
 /// 任务信息的可变部分
@@ -21,7 +21,7 @@ pub struct UserTaskInner {
     /// 任务是否在休眠
     pub sleeping: bool,
     /// 任务是否已经结束
-    pub finished: bool
+    pub finished: bool,
 }
 
 /// 用户任务的编号
@@ -43,9 +43,7 @@ impl UserTaskId {
 
 impl UserTask {
     /// 创建一个用户态任务
-    pub fn new(
-        future: impl Future<Output = ()> + 'static + Send + Sync,
-    ) -> UserTask {
+    pub fn new(future: impl Future<Output = ()> + 'static + Send + Sync) -> UserTask {
         // 得到新的用户任务编号
         let id = UserTaskId::generate();
         // 打包成用户态任务
@@ -55,7 +53,7 @@ impl UserTask {
                 sleeping: false,
                 finished: false,
             }),
-            future: Mutex::new(Box::pin(future))
+            future: Mutex::new(Box::pin(future)),
         }
     }
 }
@@ -70,4 +68,3 @@ impl fmt::Debug for UserTask {
             .finish()
     }
 }
-

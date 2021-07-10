@@ -1,8 +1,8 @@
 use crate::memory::{PhysicalPageNumber, VirtualPageNumber};
 
 use super::{page_table::PageTable, page_table_entry::PageTableEntry};
-use riscv::register::satp::Mode;
 use bit_field::BitField;
+use riscv::register::satp::Mode;
 
 /// Satp 寄存器，用于用户陷入内核态的时候提供地址映射帮助
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -22,7 +22,7 @@ impl Satp {
             _ => unreachable!(),
         }
     }
-    
+
     /// 地址空间参数
     pub fn asid(&self) -> usize {
         self.0.get_bits(44..60)
@@ -54,11 +54,9 @@ impl Satp {
 
     /// 将虚拟页号转换为物理页号
     pub fn translate(&self, vpn: VirtualPageNumber) -> Option<PhysicalPageNumber> {
-        self.find_pte(vpn).map(
-            |pte| {pte.page_number()}
-        )
+        self.find_pte(vpn).map(|pte| pte.page_number())
     }
-    
+
     pub fn inner(&self) -> usize {
         self.0
     }

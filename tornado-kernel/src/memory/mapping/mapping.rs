@@ -1,5 +1,12 @@
-use crate::memory::{AddressSpaceId, PhysicalPageNumber, PhysicalAddress, VirtualAddress, VirtualPageNumber, config::PAGE_SIZE, frame::FrameTracker, frame_alloc};
-use super::{Flags, MapType, Segment, page_table::{PageTable, PageTableTracker}, page_table_entry::PageTableEntry};
+use super::{
+    page_table::{PageTable, PageTableTracker},
+    page_table_entry::PageTableEntry,
+    Flags, MapType, Segment,
+};
+use crate::memory::{
+    config::PAGE_SIZE, frame::FrameTracker, frame_alloc, AddressSpaceId, PhysicalAddress,
+    PhysicalPageNumber, VirtualAddress, VirtualPageNumber,
+};
 use alloc::{collections::VecDeque, vec::Vec};
 use bit_field::BitField;
 use core::ops::Range;
@@ -74,17 +81,23 @@ impl Mapping {
 
     /// 地址转换
     pub fn translate(&self, vpn: VirtualPageNumber) -> Option<PageTableEntry> {
-        self.find_pte(vpn).map(
-            |pte| {pte.clone()}
-        )
+        self.find_pte(vpn).map(|pte| pte.clone())
     }
 
     /// 插入一项虚拟页号对物理页号的映射关系，Some表示成功
-    pub fn map_one(&mut self, vpn: VirtualPageNumber, ppn: Option<PhysicalPageNumber>, flags: Flags) -> Option<()> {
+    pub fn map_one(
+        &mut self,
+        vpn: VirtualPageNumber,
+        ppn: Option<PhysicalPageNumber>,
+        flags: Flags,
+    ) -> Option<()> {
         // 先找到页表项
         let entry_mut = self.find_or_insert_entry(vpn)?;
         // 要插入映射关系，页表项必须是空的
-        assert!(entry_mut.is_empty(), "virtual address should not already be mapped");
+        assert!(
+            entry_mut.is_empty(),
+            "virtual address should not already be mapped"
+        );
         // 然后向空的页表项写入内容
         *entry_mut = PageTableEntry::new(ppn, flags);
         Some(())
@@ -92,38 +105,43 @@ impl Mapping {
 
     /// 插入并映射一个段
     pub fn map_segment(
-        &mut self, segment: &Segment, init_data: Option<&[u8]>
+        &mut self,
+        segment: &Segment,
+        init_data: Option<&[u8]>,
     ) -> Option<Vec<(VirtualPageNumber, FrameTracker)>> {
         match segment.map_type {
             MapType::Linear => self.map_range_linear(
-                range_vpn_contains_va(segment.range.clone()), 
+                range_vpn_contains_va(segment.range.clone()),
                 segment.flags,
-                init_data.map(|slice| (slice, segment.range.clone()))
+                init_data.map(|slice| (slice, segment.range.clone())),
             ),
             MapType::Framed => self.map_range_framed(
-                range_vpn_contains_va(segment.range.clone()), 
+                range_vpn_contains_va(segment.range.clone()),
                 segment.flags,
-                init_data.map(|slice| (slice, segment.range.clone()))
+                init_data.map(|slice| (slice, segment.range.clone())),
             ),
         }
     }
 
     /// 自由映射一个段
     pub fn map_defined(
-        &mut self, va_range: &Range<VirtualAddress>, pa_range: &Range<PhysicalAddress>, flags: Flags
+        &mut self,
+        va_range: &Range<VirtualAddress>,
+        pa_range: &Range<PhysicalAddress>,
+        flags: Flags,
     ) {
         let vpn_range = range_vpn_contains_va(va_range.clone());
         let ppn_range = range_vpn_contains_pa(pa_range.clone());
         self.map_range(vpn_range, ppn_range, flags);
     }
-    
+
     // 映射指定的虚拟页号和物理页号
     // 不能指定初始数据
     fn map_range(
         &mut self,
         vpn_range: Range<VirtualPageNumber>,
         ppn_range: Range<PhysicalPageNumber>,
-        flags: Flags
+        flags: Flags,
     ) {
         let mut vpn_iter = vpn_step_iter(vpn_range);
         let mut ppn_iter = ppn_step_iter(ppn_range);
@@ -138,7 +156,10 @@ impl Mapping {
 
     // 插入和映射线性的段
     fn map_range_linear(
-        &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
+        &mut self,
+        vpn_range: Range<VirtualPageNumber>,
+        flags: Flags,
+        init: Option<(&[u8], Range<VirtualAddress>)>,
     ) -> Option<Vec<(VirtualPageNumber, FrameTracker)>> {
         for vpn in vpn_step_iter(vpn_range) {
             self.map_one(vpn, Some(vpn.physical_page_number_linear()), flags)?;
@@ -154,7 +175,10 @@ impl Mapping {
 
     // 插入和映射按帧分页的段
     fn map_range_framed(
-        &mut self, vpn_range: Range<VirtualPageNumber>, flags: Flags, init: Option<(&[u8], Range<VirtualAddress>)>
+        &mut self,
+        vpn_range: Range<VirtualPageNumber>,
+        flags: Flags,
+        init: Option<(&[u8], Range<VirtualAddress>)>,
     ) -> Option<Vec<(VirtualPageNumber, FrameTracker)>> {
         let mut _allocated_pairs = Vec::new();
         for vpn in vpn_step_iter(vpn_range) {
@@ -169,10 +193,8 @@ impl Mapping {
                 };
                 let end = usize::min(PAGE_SIZE, va_range.end - page_start_va);
                 let dst_slice = &mut page_data[start..end];
-                let src_slice = &src_data[
-                    (page_start_va + start - va_range.start)
-                    ..(page_start_va + end - va_range.start)
-                ];
+                let src_slice = &src_data[(page_start_va + start - va_range.start)
+                    ..(page_start_va + end - va_range.start)];
                 dst_slice.copy_from_slice(src_slice);
             }
             // 分配新的页帧，用于映射

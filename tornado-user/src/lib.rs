@@ -28,7 +28,12 @@ static HEAP: LockedHeap = LockedHeap::empty();
 pub fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     let err = panic_info.message().unwrap().as_str();
     if let Some(location) = panic_info.location() {
-        syscall::sys_panic(Some(location.file()), location.line(), location.column(), err);
+        syscall::sys_panic(
+            Some(location.file()),
+            location.line(),
+            location.column(),
+            err,
+        );
     } else {
         syscall::sys_panic(None, 0, 0, err);
     }
@@ -55,11 +60,16 @@ pub extern "C" fn _start() -> ! {
         ADDRESS_SPACE_ID = address_space_id;
     }
     extern "C" {
-        fn sbss(); fn ebss();
-    } 
-    unsafe { 
-        r0::zero_bss(&mut sbss as *mut _ as *mut u32, &mut ebss as *mut _ as *mut u32);
-        HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
+        fn sbss();
+        fn ebss();
+    }
+    unsafe {
+        r0::zero_bss(
+            &mut sbss as *mut _ as *mut u32,
+            &mut ebss as *mut _ as *mut u32,
+        );
+        HEAP.lock()
+            .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
     let exit_code = main();
     exit(exit_code);
@@ -81,16 +91,20 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
     let shared_payload = unsafe { task::shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
     let address_space_id = unsafe { task::shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
     static mut EXIT_CODE: i32 = 0;
-    let main_task = task::new_user(async move {
-        unsafe { EXIT_CODE = main.await };
-    }, shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
+    let main_task = task::new_user(
+        async move {
+            unsafe { EXIT_CODE = main.await };
+        },
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, main_task.task_repr());
     }
     task::shared::run_until_ready(
         || unsafe { shared_payload.peek_task(task::shared::user_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
-        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state)}
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
     unsafe { EXIT_CODE }
 }
@@ -99,43 +113,55 @@ pub fn execute_async_main(main: impl Future<Output = i32> + Send + Sync + 'stati
 pub fn spawn(future: impl Future<Output = ()> + Send + Sync + 'static) {
     let shared_payload = unsafe { task::shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
     let asid = unsafe { task::shared::AddressSpaceId::from_raw(ADDRESS_SPACE_ID) };
-    let task = task::new_user(future, shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
+    let task = task::new_user(
+        future,
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
     unsafe {
-        shared_payload.add_task(0/* todo */, asid, task.task_repr());
+        shared_payload.add_task(0 /* todo */, asid, task.task_repr());
     }
 }
 
 use syscall::*;
 
-pub fn exit(exit_code: i32) -> SyscallResult { sys_exit(exit_code) }
-pub fn do_yield(next_asid: usize) -> SyscallResult { sys_yield(next_asid) }
-pub fn test_write(buf: &[u8]) -> SyscallResult { sys_test_write(buf) }
+pub fn exit(exit_code: i32) -> SyscallResult {
+    sys_exit(exit_code)
+}
+pub fn do_yield(next_asid: usize) -> SyscallResult {
+    sys_yield(next_asid)
+}
+pub fn test_write(buf: &[u8]) -> SyscallResult {
+    sys_test_write(buf)
+}
 mod syscall {
     const MODULE_PROCESS: usize = 0x114514;
     const MODULE_TEST_INTERFACE: usize = 0x233666;
     const MODULE_TASK: usize = 0x7777777;
-    
+
     const FUNC_PROCESS_EXIT: usize = 0x1919810;
     const FUNC_PROCESS_PANIC: usize = 0x11451419;
 
     const FUNC_TEST_WRITE: usize = 0x666233;
     pub struct SyscallResult {
         pub code: usize,
-        pub extra: usize
+        pub extra: usize,
     }
-    
+
     fn syscall_0(module: usize, func: usize) -> SyscallResult {
         match () {
             #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
             () => {
                 let (code, extra);
-                unsafe { asm!(
-                    "ecall", 
-                    in("a6") func, in("a7") module,
-                    lateout("a0") code, lateout("a1") extra,
-                ) };
+                unsafe {
+                    asm!(
+                        "ecall",
+                        in("a6") func, in("a7") module,
+                        lateout("a0") code, lateout("a1") extra,
+                    )
+                };
                 SyscallResult { code, extra }
-            },
+            }
             #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
             () => {
                 drop((module, func));
@@ -149,14 +175,16 @@ mod syscall {
             #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
             () => {
                 let (code, extra);
-                unsafe { asm!(
-                    "ecall", 
-                    in("a0") arg,
-                    in("a6") func, in("a7") module,
-                    lateout("a0") code, lateout("a1") extra,
-                ) };
+                unsafe {
+                    asm!(
+                        "ecall",
+                        in("a0") arg,
+                        in("a6") func, in("a7") module,
+                        lateout("a0") code, lateout("a1") extra,
+                    )
+                };
                 SyscallResult { code, extra }
-            },
+            }
             #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
             () => {
                 drop((module, func, arg));
@@ -170,14 +198,16 @@ mod syscall {
             #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
             () => {
                 let (code, extra);
-                unsafe { asm!(
-                    "ecall", 
-                    in("a0") args[0], in("a1") args[1], in("a2") args[2],
-                    in("a6") func, in("a7") module,
-                    lateout("a0") code, lateout("a1") extra,
-                ) };
+                unsafe {
+                    asm!(
+                        "ecall",
+                        in("a0") args[0], in("a1") args[1], in("a2") args[2],
+                        in("a6") func, in("a7") module,
+                        lateout("a0") code, lateout("a1") extra,
+                    )
+                };
                 SyscallResult { code, extra }
-            },
+            }
             #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
             () => {
                 drop((module, func, args));
@@ -191,14 +221,16 @@ mod syscall {
             #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
             () => {
                 let (code, extra);
-                unsafe { asm!(
-                    "ecall", 
-                    in("a0") args[0], in("a1") args[1], in("a2") args[2], in("a3") args[3],
-                    in("a6") func, in("a7") module,
-                    lateout("a0") code, lateout("a1") extra,
-                ) };
+                unsafe {
+                    asm!(
+                        "ecall",
+                        in("a0") args[0], in("a1") args[1], in("a2") args[2], in("a3") args[3],
+                        in("a6") func, in("a7") module,
+                        lateout("a0") code, lateout("a1") extra,
+                    )
+                };
                 SyscallResult { code, extra }
-            },
+            }
             #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
             () => {
                 drop((module, func, args));
@@ -212,15 +244,17 @@ mod syscall {
             #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
             () => {
                 let (code, extra);
-                unsafe { asm!(
-                    "ecall", 
-                    in("a0") args[0], in("a1") args[1], in("a2") args[2],
-                    in("a3") args[3], in("a4") args[4], in("a5") args[5],
-                    in("a6") func, in("a7") module,
-                    lateout("a0") code, lateout("a1") extra,
-                ) };
+                unsafe {
+                    asm!(
+                        "ecall",
+                        in("a0") args[0], in("a1") args[1], in("a2") args[2],
+                        in("a3") args[3], in("a4") args[4], in("a5") args[5],
+                        in("a6") func, in("a7") module,
+                        lateout("a0") code, lateout("a1") extra,
+                    )
+                };
                 SyscallResult { code, extra }
-            },
+            }
             #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
             () => {
                 drop((module, func, args));
@@ -233,20 +267,34 @@ mod syscall {
         syscall_1(MODULE_PROCESS, FUNC_PROCESS_EXIT, exit_code as usize)
     }
 
-    pub fn sys_panic(file_name: Option<&str>, line: u32, col: u32, msg: Option<&str>) -> SyscallResult {
-        let (f_buf, f_len) = file_name.map(|s| (s.as_ptr() as usize, s.len())).unwrap_or((0, 0));
-        let (m_buf, m_len) = msg.map(|s| (s.as_ptr() as usize, s.len())).unwrap_or((0, 0));
+    pub fn sys_panic(
+        file_name: Option<&str>,
+        line: u32,
+        col: u32,
+        msg: Option<&str>,
+    ) -> SyscallResult {
+        let (f_buf, f_len) = file_name
+            .map(|s| (s.as_ptr() as usize, s.len()))
+            .unwrap_or((0, 0));
+        let (m_buf, m_len) = msg
+            .map(|s| (s.as_ptr() as usize, s.len()))
+            .unwrap_or((0, 0));
         syscall_6(
-            MODULE_PROCESS, FUNC_PROCESS_PANIC, 
-            [line as usize, col as usize, f_buf, f_len, m_buf, m_len]
+            MODULE_PROCESS,
+            FUNC_PROCESS_PANIC,
+            [line as usize, col as usize, f_buf, f_len, m_buf, m_len],
         )
-    }    
-    
+    }
+
     pub fn sys_yield(next_asid: usize) -> SyscallResult {
         todo!()
     }
 
     pub fn sys_test_write(buf: &[u8]) -> SyscallResult {
-        syscall_3(MODULE_TEST_INTERFACE, FUNC_TEST_WRITE, [0, buf.as_ptr() as usize, buf.len()])
+        syscall_3(
+            MODULE_TEST_INTERFACE,
+            FUNC_TEST_WRITE,
+            [0, buf.as_ptr() as usize, buf.len()],
+        )
     }
 }

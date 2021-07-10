@@ -1,5 +1,5 @@
-use core::fmt::{self, Write};
 use super::test_write;
+use core::fmt::{self, Write};
 
 struct Stdout;
 

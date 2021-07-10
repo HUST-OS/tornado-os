@@ -1,11 +1,11 @@
+use alloc::sync::Arc;
 use core::future::Future;
 use core::ptr::NonNull;
-use alloc::sync::Arc;
-use user_task::UserTask;
 use shared::TaskState;
+use user_task::UserTask;
 
-pub mod user_task;
 pub mod shared;
+pub mod user_task;
 
 /// 共享调度器返回的结果
 #[derive(Debug)]
@@ -24,37 +24,36 @@ pub enum TaskResult {
 pub fn new_user(
     future: impl Future<Output = ()> + 'static + Send + Sync,
     shared_scheduler: NonNull<()>,
-    set_task_state: unsafe extern "C" fn(NonNull<()>, usize, TaskState)
+    set_task_state: unsafe extern "C" fn(NonNull<()>, usize, TaskState),
 ) -> Arc<UserTaskRepr> {
-    Arc::new(
-        UserTaskRepr(
-            UserTask::new(future),
-            shared_scheduler.as_ptr() as usize,
-            set_task_state
-        )
-    )
+    Arc::new(UserTaskRepr(
+        UserTask::new(future),
+        shared_scheduler.as_ptr() as usize,
+        set_task_state,
+    ))
 }
 
-
 #[derive(Debug)]
-pub struct UserTaskRepr (
-    UserTask, usize,
-    unsafe extern "C" fn(NonNull<()>, usize, TaskState)
+pub struct UserTaskRepr(
+    UserTask,
+    usize,
+    unsafe extern "C" fn(NonNull<()>, usize, TaskState),
 );
 
 impl UserTaskRepr {
     /// 转换到共享的任务编号
-    /// 
+    ///
     /// note(unsafe): 创建了一个没有边界的生命周期
     pub unsafe fn task_repr(self: Arc<Self>) -> usize {
         Arc::into_raw(self) as usize
     }
     pub unsafe fn do_wake(self: &Arc<Self>) {
-        let shared_scheduler = NonNull::new(self.1 as *mut()).unwrap();
+        let shared_scheduler = NonNull::new(self.1 as *mut ()).unwrap();
         let task_repr = Arc::as_ptr(self) as usize;
         (self.2)(shared_scheduler, task_repr, TaskState::Ready)
     }
-    #[inline] pub fn task(&self) -> &UserTask {
+    #[inline]
+    pub fn task(&self) -> &UserTask {
         &self.0
     }
 }

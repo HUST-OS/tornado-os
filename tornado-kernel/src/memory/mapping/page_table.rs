@@ -1,7 +1,7 @@
 use core::ops::{Deref, DerefMut};
 
-use crate::memory::{PhysicalPageNumber, config::PAGE_SIZE, frame::FrameTracker};
 use super::page_table_entry::PageTableEntry;
+use crate::memory::{config::PAGE_SIZE, frame::FrameTracker, PhysicalPageNumber};
 
 // repr(C)：保证内存对齐等设置，和RISC-V标准相同
 #[repr(C)]
@@ -13,7 +13,6 @@ impl PageTable {
     pub fn clear(&mut self) {
         self.entries = [Default::default(); PAGE_SIZE / 8];
     }
-    
 }
 
 #[derive(Debug)]

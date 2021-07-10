@@ -1,9 +1,12 @@
 //! 从用户过来的系统调用在这里处理
-use riscv::register::scause::{self, Trap, Interrupt};
-use riscv::register::{sepc, stval};
-use crate::{memory::{self, Satp}, trap::SwapContext};
+use super::{syscall, SyscallResult};
 use crate::trap;
-use super::{SyscallResult, syscall};
+use crate::{
+    memory::{self, Satp},
+    trap::SwapContext,
+};
+use riscv::register::scause::{self, Interrupt, Trap};
+use riscv::register::{sepc, stval};
 
 /// 测试用的中断处理函数，用户态发生中断会陷入到这里
 pub extern "C" fn user_trap_handler() {
@@ -26,34 +29,40 @@ pub extern "C" fn user_trap_handler() {
             println!("s mode timer!");
             // 目前遇到时钟中断先让系统退出，等把内核完善好了再来处理
             crate::sbi::shutdown();
-        },
+        }
         Trap::Exception(scause::Exception::Breakpoint) => {
             println!("user mode panic!");
             crate::sbi::shutdown();
-        },
+        }
         Trap::Exception(scause::Exception::UserEnvCall) => {
             match syscall(param, user_satp, a6, a7) {
-                SyscallResult::Procceed { code,  extra} => {
+                SyscallResult::Procceed { code, extra } => {
                     swap_cx.x[9] = code;
                     swap_cx.x[10] = extra;
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
-                    trap::switch_to_user(swap_cx, user_satp)        
-                },
+                    trap::switch_to_user(swap_cx, user_satp)
+                }
                 SyscallResult::Retry => {
                     // 不跳过指令，继续运行
                     trap::switch_to_user(swap_cx, user_satp)
-                },
-                SyscallResult::NextASID{ satp } => {
+                }
+                SyscallResult::NextASID { satp } => {
                     // 需要转到目标地址空间去运行
                     todo!()
-                },
+                }
                 SyscallResult::Terminate(exit_code) => {
                     println!("User exit!");
                     crate::sbi::shutdown();
                 }
             }
         }
-        _ => todo!("scause: {:?}, sepc: {:#x}, stval: {:#x}, {:x?}", scause::read().cause(), sepc::read(), stval::read(), swap_cx)
+        _ => todo!(
+            "scause: {:?}, sepc: {:#x}, stval: {:#x}, {:x?}",
+            scause::read().cause(),
+            sepc::read(),
+            stval::read(),
+            swap_cx
+        ),
     }
 }
 
@@ -61,9 +70,7 @@ pub extern "C" fn user_trap_handler() {
 unsafe fn get_swap_cx<'cx>(satp: &'cx Satp) -> &'cx mut SwapContext {
     let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
     let swap_cx_vpn = memory::VirtualPageNumber::floor(swap_cx_va);
-    let swap_cx_ppn = satp
-        .translate(swap_cx_vpn)
-        .unwrap();
+    let swap_cx_ppn = satp.translate(swap_cx_vpn).unwrap();
     // 将物理页号转换成裸指针
     (swap_cx_ppn
         .start_address()

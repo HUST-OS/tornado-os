@@ -1,5 +1,5 @@
 use crate::sbi::set_timer;
-use riscv::register::{time, sie};
+use riscv::register::{sie, time};
 
 /// 初始化时钟中断
 pub fn init() {

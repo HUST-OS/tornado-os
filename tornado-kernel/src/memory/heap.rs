@@ -1,5 +1,5 @@
-use alloc::alloc::Layout;
 use super::config::KERNEL_HEAP_SIZE;
+use alloc::alloc::Layout;
 use buddy_system_allocator::LockedHeap;
 
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
@@ -16,8 +16,7 @@ fn alloc_error_handler(layout: Layout) -> ! {
 
 pub fn init() {
     unsafe {
-        HEAP.lock().init(
-            HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE
-        )
+        HEAP.lock()
+            .init(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE)
     }
 }

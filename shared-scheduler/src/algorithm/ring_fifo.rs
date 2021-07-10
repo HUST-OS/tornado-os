@@ -1,5 +1,5 @@
 //! 循环先进先出队列调度器实现
-//! 
+//!
 
 use super::Scheduler;
 use core::mem::MaybeUninit;
@@ -28,8 +28,9 @@ impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T,
         // 加入环形队列
         let ans = self.ring.push_back(task);
         // 直接返回self.ring.push_back也可以
-        if let Some(t) = ans { // 如果满了，退出
-            return Some(t)
+        if let Some(t) = ans {
+            // 如果满了，退出
+            return Some(t);
         }
         None
     }
@@ -45,7 +46,7 @@ impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T,
         self.ring.front()
     }
     /// 拿出下一个任务的可变引用，不弹出
-    fn peek_next_task_mut(&mut self)  -> Option<&mut T> {
+    fn peek_next_task_mut(&mut self) -> Option<&mut T> {
         self.ring.front_mut()
     }
     /// 获取当前任务
@@ -69,7 +70,7 @@ impl<T: Clone + PartialEq, const N: usize> Scheduler<T> for RingFifoScheduler<T,
 pub struct RingQueue<T, const N: usize> {
     elem: [MaybeUninit<T>; N],
     front: usize,
-    tail: usize
+    tail: usize,
 }
 
 impl<T, const N: usize> RingQueue<T, N> {
@@ -86,7 +87,8 @@ impl<T, const N: usize> RingQueue<T, N> {
     pub const fn is_empty(&self) -> bool {
         self.tail == self.front
     }
-    #[inline] fn is_full(&self) -> bool {
+    #[inline]
+    fn is_full(&self) -> bool {
         self.len() == N - 1
     }
     // if push failed, value T is returned
@@ -108,7 +110,7 @@ impl<T, const N: usize> RingQueue<T, N> {
         }
         let value = unsafe { ptr::read(self.elem[self.front].as_ptr()) };
         self.front = self.front.wrapping_add(1); // assured non empty
-        // '>' -> '>='
+                                                 // '>' -> '>='
         if self.front >= N || self.front == 0 {
             self.front = self.front.wrapping_sub(N);
         }

@@ -239,7 +239,7 @@ impl<'x> Xtask<'x, String> {
                 return Some(format!("riscv64-unknown-elf-{}", tool.as_ref()));
             }
         }
-        return None;
+        None
     }
 }
 
@@ -270,12 +270,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         cargo.args(&["--target", self.target]);
         if let Ok(status) = cargo.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::BuildKernelError);
+                Err(XTaskError::BuildKernelError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 编译共享调度器
@@ -289,12 +289,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         cargo.args(&["--target", self.target]);
         if let Ok(status) = cargo.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::BuildSharedSchedulerError);
+                Err(XTaskError::BuildSharedSchedulerError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 编译用户程序
@@ -309,12 +309,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         cargo.args(&["--bin", app.as_ref()]);
         if let Ok(status) = cargo.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::BuildUserAppError);
+                Err(XTaskError::BuildUserAppError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 编译所有用户程序
@@ -329,12 +329,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         cargo.arg("--bins");
         if let Ok(status) = cargo.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::BuildUserAppError);
+                Err(XTaskError::BuildUserAppError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 生成内核二进制文件
@@ -349,12 +349,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             .args(&["-O", "binary", "tornado-kernel.bin"]);
         if let Ok(status) = objcopy.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::KernelObjcopyError);
+                Err(XTaskError::KernelObjcopyError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 生成共享调度器二进制文件
@@ -369,12 +369,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             .args(&["-O", "binary", "shared-scheduler.bin"]);
         if let Ok(status) = objcopy.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::SharedSchedulerObjcopyError);
+                Err(XTaskError::SharedSchedulerObjcopyError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 生成用户程序二进制文件
@@ -389,12 +389,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             .args(&["-O", "binary", format!("{}.bin", app.as_ref()).as_str()]);
         if let Ok(status) = objcopy.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::UserAppObjcopyError);
+                Err(XTaskError::UserAppObjcopyError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 运行 qemu
@@ -430,12 +430,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
 
         if let Ok(status) = qemu.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::QemuExecuteError);
+                Err(XTaskError::QemuExecuteError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 反汇编
@@ -445,12 +445,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         dump.args(&["-D", elf.as_ref()]);
         if let Ok(status) = dump.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::AsmError);
+                Err(XTaskError::AsmError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     /// 内核反汇编
@@ -475,12 +475,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         size.args(&["-A", "-x", elf.as_ref()]);
         if let Ok(status) = size.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::SizeError);
+                Err(XTaskError::SizeError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     fn kernel_size(&self) -> Result {
@@ -524,12 +524,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
 
         if let Ok(status) = qemu.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::QemuDebugError);
+                Err(XTaskError::QemuDebugError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
     fn gdb(&self) -> Result {
@@ -541,12 +541,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         gdb.arg("-q");
         if let Ok(status) = gdb.status() {
             if status.success() {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(XTaskError::GDBError);
+                Err(XTaskError::GDBError)
             }
         } else {
-            return Err(XTaskError::CommandNotFound);
+            Err(XTaskError::CommandNotFound)
         }
     }
 }

@@ -1,13 +1,13 @@
-use alloc::sync::Arc;
-use spin::Mutex;
-use core::ops::Range;
-use core::future::Future;
-use alloc::boxed::Box;
 use crate::memory::VirtualAddress;
 use crate::task::Process;
-use core::pin::Pin;
+use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::fmt;
+use core::future::Future;
+use core::ops::Range;
+use core::pin::Pin;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use spin::Mutex;
 
 /// 任务的信息
 // 如果要运行用户的进程，首先切换到用户的地址空间，其中包含一个初始化好的栈和剩余空间，然后在里面增加用户的任务
@@ -27,7 +27,6 @@ pub struct KernelTask {
 pub struct TaskId(usize);
 
 impl TaskId {
-    
     pub(crate) fn generate() -> TaskId {
         // 任务编号计数器，任务编号自增
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -60,9 +59,7 @@ impl KernelTask {
         KernelTask {
             id: task_id,
             process,
-            inner: Mutex::new(TaskInner {
-                stack: None,
-            }),
+            inner: Mutex::new(TaskInner { stack: None }),
             future: Mutex::new(Box::pin(future)),
         }
     }

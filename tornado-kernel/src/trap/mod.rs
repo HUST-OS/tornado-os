@@ -20,10 +20,10 @@ macro_rules! define_load_store {
 mod handler;
 mod timer;
 
-pub use handler::{TrapFrame, trap_vector};
+pub use handler::{trap_vector, TrapFrame};
 
 /// 初始化中断相关的子模块
-/// 
+///
 /// - [`handler::init`]
 /// - [`timer::init`]
 pub fn init() {
@@ -54,13 +54,13 @@ impl SwapContext {
     // 新建一个用户态的 `SwapContext`，用于切换到用户态
     pub fn new_to_user(
         kernel_satp: usize,
-        user_entry: usize, // 将会被写到 sepc, sret 的时候会读取这个值
-        kernel_tp: usize, // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
+        user_entry: usize,   // 将会被写到 sepc, sret 的时候会读取这个值
+        kernel_tp: usize,    // 用户态的 tp 寄存器，tp 指向的结构体由用户定义
         kernel_stack: usize, // 内核栈指针
-        user_stack: usize, // 用户栈指针
+        user_stack: usize,   // 用户栈指针
         // 将会被写到 stvec 寄存器中返回到用户态
         // 用户态发生 Trap 时将会进入的处理函数
-        user_trap_handler: usize
+        user_trap_handler: usize,
     ) -> Self {
         let mut swap_context = Self {
             kernel_satp,
@@ -68,12 +68,12 @@ impl SwapContext {
             user_trap_handler,
             epc: user_entry,
             kernel_tp,
-            x: [0; 31]
+            x: [0; 31],
         };
         swap_context.set_sp(user_stack);
         swap_context
     }
-    pub fn set_sp(&mut self, sp: usize) -> &mut Self{
+    pub fn set_sp(&mut self, sp: usize) -> &mut Self {
         self.x[1] = sp;
         self
     }
@@ -95,11 +95,10 @@ impl SwapContext {
 #[export_name = "_user_to_supervisor"]
 pub unsafe extern "C" fn user_to_supervisor() -> ! {
     asm!(
-    // 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
-    "csrrw  a0, sscratch, a0",
-    
-    //开始保存 SwapContext
-    "
+        // 交换 a0 和 sscratch（原先保存着交换栈的栈顶指针）
+        "csrrw  a0, sscratch, a0",
+        //开始保存 SwapContext
+        "
     sd      ra,  0*8(a0)
     sd      sp,  1*8(a0)
     sd      gp,  2*8(a0)
@@ -131,36 +130,28 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
     sd      t5,  29*8(a0)
     sd      t6,  30*8(a0)
     ",
-
-    // 保存用户的 a0 寄存器
-    "csrr   t0, sscratch
+        // 保存用户的 a0 寄存器
+        "csrr   t0, sscratch
     sd      t0, 9*8(a0)",
-    
-    // 写 sepc 寄存器到 SwapContext 中相应位置
-    "csrr   t0, sepc
+        // 写 sepc 寄存器到 SwapContext 中相应位置
+        "csrr   t0, sepc
     sd      t0, 34*8(a0)",
-    
-    // 恢复内核栈指针
-    "ld     sp, 32*8(a0)",
-
-    // todo: 如何处理 tp 寄存器
-    "ld     tp, 35*8(a0)",
-
-    // 将用户中断处理函数指针放到 t0 寄存器
-    "ld     t0, 33*8(a0)",
-    
-    // 将用户的 satp 寄存器放到 t2 寄存器里面去
-    "csrr   t2, satp",
-    
-    // 恢复内核页表
-    "ld     t1, 31*8(a0)
+        // 恢复内核栈指针
+        "ld     sp, 32*8(a0)",
+        // todo: 如何处理 tp 寄存器
+        "ld     tp, 35*8(a0)",
+        // 将用户中断处理函数指针放到 t0 寄存器
+        "ld     t0, 33*8(a0)",
+        // 将用户的 satp 寄存器放到 t2 寄存器里面去
+        "csrr   t2, satp",
+        // 恢复内核页表
+        "ld     t1, 31*8(a0)
     csrw    satp, t1",
-
-    "sfence.vma",
-    
-    // 跳转到中断处理函数
-    "jr     t0"
-    , options(noreturn));
+        "sfence.vma",
+        // 跳转到中断处理函数
+        "jr     t0",
+        options(noreturn)
+    );
 }
 
 // 内核态切换到用户态最后通过这里
@@ -171,18 +162,17 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
 #[export_name = "_supervisor_to_user"]
 pub unsafe extern "C" fn supervisor_to_user() -> ! {
     asm!(
-    "csrw   satp, a1
+        "csrw   satp, a1
     sfence.vma", // 刷新页表
-
-    // 从 SwapContext 中恢复用户的上下文
-    // 将用户的 a0 寄存器保存在 sscratch 寄存器中，
-    // 这样子可以在最后一步将它和 a0（ctx） 进行交换
-    "
+        // 从 SwapContext 中恢复用户的上下文
+        // 将用户的 a0 寄存器保存在 sscratch 寄存器中，
+        // 这样子可以在最后一步将它和 a0（ctx） 进行交换
+        "
     ld      t0, 9*8(a0)
     csrw    sscratch, t0
     ",
-    // 恢复通用寄存器的上下文
-    "
+        // 恢复通用寄存器的上下文
+        "
     ld      ra,  0*8(a0)
     ld      sp,  1*8(a0)
     ld      gp,  2*8(a0)
@@ -214,23 +204,28 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
     ld      t5,  29*8(a0)
     ld      t6,  30*8(a0)
     ",
-    // 恢复用户的 a0 寄存器，并且保存交换栈顶在 sscratch 寄存器中
-    "csrrw  a0, sscratch, a0",
-    // 返回到用户态
-    "sret",
-    options(noreturn)
+        // 恢复用户的 a0 寄存器，并且保存交换栈顶在 sscratch 寄存器中
+        "csrrw  a0, sscratch, a0",
+        // 返回到用户态
+        "sret",
+        options(noreturn)
     )
 }
 
-use crate::memory::{SWAP_FRAME_VA, SWAP_CONTEXT_VA};
+use crate::memory::{SWAP_CONTEXT_VA, SWAP_FRAME_VA};
 
 /// 上升到用户态
 /// 目前让这个函数接收一个 SwapContext 参数和用户的页表，测试使用
 #[no_mangle]
 pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
-    use riscv::register::{sstatus::{self, SPP}, stvec::{self, TrapMode}};
+    use riscv::register::{
+        sstatus::{self, SPP},
+        stvec::{self, TrapMode},
+    };
     // 关中断
-    unsafe { sstatus::clear_sie(); }
+    unsafe {
+        sstatus::clear_sie();
+    }
     extern "C" {
         fn _swap_frame();
         fn _supervisor_to_user();
@@ -239,20 +234,24 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
     let user_trap_va = SWAP_FRAME_VA as usize;
     // 该函数最后应该跳转的虚拟地址
     let jmp_va = _supervisor_to_user as usize - _swap_frame as usize + SWAP_FRAME_VA;
-    
+
     // 设置用户态陷入内核时需要跳转的地址
-    unsafe { stvec::write(user_trap_va, TrapMode::Direct); }
+    unsafe {
+        stvec::write(user_trap_va, TrapMode::Direct);
+    }
     // todo: 将 trap::handler 中的 trap_vector 以 Vectored 模式写入到 stvec 寄存器
 
     // 设置 sstatus.SPP 的值为 User
-    unsafe { sstatus::set_spp(SPP::User); }
+    unsafe {
+        sstatus::set_spp(SPP::User);
+    }
 
     // 将 SwapContext.epc 写到 sepc 寄存器
     // 这个是用户程序入口
     riscv::register::sepc::write(context.epc);
 
     // todo: 如何处理 tp 寄存器
-        
+
     unsafe {
         llvm_asm!("fence.i" :::: "volatile");
         llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(SWAP_CONTEXT_VA), "{a1}"(user_satp) :: "volatile");

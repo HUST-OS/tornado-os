@@ -1,18 +1,14 @@
-mod kernel_task;
-mod process;
 mod executor;
+mod kernel_task;
 mod lock;
+mod process;
 mod shared;
 
-pub use lock::Lock;
-pub use kernel_task::{KernelTask, TaskId};
-pub use process::{Process, ProcessId};
 pub use executor::run_until_idle;
-pub use shared::{
-    SharedPayload,
-    TaskState,
-    kernel_should_switch
-};
+pub use kernel_task::{KernelTask, TaskId};
+pub use lock::Lock;
+pub use process::{Process, ProcessId};
+pub use shared::{kernel_should_switch, SharedPayload, TaskState};
 
 /// 共享调度器返回的结果
 #[derive(Debug)]
@@ -40,16 +36,21 @@ pub fn new_kernel(
     shared_scheduler: NonNull<()>,
     set_task_state: unsafe extern "C" fn(NonNull<()>, usize, TaskState),
 ) -> Arc<KernelTaskRepr> {
-    Arc::new(KernelTaskRepr(KernelTask::new(future, process), shared_scheduler.as_ptr() as usize, set_task_state))
+    Arc::new(KernelTaskRepr(
+        KernelTask::new(future, process),
+        shared_scheduler.as_ptr() as usize,
+        set_task_state,
+    ))
 }
 
 #[derive(Debug)]
-pub struct KernelTaskRepr (
-    KernelTask, usize, 
-    unsafe extern "C" fn(NonNull<()>, usize, TaskState)
+pub struct KernelTaskRepr(
+    KernelTask,
+    usize,
+    unsafe extern "C" fn(NonNull<()>, usize, TaskState),
 );
 
-impl KernelTaskRepr {    
+impl KernelTaskRepr {
     /// 转换到共享的任务编号
     ///
     /// note(unsafe): 创建了一个没有边界的生命周期
@@ -61,7 +62,8 @@ impl KernelTaskRepr {
         let task_repr = Arc::as_ptr(self) as usize;
         (self.2)(shared_scheduler, task_repr, TaskState::Ready)
     }
-    #[inline] pub fn task(&self) -> &KernelTask {
+    #[inline]
+    pub fn task(&self) -> &KernelTask {
         &self.0
     }
 }

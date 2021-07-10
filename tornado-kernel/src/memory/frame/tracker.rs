@@ -1,5 +1,5 @@
-use crate::memory::{PhysicalAddress, PhysicalPageNumber, config::PAGE_SIZE};
 use super::allocator::FRAME_ALLOCATOR;
+use crate::memory::{config::PAGE_SIZE, PhysicalAddress, PhysicalPageNumber};
 
 /// 这个结构体就像一个Handle，Drop之后会释放PPN表示的物理帧
 #[derive(Debug)]
@@ -21,7 +21,6 @@ impl Drop for FrameTracker {
         FRAME_ALLOCATOR.lock().dealloc(self);
     }
 }
-
 
 /// `FrameTracker` 可以 deref 得到对应的 `[u8; PAGE_SIZE]`
 impl core::ops::Deref for FrameTracker {

@@ -1,24 +1,10 @@
 use crate::memory::{
-    KERNEL_MAP_OFFSET,
-    PhysicalPageNumber,
-    SWAP_CONTEXT_VA,
-    config::{
-        FREE_MEMORY_START,
-        MEMORY_END_ADDRESS,
-        PAGE_SIZE,
-        SWAP_FRAME_VA,
-    },
+    config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
+    PhysicalPageNumber, KERNEL_MAP_OFFSET, SWAP_CONTEXT_VA,
 };
 use crate::memory::{
-    Mapping,
-    MapType,
-    Segment,
-    Flags,
-    VirtualAddress,
-    VirtualPageNumber,
-    PhysicalAddress,
-    FrameTracker,
-    AddressSpaceId
+    AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,
+    VirtualAddress, VirtualPageNumber,
 };
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
@@ -33,7 +19,7 @@ pub struct MemorySet {
     /// 所有分配的物理页面映射信息
     pub allocated_pairs: Vec<(VirtualPageNumber, FrameTracker)>,
     /// 这个映射关系的地址空间编号
-    pub address_space_id: AddressSpaceId
+    pub address_space_id: AddressSpaceId,
 }
 
 impl MemorySet {
@@ -51,13 +37,31 @@ impl MemorySet {
             fn _ebss();
             fn _swap_frame();
         }
-        
-        println!("text:   {:x?}", VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize));
-        println!("rodata: {:x?}", VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize));
-        println!("data:   {:x?}", VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize));
-        println!("bss:    {:x?}", VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize));
-        println!("swap frame: {:x?}", VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize));
-        println!("free:   {:x?}", *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear());
+
+        println!(
+            "text:   {:x?}",
+            VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize)
+        );
+        println!(
+            "rodata: {:x?}",
+            VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize)
+        );
+        println!(
+            "data:   {:x?}",
+            VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize)
+        );
+        println!(
+            "bss:    {:x?}",
+            VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize)
+        );
+        println!(
+            "swap frame: {:x?}",
+            VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize)
+        );
+        println!(
+            "free:   {:x?}",
+            *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear()
+        );
 
         // 建立字段
         let segments = vec![
@@ -65,25 +69,25 @@ impl MemorySet {
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_stext as usize)..VirtualAddress(_swap_frame as usize),
-                flags: Flags::READABLE | Flags::EXECUTABLE
+                flags: Flags::READABLE | Flags::EXECUTABLE,
             },
             // .rodata 段，r--
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize),
-                flags: Flags::READABLE
+                flags: Flags::READABLE,
             },
             // .data 段，rw-
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize),
-                flags: Flags::READABLE | Flags::WRITABLE
+                flags: Flags::READABLE | Flags::WRITABLE,
             },
             // .bss 段，rw-
             Segment {
                 map_type: MapType::Linear,
                 range: VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize),
-                flags: Flags::READABLE | Flags::WRITABLE
+                flags: Flags::READABLE | Flags::WRITABLE,
             },
             // 剩余内存空间，rw-
             Segment {
@@ -104,26 +108,39 @@ impl MemorySet {
         // 映射共享载荷，目前地址是写死的
         let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8640_0000);
         let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8640_0000);
-        mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE );
-        
+        mapping.map_defined(
+            &va_range,
+            &pa_range,
+            Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+        );
+
         // 映射 _swap_frame
         let swap_frame_va = VirtualAddress(SWAP_FRAME_VA);
         let swap_frame_vpn = VirtualPageNumber::floor(swap_frame_va);
         let swap_frame_pa = VirtualAddress(_swap_frame as usize).physical_address_linear();
         let swap_frame_ppn = PhysicalPageNumber::floor(swap_frame_pa);
-        mapping.map_one(swap_frame_vpn, Some(swap_frame_ppn), Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE)?;
+        mapping.map_one(
+            swap_frame_vpn,
+            Some(swap_frame_ppn),
+            Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
+        )?;
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("Kernel new asid = {:?}", address_space_id);
-        
+
         let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
         crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
 
-        Some(MemorySet { mapping, segments, allocated_pairs, address_space_id })
-    }    
-    
+        Some(MemorySet {
+            mapping,
+            segments,
+            allocated_pairs,
+            address_space_id,
+        })
+    }
+
     /// 通过一个 bin 文件创建用户态映射
-    /// 
+    ///
     /// 目前该用户 bin 文件在 qemu 中的位置写死为 0x87000000
     pub fn new_bin(base: usize) -> Option<MemorySet> {
         extern "C" {
@@ -131,39 +148,59 @@ impl MemorySet {
         }
         let mut mapping = Mapping::new_alloc()?;
         let allocated_pairs = Vec::new();
-        
+
         let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE * 200);
         let pa_range = PhysicalAddress(base)..PhysicalAddress(base + PAGE_SIZE * 200);
-        mapping.map_defined(&va_range, &pa_range, Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE | Flags::USER);
-        
+        mapping.map_defined(
+            &va_range,
+            &pa_range,
+            Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE | Flags::USER,
+        );
+
         // 映射 _swap_frame
         let swap_frame_va = VirtualAddress(SWAP_FRAME_VA);
         let swap_frame_vpn = VirtualPageNumber::floor(swap_frame_va);
         let swap_frame_pa = VirtualAddress(_swap_frame as usize).physical_address_linear();
         let swap_frame_ppn = PhysicalPageNumber::floor(swap_frame_pa);
-        mapping.map_one(swap_frame_vpn, Some(swap_frame_ppn), Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE);
+        mapping.map_one(
+            swap_frame_vpn,
+            Some(swap_frame_ppn),
+            Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
+        );
 
         // 映射 SwapContext
         let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
-        mapping.map_segment(&Segment {
-            map_type: MapType::Framed,
-            range: swap_cx_va..swap_cx_va + PAGE_SIZE,
-            flags: Flags::READABLE | Flags::WRITABLE,
-        }, None)?;
+        mapping.map_segment(
+            &Segment {
+                map_type: MapType::Framed,
+                range: swap_cx_va..swap_cx_va + PAGE_SIZE,
+                flags: Flags::READABLE | Flags::WRITABLE,
+            },
+            None,
+        )?;
 
         // 映射共享运行时段
         // 目前共享运行时写死在 0x86000000 这个物理地址上
         let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8680_0000);
         let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8680_0000);
-        mapping.map_defined(&va_range, &pa_range, Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER);
+        mapping.map_defined(
+            &va_range,
+            &pa_range,
+            Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER,
+        );
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New user asid = {:?}", address_space_id);
 
         let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
         crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
-        
-        Some(MemorySet { mapping, segments: Vec::new(), allocated_pairs, address_space_id })
+
+        Some(MemorySet {
+            mapping,
+            segments: Vec::new(),
+            allocated_pairs,
+            address_space_id,
+        })
     }
     /// 检测一段内存区域和已有的是否存在重叠区域
     pub fn overlap_with(&self, range: Range<VirtualPageNumber>) -> bool {
@@ -193,11 +230,7 @@ impl MemorySet {
     /// 在本映射中，找到一段给定长度的未占用虚拟地址空间，分配物理页面并建立映射。返回对应的页面区间。
     ///
     /// `flags` 包含r、w、x和user。
-    pub fn alloc_page_range(
-        &mut self,
-        size: usize,
-        flags: Flags,
-    ) -> Option<Range<VirtualAddress>> {
+    pub fn alloc_page_range(&mut self, size: usize, flags: Flags) -> Option<Range<VirtualAddress>> {
         // memory_set 只能按页分配，所以让 size 向上取整页
         let alloc_size = (size + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
         // 从 memory_set 中找一段不会发生重叠的空间

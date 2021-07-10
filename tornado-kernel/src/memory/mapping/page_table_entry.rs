@@ -12,10 +12,10 @@ impl PageTableEntry {
     /// 创建一个新的页表项
     pub fn new(page_number: Option<PhysicalPageNumber>, mut flags: Flags) -> Self {
         flags.set(Flags::VALID, page_number.is_some());
-        let inner = *0usize
-            .set_bits(FLAG_RANGE, flags.bits())
-            .set_bits(PAGE_NUMBER_RANGE, page_number
-                .map(|a| a.into()).unwrap_or(0));
+        let inner = *0usize.set_bits(FLAG_RANGE, flags.bits()).set_bits(
+            PAGE_NUMBER_RANGE,
+            page_number.map(|a| a.into()).unwrap_or(0),
+        );
         PageTableEntry(inner)
     }
     /// 获取页号

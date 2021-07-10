@@ -10,14 +10,14 @@ extern crate alloc;
 #[macro_use]
 mod console;
 mod algorithm;
+mod hart;
+mod memory;
 mod panic;
 mod sbi;
-mod trap;
-mod memory;
-mod task;
-mod hart;
-mod user;
 mod syscall;
+mod task;
+mod trap;
+mod user;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -38,7 +38,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         fn _supervisor_to_user();
     }
 
-    unsafe { 
+    unsafe {
         r0::zero_bss(&mut _sbss, &mut _ebss);
         r0::init_data(&mut _sdata, &mut _edata, &_sidata);
     }
@@ -67,7 +67,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     for (i, value) in vec.into_iter().enumerate() {
         assert_eq!(value, i);
     }
-    
+
     println!("heap test passed");
     println!("Max asid = {:?}", memory::max_asid());
 
@@ -75,15 +75,20 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     for i in 0..2 {
         let frame_0 = match memory::frame_alloc() {
             Some(frame_tracker) => frame_tracker,
-            None => panic!("frame allocation failed")
+            None => panic!("frame allocation failed"),
         };
         let frame_1 = match memory::frame_alloc() {
             Some(frame_tracker) => frame_tracker,
-            None => panic!("frame allocation failed")
+            None => panic!("frame allocation failed"),
         };
-        println!("Test #{}: {:?} and {:?}", i, frame_0.start_address(), frame_1.start_address());
+        println!(
+            "Test #{}: {:?} and {:?}",
+            i,
+            frame_0.start_address(),
+            frame_1.start_address()
+        );
     }
-    
+
     println!("_swap_frame: {:#x}", _swap_frame as usize);
     println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
     println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
@@ -93,20 +98,35 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // 这之后就可以分配地址空间了，这之前只能用内核的地址空间
 
     println!("Current hart: {}", hart::KernelHartInfo::hart_id());
-    
+
     // todo: 这里要有个地方往tp里写东西，否则目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
-    
+
     let shared_payload = unsafe { task::SharedPayload::load(0x8600_0000) };
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let hart_id = crate::hart::KernelHartInfo::hart_id();
     let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
-    let task_1 = task::new_kernel(task_1(), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
-    let task_2 = task::new_kernel(task_2(), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
-    let task_3 = task::new_kernel(FibonacciFuture::new(8), process.clone(), shared_payload.shared_scheduler, shared_payload.shared_set_task_state);
+    let task_1 = task::new_kernel(
+        task_1(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+    let task_2 = task::new_kernel(
+        task_2(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+    let task_3 = task::new_kernel(
+        FibonacciFuture::new(8),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
@@ -115,11 +135,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
     }
-    
+
     task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
-        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state)}
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
     // 进入用户态
@@ -139,8 +159,6 @@ async fn task_2() {
     println!("hello world from 2!");
 }
 
-
-
 struct FibonacciFuture {
     a: usize,
     b: usize,
@@ -149,14 +167,18 @@ struct FibonacciFuture {
 }
 
 impl FibonacciFuture {
-    
     fn new(cnt: usize) -> FibonacciFuture {
-        FibonacciFuture { a: 0, b: 1, i: 0, cnt }
+        FibonacciFuture {
+            a: 0,
+            b: 1,
+            i: 0,
+            cnt,
+        }
     }
 }
 use core::future::Future;
-use core::task::{Context, Poll};
 use core::pin::Pin;
+use core::task::{Context, Poll};
 
 impl Future for FibonacciFuture {
     type Output = ();

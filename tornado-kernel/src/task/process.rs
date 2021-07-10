@@ -1,9 +1,9 @@
-use lazy_static::lazy_static;
+use crate::hart::KernelHartInfo;
+use crate::memory::{AddressSpaceId, Flags, MemorySet, VirtualAddress, STACK_SIZE};
 use alloc::sync::Arc;
 use core::ops::Range;
+use lazy_static::lazy_static;
 use spin::Mutex;
-use crate::memory::{AddressSpaceId, Flags, MemorySet, STACK_SIZE, VirtualAddress};
-use crate::hart::KernelHartInfo;
 
 /// 进程的所有信息
 #[derive(Debug)]
@@ -11,7 +11,7 @@ pub struct Process {
     /// 进程的编号
     id: ProcessId,
     /// 进程是否属于用户态进程
-    is_user: bool,  
+    is_user: bool,
     /// 可变部分
     inner: Mutex<ProcessInner>,
 }
@@ -20,7 +20,7 @@ pub struct Process {
 #[derive(Debug)]
 pub struct ProcessInner {
     /// 进程中所有任务的公用内存映射
-    memory_set: MemorySet,  
+    memory_set: MemorySet,
 }
 
 impl Process {
@@ -31,11 +31,9 @@ impl Process {
         let process = Arc::new(Process {
             id: next_process_id(),
             is_user: false,
-            inner: Mutex::new(ProcessInner {
-                memory_set
-            })
+            inner: Mutex::new(ProcessInner { memory_set }),
         });
-        unsafe { 
+        unsafe {
             KernelHartInfo::load_address_space_id(process.address_space_id());
             KernelHartInfo::load_process(process.clone());
         };
@@ -48,17 +46,15 @@ impl Process {
         let process = Arc::new(Process {
             id: next_process_id(),
             is_user: true,
-            inner: Mutex::new(ProcessInner {
-                memory_set
-            })
+            inner: Mutex::new(ProcessInner { memory_set }),
         });
-        unsafe { 
+        unsafe {
             KernelHartInfo::load_address_space_id(process.address_space_id());
             KernelHartInfo::load_process(process.clone());
         };
         Some(process)
     }
-    
+
     /// 得到进程*所在*的地址空间编号。进程不*对应*地址空间编号
     pub fn address_space_id(&self) -> AddressSpaceId {
         self.inner.lock().memory_set.address_space_id
@@ -70,7 +66,10 @@ impl Process {
             flags |= Flags::USER;
         }
         flags |= Flags::VALID;
-        self.inner.lock().memory_set.alloc_page_range(STACK_SIZE, flags)
+        self.inner
+            .lock()
+            .memory_set
+            .alloc_page_range(STACK_SIZE, flags)
     }
 
     // 进程和satp值没有一一对应关系，地址空间对应satp值

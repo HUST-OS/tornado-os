@@ -7,8 +7,8 @@ extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
 use core::future::Future;
-use core::task::{Context, Poll};
 use core::pin::Pin;
+use core::task::{Context, Poll};
 
 async fn async_main() -> i32 {
     // todo: 唤醒逻辑
@@ -27,12 +27,11 @@ fn main() -> i32 {
     tornado_user::execute_async_main(async_main())
 }
 
-
 struct FibonacciFuture {
     a: usize,
     b: usize,
     i: usize,
-    cnt: usize
+    cnt: usize,
 }
 
 impl FibonacciFuture {
@@ -41,7 +40,7 @@ impl FibonacciFuture {
             a: 0,
             b: 1,
             i: 0,
-            cnt
+            cnt,
         }
     }
 }
@@ -57,7 +56,10 @@ impl Future for FibonacciFuture {
             self.a += self.b;
             self.b = t;
             self.i += 1;
-            println!("Fibonacci {}: i = {}, a = {}, b = {}", self.cnt, self.i, self.a, self.b);
+            println!(
+                "Fibonacci {}: i = {}, a = {}, b = {}",
+                self.cnt, self.i, self.a, self.b
+            );
             cx.waker().wake_by_ref();
             Poll::Pending
         }

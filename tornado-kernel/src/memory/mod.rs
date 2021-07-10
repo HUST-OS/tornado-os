@@ -1,13 +1,13 @@
 mod address;
 mod config;
-mod heap;
 mod frame;
+mod heap;
 mod mapping;
 
 pub use address::{PhysicalAddress, PhysicalPageNumber, VirtualAddress, VirtualPageNumber};
-pub use mapping::{MemorySet, Mapping, Segment, MapType, Flags, Satp};
-pub use frame::{frame_alloc, FrameTracker};
 pub use config::*;
+pub use frame::{frame_alloc, FrameTracker};
+pub use mapping::{Flags, MapType, Mapping, MemorySet, Satp, Segment};
 
 pub fn init() {
     heap::init();
@@ -31,12 +31,14 @@ pub fn max_asid() -> AddressSpaceId {
     let mut val: usize = ((1 << 16) - 1) << 44;
     #[cfg(target_pointer_width = "32")]
     let mut val: usize = ((1 << 9) - 1) << 22;
-    unsafe { asm!("
+    unsafe {
+        asm!("
         csrr    {tmp}, satp
         or      {val}, {tmp}, {val}
         csrw    satp, {val}
         csrrw   {val}, satp, {tmp}
-    ", tmp = out(reg) _, val = inlateout(reg) val) };
+    ", tmp = out(reg) _, val = inlateout(reg) val)
+    };
     #[cfg(target_pointer_width = "64")]
     return AddressSpaceId(((val >> 44) & ((1 << 16) - 1)) as u16);
     #[cfg(target_pointer_width = "32")]

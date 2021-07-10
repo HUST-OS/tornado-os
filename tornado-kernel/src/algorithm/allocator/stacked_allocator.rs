@@ -10,7 +10,7 @@ pub struct StackedAllocator {
 impl StackedAllocator {
     pub fn new(capacity: usize) -> Self {
         Self {
-            list: vec![0 .. capacity],
+            list: vec![0..capacity],
         }
     }
 }
@@ -19,7 +19,7 @@ impl Allocator for StackedAllocator {
     fn alloc(&mut self) -> Option<usize> {
         if let Some(range) = self.list.pop() {
             if range.end - range.start > 1 {
-                self.list.push(range.start + 1 .. range.end);
+                self.list.push(range.start + 1..range.end);
             }
             Some(range.start)
         } else {
@@ -28,6 +28,6 @@ impl Allocator for StackedAllocator {
     }
 
     fn dealloc(&mut self, index: usize) {
-        self.list.push(index .. index + 1);
+        self.list.push(index..index + 1);
     }
 }

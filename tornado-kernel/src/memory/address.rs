@@ -1,4 +1,4 @@
-use super::config::{PAGE_SIZE, KERNEL_MAP_OFFSET};
+use super::config::{KERNEL_MAP_OFFSET, PAGE_SIZE};
 use bit_field::BitField;
 
 /// 物理地址，其实可以比usize要长
