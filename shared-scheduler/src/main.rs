@@ -7,7 +7,7 @@
 #![feature(alloc_error_handler)]
 #![feature(llvm_asm)]
 #![feature(asm)]
-#![feature(maybe_uninit_uninit_array, maybe_uninit_ref)]
+#![feature(maybe_uninit_uninit_array)]
 #![feature(naked_functions)]
 
 extern crate alloc;

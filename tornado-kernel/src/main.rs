@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(global_asm, llvm_asm, asm, alloc_error_handler)]
 #![feature(drain_filter)]
-#![feature(maybe_uninit_uninit_array, maybe_uninit_ref)]
+#![feature(maybe_uninit_uninit_array)]
 #![feature(naked_functions)]
 #[macro_use]
 extern crate alloc;
