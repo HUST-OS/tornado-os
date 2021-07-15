@@ -1,13 +1,14 @@
-//! RISC-V ISA Mutex Implementation
-
+//! Async Mutex Implementation
 use core::{
     cell::UnsafeCell,
     sync::atomic::{AtomicUsize, Ordering},
-    task::Poll,
+    ops::{Deref, DerefMut}
 };
+use super::event::Event;
 
 pub struct AsyncMutex<T: ?Sized> {
     state: AtomicUsize,
+    lock_ops: Event,
     data: UnsafeCell<T>,
 }
 
@@ -18,6 +19,7 @@ impl<T> AsyncMutex<T> {
     pub const fn new(data: T) -> AsyncMutex<T> {
         AsyncMutex {
             state: AtomicUsize::new(0),
+            lock_ops: Event::new(),
             data: UnsafeCell::new(data),
         }
     }
@@ -35,17 +37,94 @@ impl<T: ?Sized> AsyncMutex<T> {
         todo!()
     }
 
-    fn acquire(&self) -> Poll<()> {
-        match self
-            .state
-            .compare_exchange(0, 1, Ordering::Acquire, Ordering::Acquire)
-            .unwrap_or_else(|x| x)
-        {
-            0 => return Poll::Ready(()), // 成功获得锁
-            _ => return Poll::Pending,   // 没获得锁，返回 pending
+    async fn acquire_slow(&self) {
+        loop {
+            // Start listening for events.
+            let listener = self.lock_ops.listen();
+
+            // Try locking if nobody is being starved.
+            match self
+                .state
+                .compare_exchange(0, 1, Ordering::Acquire, Ordering::Acquire)
+                .unwrap_or_else(|x| x)
+            {
+                // Lock acquired!
+                0 => return,
+
+                // Lock is held and nobody is starved.
+                1 => {}
+
+                // Somebody is starved.
+                _ => break,
+            }
+
+            // Wait for a notification.
+            listener.await;
+
+            // Try locking if nobody is being starved.
+            match self
+                .state
+                .compare_exchange(0, 1, Ordering::Acquire, Ordering::Acquire)
+                .unwrap_or_else(|x| x)
+            {
+                // Lock acquired!
+                0 => return,
+
+                // Lock is held and nobody is starved.
+                1 => {}
+
+                // Somebody is starved.
+                _ => {
+                    // Notify the first listener in line because we probably received a
+                    // notification that was meant for a starved task.
+                    self.lock_ops.notify(1);
+                    break;
+                }
+            }
+        }
+
+        // Increment the number of starved lock operations.
+        if self.state.fetch_add(2, Ordering::Release) > usize::MAX / 2 {
+            panic!("In case of potential overflow, abort.");
+        }
+
+        // Decrement the counter when exiting this function.
+        let _call = CallOnDrop(|| {
+            self.state.fetch_sub(2, Ordering::Release);
+        });
+
+        loop {
+            // Start listening for events.
+            let listener = self.lock_ops.listen();
+
+            // Try locking if nobody else is being starved.
+            match self
+                .state
+                .compare_exchange(2, 2 | 1, Ordering::Acquire, Ordering::Acquire)
+                .unwrap_or_else(|x| x)
+            {
+                // Lock acquired!
+                2 => return,
+
+                // Lock is held by someone.
+                s if s % 2 == 1 => {}
+
+                // Lock is available.
+                _ => {
+                    // Be fair: notify the first listener and then go wait in line.
+                    self.lock_ops.notify(1);
+                }
+            }
+
+            // Wait for a notification.
+            listener.await;
+
+            // Try acquiring the lock without waiting for others.
+            if self.state.fetch_or(1, Ordering::Acquire) % 2 == 0 {
+                return;
+            }
         }
     }
-
     #[inline]
     pub fn try_lock(&self) -> Option<AsyncMutexGuard<'_, T>> {
         if self
@@ -58,6 +137,37 @@ impl<T: ?Sized> AsyncMutex<T> {
             None
         }
     }
+    pub fn get_mut(&mut self) -> &mut T {
+        unsafe { &mut *self.data.get() }
+    }
+}
+
+impl<T: core::fmt::Debug + ?Sized> core::fmt::Debug for AsyncMutex<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        struct Locked;
+        impl core::fmt::Debug for Locked {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                f.write_str("<locked>")
+            }
+        }
+
+        match self.try_lock() {
+            None => f.debug_struct("AsyncMutex").field("data", &Locked).finish(),
+            Some(guard) => f.debug_struct("AsyncMutex").field("data", &&*guard).finish(),
+        }
+    }
+}
+
+impl<T> From<T> for AsyncMutex<T> {
+    fn from(val: T) -> AsyncMutex<T> {
+        AsyncMutex::new(val)
+    }
+}
+
+impl<T: Default + ?Sized> Default for AsyncMutex<T> {
+    fn default() -> AsyncMutex<T> {
+        AsyncMutex::new(Default::default())
+    }
 }
 
 pub struct AsyncMutexGuard<'a, T: ?Sized>(&'a AsyncMutex<T>);
@@ -68,5 +178,47 @@ unsafe impl<T: Sync + ?Sized> Sync for AsyncMutexGuard<'_, T> {}
 impl<'a, T: ?Sized> AsyncMutexGuard<'a, T> {
     pub fn source(guard: &AsyncMutexGuard<'a, T>) -> &'a AsyncMutex<T> {
         guard.0
+    }
+}
+
+impl<T: ?Sized> Drop for AsyncMutexGuard<'_, T> {
+    fn drop(&mut self) {
+        // Remove the last bit and notify a waiting lock operation.
+        self.0.state.fetch_sub(1, Ordering::Release);
+        self.0.lock_ops.notify(1);
+    }
+}
+
+impl<T: core::fmt::Debug + ?Sized> core::fmt::Debug for AsyncMutexGuard<'_, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<T: core::fmt::Display + ?Sized> core::fmt::Display for AsyncMutexGuard<'_, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        (**self).fmt(f)
+    }
+}
+
+impl<T: ?Sized> Deref for AsyncMutexGuard<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        unsafe { &*self.0.data.get() }
+    }
+}
+
+impl<T: ?Sized> DerefMut for AsyncMutexGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        unsafe { &mut *self.0.data.get() }
+    }
+}
+
+struct CallOnDrop<F: Fn()>(F);
+
+impl<F: Fn()> Drop for CallOnDrop<F> {
+    fn drop(&mut self) {
+        (self.0)();
     }
 }
