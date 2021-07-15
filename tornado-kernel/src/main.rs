@@ -18,6 +18,8 @@ mod syscall;
 mod task;
 mod trap;
 mod user;
+mod async_mutex;
+mod event;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -127,13 +129,16 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
+    
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
+        
     }
 
     task::run_until_idle(
