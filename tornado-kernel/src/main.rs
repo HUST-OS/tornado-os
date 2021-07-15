@@ -19,6 +19,7 @@ mod task;
 mod trap;
 mod user;
 mod async_mutex;
+mod event;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
