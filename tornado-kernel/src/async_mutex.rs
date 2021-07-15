@@ -4,6 +4,7 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
     ops::{Deref, DerefMut}
 };
+use alloc::sync::Arc;
 use super::event::Event;
 
 pub struct AsyncMutex<T: ?Sized> {
@@ -34,40 +35,33 @@ impl<T: ?Sized> AsyncMutex<T> {
         if let Some(guard) = self.try_lock() {
             return guard;
         }
-        todo!()
+        self.acquire_slow().await;
+        AsyncMutexGuard(self)
     }
 
     async fn acquire_slow(&self) {
         loop {
-            // Start listening for events.
             let listener = self.lock_ops.listen();
 
-            // Try locking if nobody is being starved.
             match self
                 .state
                 .compare_exchange(0, 1, Ordering::Acquire, Ordering::Acquire)
                 .unwrap_or_else(|x| x)
             {
-                // Lock acquired!
                 0 => return,
 
-                // Lock is held and nobody is starved.
                 1 => {}
 
-                // Somebody is starved.
                 _ => break,
             }
 
-            // Wait for a notification.
             listener.await;
 
-            // Try locking if nobody is being starved.
             match self
                 .state
                 .compare_exchange(0, 1, Ordering::Acquire, Ordering::Acquire)
                 .unwrap_or_else(|x| x)
             {
-                // Lock acquired!
                 0 => return,
 
                 // Lock is held and nobody is starved.
@@ -222,3 +216,55 @@ impl<F: Fn()> Drop for CallOnDrop<F> {
         (self.0)();
     }
 }
+
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll, Waker};
+use super::task::KernelTaskRepr;
+
+pub struct PollTwice {
+    first: bool,
+    waker: Option<Waker>
+}
+
+impl PollTwice {
+    pub fn new() -> Self {
+        Self {
+            first: true,
+            waker: None
+        }
+    }
+}
+
+impl Future for PollTwice {
+    type Output = ();
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.first {
+            true => {
+                println!("[PollTwice] first poll, return Pending");
+                self.first = false;
+                self.waker = Some(cx.waker().clone());
+                Poll::Pending
+            },
+            false => Poll::Ready(())
+        }
+    }
+}
+
+pub async fn async_mutex_test0<T>(mutex: Arc<AsyncMutex<T>>, poll_twice: PollTwice) {
+    println!("[0]: try acquire mutex!");
+    let _s = mutex.lock().await;
+    println!("[0]: acquire mutex!");
+    poll_twice.await;
+    println!("[0]: release the mutex!");
+}
+
+pub async fn async_mutex_test1<T>(mutex: Arc<AsyncMutex<T>>, prev_task: Arc<KernelTaskRepr>) {
+    unsafe { prev_task.do_wake(); }
+    println!("[1]: try acquire mutex!");
+    let _s = mutex.lock().await;
+    println!("[1]: acquire mutex!");
+    println!("[1]: release the mutex!");
+}
+
+
