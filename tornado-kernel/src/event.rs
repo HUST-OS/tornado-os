@@ -1,5 +1,7 @@
 //! Notify async tasks
-
+//! ref: https://github.com/smol-rs/event-listener/blob/master/src/lib.rs
+use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::cell::{Cell, UnsafeCell};
 use core::fmt;
 use core::future::Future;
@@ -8,16 +10,14 @@ use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
 use core::ptr::{self, NonNull};
 use core::sync::atomic::{self, AtomicPtr, AtomicUsize, Ordering};
-use alloc::sync::Arc;
-use alloc::boxed::Box;
-use spin::{Mutex, MutexGuard};
 use core::task::{Context, Poll, Waker};
 use core::usize;
+use spin::{Mutex, MutexGuard};
 
 struct Inner {
     notified: AtomicUsize,
     list: Mutex<List>,
-    cache: UnsafeCell<Entry>
+    cache: UnsafeCell<Entry>,
 }
 
 impl Inner {
@@ -35,7 +35,7 @@ impl Inner {
 }
 
 pub struct Event {
-    inner: AtomicPtr<Inner>
+    inner: AtomicPtr<Inner>,
 }
 
 unsafe impl Send for Event {}
@@ -169,7 +169,7 @@ impl Default for Event {
 
 pub struct EventListener {
     inner: Arc<Inner>,
-    entry: Option<NonNull<Entry>>
+    entry: Option<NonNull<Entry>>,
 }
 
 unsafe impl Send for EventListener {}
@@ -234,7 +234,7 @@ impl Drop for EventListener {
 
 struct ListGuard<'a> {
     inner: &'a Inner,
-    guard: MutexGuard<'a, List>
+    guard: MutexGuard<'a, List>,
 }
 
 impl Drop for ListGuard<'_> {
@@ -278,7 +278,7 @@ impl State {
     fn is_notified(&self) -> bool {
         match self {
             State::Notified(_) => true,
-            State::Created | State::Polling(_) => false
+            State::Created | State::Polling(_) => false,
         }
     }
 }
@@ -286,7 +286,7 @@ impl State {
 struct Entry {
     state: Cell<State>,
     prev: Cell<Option<NonNull<Entry>>>,
-    next: Cell<Option<NonNull<Entry>>>
+    next: Cell<Option<NonNull<Entry>>>,
 }
 
 struct List {
@@ -295,7 +295,7 @@ struct List {
     start: Option<NonNull<Entry>>,
     len: usize,
     notified: usize,
-    cache_used: bool
+    cache_used: bool,
 }
 
 impl List {

@@ -1,11 +1,11 @@
 //! Async Mutex Implementation
+//! ref: https://github.com/smol-rs/async-lock/blob/master/src/mutex.rs
+use super::event::Event;
 use core::{
     cell::UnsafeCell,
+    ops::{Deref, DerefMut},
     sync::atomic::{AtomicUsize, Ordering},
-    ops::{Deref, DerefMut}
 };
-use alloc::sync::Arc;
-use super::event::Event;
 
 pub struct AsyncMutex<T: ?Sized> {
     state: AtomicUsize,
@@ -64,56 +64,42 @@ impl<T: ?Sized> AsyncMutex<T> {
             {
                 0 => return,
 
-                // Lock is held and nobody is starved.
                 1 => {}
 
-                // Somebody is starved.
                 _ => {
-                    // Notify the first listener in line because we probably received a
-                    // notification that was meant for a starved task.
                     self.lock_ops.notify(1);
                     break;
                 }
             }
         }
 
-        // Increment the number of starved lock operations.
         if self.state.fetch_add(2, Ordering::Release) > usize::MAX / 2 {
             panic!("In case of potential overflow, abort.");
         }
 
-        // Decrement the counter when exiting this function.
         let _call = CallOnDrop(|| {
             self.state.fetch_sub(2, Ordering::Release);
         });
 
         loop {
-            // Start listening for events.
             let listener = self.lock_ops.listen();
 
-            // Try locking if nobody else is being starved.
             match self
                 .state
                 .compare_exchange(2, 2 | 1, Ordering::Acquire, Ordering::Acquire)
                 .unwrap_or_else(|x| x)
             {
-                // Lock acquired!
                 2 => return,
 
-                // Lock is held by someone.
                 s if s % 2 == 1 => {}
 
-                // Lock is available.
                 _ => {
-                    // Be fair: notify the first listener and then go wait in line.
                     self.lock_ops.notify(1);
                 }
             }
 
-            // Wait for a notification.
             listener.await;
 
-            // Try acquiring the lock without waiting for others.
             if self.state.fetch_or(1, Ordering::Acquire) % 2 == 0 {
                 return;
             }
@@ -147,7 +133,10 @@ impl<T: core::fmt::Debug + ?Sized> core::fmt::Debug for AsyncMutex<T> {
 
         match self.try_lock() {
             None => f.debug_struct("AsyncMutex").field("data", &Locked).finish(),
-            Some(guard) => f.debug_struct("AsyncMutex").field("data", &&*guard).finish(),
+            Some(guard) => f
+                .debug_struct("AsyncMutex")
+                .field("data", &&*guard)
+                .finish(),
         }
     }
 }
@@ -177,7 +166,6 @@ impl<'a, T: ?Sized> AsyncMutexGuard<'a, T> {
 
 impl<T: ?Sized> Drop for AsyncMutexGuard<'_, T> {
     fn drop(&mut self) {
-        // Remove the last bit and notify a waiting lock operation.
         self.0.state.fetch_sub(1, Ordering::Release);
         self.0.lock_ops.notify(1);
     }
@@ -217,15 +205,15 @@ impl<F: Fn()> Drop for CallOnDrop<F> {
     }
 }
 
-use core::future::Future;
-use core::pin::Pin;
-use core::task::{Context, Poll, Waker};
-use super::task::KernelTaskRepr;
+// use core::future::Future;
+// use core::pin::Pin;
+// use core::task::{Context, Poll, Waker};
+// use super::task::KernelTaskRepr;
 
-pub struct PollTwice {
-    first: bool,
-    waker: Option<Waker>
-}
+// pub struct PollTwice {
+//     first: bool,
+//     waker: Option<Waker>
+// }
 
 // impl PollTwice {
 //     pub fn new() -> Self {
@@ -266,5 +254,3 @@ pub struct PollTwice {
 //     println!("[1]: acquire mutex!");
 //     println!("[1]: release the mutex!");
 // }
-
-
