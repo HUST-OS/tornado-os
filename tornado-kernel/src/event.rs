@@ -1,5 +1,9 @@
-//! Notify async tasks
 //! ref: https://github.com/smol-rs/event-listener/blob/master/src/lib.rs
+//! 事件监听器
+//! 通过这个可以将同步的数据结构转换为异步数据结构，比如异步锁
+//!
+//! # Examples
+//!
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::cell::{Cell, UnsafeCell};

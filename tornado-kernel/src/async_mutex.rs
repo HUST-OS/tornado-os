@@ -205,52 +205,21 @@ impl<F: Fn()> Drop for CallOnDrop<F> {
     }
 }
 
-// use core::future::Future;
-// use core::pin::Pin;
-// use core::task::{Context, Poll, Waker};
-// use super::task::KernelTaskRepr;
+// Simple test for async mutex
+use alloc::sync::Arc;
+pub async fn async_mutex_test0<T>(mutex: Arc<AsyncMutex<T>>, event: Arc<Event>) {
+    let listener = event.listen();
+    println!("[async_mutex_test0]: try acquire mutex!");
+    let _s = mutex.lock().await;
+    println!("[async_mutex_test0]: acquire mutex!");
+    listener.await;
+    println!("[async_mutex_test0]: release the mutex!");
+}
 
-// pub struct PollTwice {
-//     first: bool,
-//     waker: Option<Waker>
-// }
-
-// impl PollTwice {
-//     pub fn new() -> Self {
-//         Self {
-//             first: true,
-//             waker: None
-//         }
-//     }
-// }
-
-// impl Future for PollTwice {
-//     type Output = ();
-//     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-//         match self.first {
-//             true => {
-//                 println!("[PollTwice] first poll, return Pending");
-//                 self.first = false;
-//                 self.waker = Some(cx.waker().clone());
-//                 Poll::Pending
-//             },
-//             false => Poll::Ready(())
-//         }
-//     }
-// }
-
-// pub async fn async_mutex_test0<T>(mutex: Arc<AsyncMutex<T>>, poll_twice: PollTwice) {
-//     println!("[0]: try acquire mutex!");
-//     let _s = mutex.lock().await;
-//     println!("[0]: acquire mutex!");
-//     poll_twice.await;
-//     println!("[0]: release the mutex!");
-// }
-
-// pub async fn async_mutex_test1<T>(mutex: Arc<AsyncMutex<T>>, prev_task: Arc<KernelTaskRepr>) {
-//     unsafe { prev_task.do_wake(); }
-//     println!("[1]: try acquire mutex!");
-//     let _s = mutex.lock().await;
-//     println!("[1]: acquire mutex!");
-//     println!("[1]: release the mutex!");
-// }
+pub async fn async_mutex_test1<T>(mutex: Arc<AsyncMutex<T>>, event: Arc<Event>) {
+    event.notify(1);
+    println!("[async_mutex_test1]: try acquire mutex!");
+    let _s = mutex.lock().await;
+    println!("[async_mutex_test1]: acquire mutex!");
+    println!("[async_mutex_test1]: release the mutex!");
+}
