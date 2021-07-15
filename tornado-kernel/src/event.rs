@@ -3,7 +3,9 @@
 //! 通过这个可以将同步的数据结构转换为异步数据结构，比如异步锁
 //!
 //! # Examples
-//!
+//! ```
+//! ```
+
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::cell::{Cell, UnsafeCell};
@@ -18,13 +20,21 @@ use core::task::{Context, Poll, Waker};
 use core::usize;
 use spin::{Mutex, MutexGuard};
 
+/// [`Event`] 的内部数据
 struct Inner {
+    /// 已被通知的 [`Entry`] （条目）数
+    /// 如果所有条目都被通知了，该值被设为 `usize::MAX`
+    ///
+    /// 如果没有条目，该值被设为 `usize::MAX`
     notified: AtomicUsize,
+    /// 保存注册的监听者的链表
     list: Mutex<List>,
+    /// 链表的单缓冲条目（用于算法优化）
     cache: UnsafeCell<Entry>,
 }
 
 impl Inner {
+    /// 把 [`List`] 锁住
     fn lock(&self) -> ListGuard<'_> {
         ListGuard {
             inner: self,
@@ -32,13 +42,33 @@ impl Inner {
         }
     }
 
+    /// 返回链表单缓冲条目的指针
     #[inline(always)]
     fn cache_ptr(&self) -> NonNull<Entry> {
         unsafe { NonNull::new_unchecked(self.cache.get()) }
     }
 }
 
+/// 通知异步任务的同步原语
+///
+/// 监听者可以通过 [`Event::listen()`] 来进行注册。有两种方法来通知监听者：
+/// 1. [`Event::notify()`] 通知一定数量的监听者
+/// 2. [`Event::notify_additional()`] 通知一定数量的之前没有被通知的监听者
+///
+/// 如果一个消息发出去后，当前没有监听者，这个消息将会被丢失。
+///
+/// 监听者可以使用 `.await` 来异步等待一个消息
+///
+/// 如果一个监听者在没有收到任何消息的情况下走到生命周期的尽头，`dropping` 会通知
+/// 其他监听了同一个 [`Event`] 的监听者。
+///
+/// 监听者们的注册和被通知操作遵循`先进先出`规律，保证公平性。
 pub struct Event {
+    /// A pointer to heap-allocated inner state.
+    ///
+    /// This pointer is initially null and gets lazily initialized on first use. Semantically, it
+    /// is an `Arc<Inner>` so it's important to keep in mind that it contributes to the [`Arc`]'s
+    /// reference count.
     inner: AtomicPtr<Inner>,
 }
 
@@ -46,12 +76,34 @@ unsafe impl Send for Event {}
 unsafe impl Sync for Event {}
 
 impl Event {
+    /// 创建一个新的 [`Event`]
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use event::Event;
+    ///
+    /// let event = Event::new();
+    /// ```
     #[inline]
     pub const fn new() -> Event {
         Event {
             inner: AtomicPtr::new(ptr::null_mut()),
         }
     }
+
+    /// 返回一个监听者
+    ///
+    /// This method emits a `SeqCst` fence after registering a listener.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use event::Event;
+    ///
+    /// let event = Event::new();
+    /// let listener = event.listen();
+    /// ```
     #[cold]
     pub fn listen(&self) -> EventListener {
         let inner = self.inner();
@@ -60,9 +112,37 @@ impl Event {
             entry: Some(inner.lock().insert(inner.cache_ptr())),
         };
 
+        // Make sure the listener is registered before whatever happens next.
         full_fence();
         listener
     }
+
+    /// 通知一定数量的监听者
+    ///
+    /// 数量可以是零或者超过监听者的数量
+    ///
+    /// This method emits a `SeqCst` fence before notifying listeners.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use event::Event;
+    ///
+    /// let event = Event::new();
+    ///
+    /// // This notification gets lost because there are no listeners.
+    /// event.notify(1);
+    ///
+    /// let listener1 = event.listen();
+    /// let listener2 = event.listen();
+    /// let listener3 = event.listen();
+    ///
+    /// // Notifies two listeners.
+    /// //
+    /// // Listener queueing is fair, which means `listener1` and `listener2`
+    /// // get notified here since they start listening before `listener3`.
+    /// event.notify(2);
+    /// ```
     #[inline]
     pub fn notify(&self, n: usize) {
         full_fence();
@@ -73,6 +153,37 @@ impl Event {
             }
         }
     }
+
+    /// 通知一定数量的监听者但是不 `emit a SeqCst fence`
+    ///
+    /// 数量可以是零或者超过监听者的数量
+    ///
+    /// Unlike [`Event::notify()`], this method does not emit a `SeqCst` fence.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use event::Event;
+    /// use core::sync::atomic::{self, Ordering};
+    ///
+    /// let event = Event::new();
+    ///
+    /// // This notification gets lost because there are no listeners.
+    /// event.notify(1);
+    ///
+    /// let listener1 = event.listen();
+    /// let listener2 = event.listen();
+    /// let listener3 = event.listen();
+    ///
+    /// // We should emit a fence manually when using relaxed notifications.
+    /// atomic::fence(Ordering::SeqCst);
+    ///
+    /// // Notifies two listeners.
+    /// //
+    /// // Listener queueing is fair, which means `listener1` and `listener2`
+    /// // get notified here since they start listening before `listener3`.
+    /// event.notify(2);
+    /// ```
     #[inline]
     pub fn notify_relaxed(&self, n: usize) {
         if let Some(inner) = self.try_inner() {
@@ -83,6 +194,34 @@ impl Event {
             }
         }
     }
+
+    /// 通知一定数量没有被通知过的监听者
+    ///
+    /// 数量可以是零或者超过监听者的数量
+    ///
+    /// This method emits a `SeqCst` fence before notifying listeners.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use event::Event;
+    ///
+    /// let event = Event::new();
+    ///
+    /// // This notification gets lost because there are no listeners.
+    /// event.notify(1);
+    ///
+    /// let listener1 = event.listen();
+    /// let listener2 = event.listen();
+    /// let listener3 = event.listen();
+    ///
+    /// // Notifies two listeners.
+    /// //
+    /// // Listener queueing is fair, which means `listener1` and `listener2`
+    /// // get notified here since they start listening before `listener3`.
+    /// event.notify_additional(1);
+    /// event.notify_additional(1);
+    /// ```
     #[inline]
     pub fn notify_additional(&self, n: usize) {
         full_fence();
@@ -93,6 +232,38 @@ impl Event {
             }
         }
     }
+
+    /// 通知一定数量没有被通知过的监听者但不 `emitting a SeqCst fence`
+    ///
+    /// 数量可以是零或者超过监听者的数量
+    ///
+    /// Unlike [`Event::notify_additional()`], this method does not emit a `SeqCst` fence.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use event::Event;
+    /// use core::sync::atomic::{self, Ordering};
+    ///
+    /// let event = Event::new();
+    ///
+    /// // This notification gets lost because there are no listeners.
+    /// event.notify(1);
+    ///
+    /// let listener1 = event.listen();
+    /// let listener2 = event.listen();
+    /// let listener3 = event.listen();
+    ///
+    /// // We should emit a fence manually when using relaxed notifications.
+    /// atomic::fence(Ordering::SeqCst);
+    ///
+    /// // Notifies two listeners.
+    /// //
+    /// // Listener queueing is fair, which means `listener1` and `listener2`
+    /// // get notified here since they start listening before `listener3`.
+    /// event.notify_additional_relaxed(1);
+    /// event.notify_additional_relaxed(1);
+    /// ```
     #[inline]
     pub fn notify_additional_relaxed(&self, n: usize) {
         if let Some(inner) = self.try_inner() {
@@ -101,11 +272,15 @@ impl Event {
             }
         }
     }
+
+    /// 如果 `inner` 的状态被初始化了，然后它的引用
     #[inline]
     fn try_inner(&self) -> Option<&Inner> {
         let inner = self.inner.load(Ordering::Acquire);
         unsafe { inner.as_ref() }
     }
+
+    /// 返回 `inner` 的引用，如果有必要可以初始化
     fn inner(&self) -> &Inner {
         let mut inner = self.inner.load(Ordering::Acquire);
 
@@ -151,6 +326,7 @@ impl Drop for Event {
     fn drop(&mut self) {
         let inner: *mut Inner = *self.inner.get_mut();
 
+        // If the state pointer has been initialized, deallocate it.
         if !inner.is_null() {
             unsafe {
                 drop(Arc::from_raw(inner));
@@ -171,6 +347,7 @@ impl Default for Event {
     }
 }
 
+/// 监听者
 pub struct EventListener {
     inner: Arc<Inner>,
     entry: Option<NonNull<Entry>>,
@@ -236,8 +413,11 @@ impl Drop for EventListener {
     }
 }
 
+/// A guard holding the linked list locked.
 struct ListGuard<'a> {
+    /// [`Event`] 的 `inner` 的引用
     inner: &'a Inner,
+    /// The actual guard that acquired the linked list.
     guard: MutexGuard<'a, List>,
 }
 
@@ -246,6 +426,7 @@ impl Drop for ListGuard<'_> {
     fn drop(&mut self) {
         let list = &mut **self;
 
+        // Update the atomic `notified` counter.
         let notified = if list.notified < list.len {
             list.notified
         } else {
@@ -271,13 +452,20 @@ impl DerefMut for ListGuard<'_> {
     }
 }
 
+/// 监听者的状态
 enum State {
+    /// 刚刚被创建
     Created,
+    /// 已经接收到一个通知
+    ///
+    /// 如果这是个 `additional` 通知，`bool` 将为 `true`
     Notified(bool),
+    /// 正在被一个异步任务 `poll`，保存了任务的 `waker`
     Polling(Waker),
 }
 
 impl State {
+    /// 如果已经被通知了，返回 `true`
     #[inline]
     fn is_notified(&self) -> bool {
         match self {
@@ -287,12 +475,17 @@ impl State {
     }
 }
 
+/// 一个条目，代表一个监听者
 struct Entry {
+    /// 监听者的状态
     state: Cell<State>,
+    /// 链表的前一个条目
     prev: Cell<Option<NonNull<Entry>>>,
+    /// 链表的后一个条目
     next: Cell<Option<NonNull<Entry>>>,
 }
 
+/// 链表
 struct List {
     head: Option<NonNull<Entry>>,
     tail: Option<NonNull<Entry>>,
@@ -303,6 +496,7 @@ struct List {
 }
 
 impl List {
+    /// 插入一个新的条目到链表
     fn insert(&mut self, cache: NonNull<Entry>) -> NonNull<Entry> {
         unsafe {
             let entry = Entry {
@@ -334,6 +528,7 @@ impl List {
         }
     }
 
+    /// 从链表移除一个条目并且返回其的状态
     fn remove(&mut self, entry: NonNull<Entry>, cache: NonNull<Entry>) -> State {
         unsafe {
             let prev = entry.as_ref().prev.get();
@@ -369,6 +564,7 @@ impl List {
         }
     }
 
+    /// 通知一定数量的条目
     #[cold]
     fn notify(&mut self, mut n: usize) {
         if n <= self.notified {
@@ -397,6 +593,7 @@ impl List {
         }
     }
 
+    /// 通知一定数量的 `additional` 条目
     #[cold]
     fn notify_additional(&mut self, mut n: usize) {
         while n > 0 {
@@ -420,6 +617,7 @@ impl List {
     }
 }
 
+/// 内存排序相关？
 #[inline]
 fn full_fence() {
     atomic::fence(Ordering::SeqCst);
