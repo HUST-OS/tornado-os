@@ -129,31 +129,16 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    let mutex = alloc::sync::Arc::new(async_mutex::AsyncMutex::new(0));
-    let poll_twice = async_mutex::PollTwice::new();
-    let task_4 = task::new_kernel(
-        async_mutex::async_mutex_test0(alloc::sync::Arc::clone(&mutex), poll_twice),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
-    let task_5 = task::new_kernel(
-        async_mutex::async_mutex_test1(mutex, alloc::sync::Arc::clone(&task_4)),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
+    
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
-    println!("task_4: {:?}", task_4);
-    println!("task_5: {:?}", task_5);
+    
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
+        
     }
 
     task::run_until_idle(

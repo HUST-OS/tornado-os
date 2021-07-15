@@ -227,44 +227,44 @@ pub struct PollTwice {
     waker: Option<Waker>
 }
 
-impl PollTwice {
-    pub fn new() -> Self {
-        Self {
-            first: true,
-            waker: None
-        }
-    }
-}
+// impl PollTwice {
+//     pub fn new() -> Self {
+//         Self {
+//             first: true,
+//             waker: None
+//         }
+//     }
+// }
 
-impl Future for PollTwice {
-    type Output = ();
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.first {
-            true => {
-                println!("[PollTwice] first poll, return Pending");
-                self.first = false;
-                self.waker = Some(cx.waker().clone());
-                Poll::Pending
-            },
-            false => Poll::Ready(())
-        }
-    }
-}
+// impl Future for PollTwice {
+//     type Output = ();
+//     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+//         match self.first {
+//             true => {
+//                 println!("[PollTwice] first poll, return Pending");
+//                 self.first = false;
+//                 self.waker = Some(cx.waker().clone());
+//                 Poll::Pending
+//             },
+//             false => Poll::Ready(())
+//         }
+//     }
+// }
 
-pub async fn async_mutex_test0<T>(mutex: Arc<AsyncMutex<T>>, poll_twice: PollTwice) {
-    println!("[0]: try acquire mutex!");
-    let _s = mutex.lock().await;
-    println!("[0]: acquire mutex!");
-    poll_twice.await;
-    println!("[0]: release the mutex!");
-}
+// pub async fn async_mutex_test0<T>(mutex: Arc<AsyncMutex<T>>, poll_twice: PollTwice) {
+//     println!("[0]: try acquire mutex!");
+//     let _s = mutex.lock().await;
+//     println!("[0]: acquire mutex!");
+//     poll_twice.await;
+//     println!("[0]: release the mutex!");
+// }
 
-pub async fn async_mutex_test1<T>(mutex: Arc<AsyncMutex<T>>, prev_task: Arc<KernelTaskRepr>) {
-    unsafe { prev_task.do_wake(); }
-    println!("[1]: try acquire mutex!");
-    let _s = mutex.lock().await;
-    println!("[1]: acquire mutex!");
-    println!("[1]: release the mutex!");
-}
+// pub async fn async_mutex_test1<T>(mutex: Arc<AsyncMutex<T>>, prev_task: Arc<KernelTaskRepr>) {
+//     unsafe { prev_task.do_wake(); }
+//     println!("[1]: try acquire mutex!");
+//     let _s = mutex.lock().await;
+//     println!("[1]: acquire mutex!");
+//     println!("[1]: release the mutex!");
+// }
 
 
