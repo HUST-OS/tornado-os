@@ -7,9 +7,33 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+/// 一个异步锁实现
+///
+/// # Examples
+///
+/// ```
+/// use async_mutex::AsyncMutex;
+///
+/// let m = AsyncMutex::new(1);
+///
+/// let mut guard = m.lock().await;
+/// *guard = 2;
+///
+/// assert!(m.try_lock().is_none());
+/// drop(guard);
+/// assert_eq!(*m.try_lock().unwrap(), 2);
+/// ```
 pub struct AsyncMutex<T: ?Sized> {
+    /// 锁的当前状态
+    ///
+    /// 如果锁被锁住，最低有效位被置为 1
+    /// 其他位保存锁请求操作的数量
     state: AtomicUsize,
+    
+    /// 等待锁被释放的监听行为
     lock_ops: Event,
+    
+    /// 锁的内部数据
     data: UnsafeCell<T>,
 }
 
@@ -17,6 +41,15 @@ unsafe impl<T: Send + ?Sized> Send for AsyncMutex<T> {}
 unsafe impl<T: Send + ?Sized> Sync for AsyncMutex<T> {}
 
 impl<T> AsyncMutex<T> {
+    /// 创建一个新的异步锁
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use async_mutex::AsyncMutex;
+    ///
+    /// let mutex = AsyncMutex::new(0);
+    /// ```
     pub const fn new(data: T) -> AsyncMutex<T> {
         AsyncMutex {
             state: AtomicUsize::new(0),
@@ -24,12 +57,36 @@ impl<T> AsyncMutex<T> {
             data: UnsafeCell::new(data),
         }
     }
+
+    /// 消费锁的所有权，返回内部数据
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use async_mutex::AsyncMutex;
+    ///
+    /// let mutex = AsyncMutex::new(10);
+    /// assert_eq!(mutex.into_inner(), 10);
+    /// ```
     pub fn into_inner(self) -> T {
         self.data.into_inner()
     }
 }
 
 impl<T: ?Sized> AsyncMutex<T> {
+    /// 异步方式获取锁
+    ///
+    /// 返回一个 `guard`，生命周期尽头的时候释放锁
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use async_mutex::AsyncMutex;
+    ///
+    /// let mutex = AsyncMutex::new(10);
+    /// let guard = mutex.lock().await;
+    /// assert_eq!(*guard, 10);
+    /// ```
     #[inline]
     pub async fn lock(&self) -> AsyncMutexGuard<'_, T> {
         if let Some(guard) = self.try_lock() {
@@ -39,15 +96,19 @@ impl<T: ?Sized> AsyncMutex<T> {
         AsyncMutexGuard(self)
     }
 
+    #[cold]
     async fn acquire_slow(&self) {
         loop {
+            // 开始监听事件
             let listener = self.lock_ops.listen();
 
+            // 如果锁没被任何任务持有，则尝试获取锁
             match self
                 .state
                 .compare_exchange(0, 1, Ordering::Acquire, Ordering::Acquire)
                 .unwrap_or_else(|x| x)
             {
+                // 成功获取锁！
                 0 => return,
 
                 1 => {}
@@ -55,6 +116,7 @@ impl<T: ?Sized> AsyncMutex<T> {
                 _ => break,
             }
 
+            // 等待锁被释放
             listener.await;
 
             match self
@@ -105,6 +167,21 @@ impl<T: ?Sized> AsyncMutex<T> {
             }
         }
     }
+
+    /// 尝试获取锁
+    ///
+    /// 如果获取锁失败，返回 [`None`]，如果获取成功，返回 [`Some(guard)`]
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use async_mutex::AsyncMutex;
+    ///
+    /// let mutex = AsyncMutex::new(10);
+    /// if let Some(guard) = mutex.try_lock() {
+    ///     assert_eq!(*guard, 10);
+    /// }
+    /// ```
     #[inline]
     pub fn try_lock(&self) -> Option<AsyncMutexGuard<'_, T>> {
         if self
@@ -117,6 +194,21 @@ impl<T: ?Sized> AsyncMutex<T> {
             None
         }
     }
+
+    /// 返回内部数据的可变引用
+    ///
+    /// Since this call borrows the mutex mutably, no actual locking takes place -- the mutable
+    /// borrow statically guarantees the mutex is not already acquired.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use async_mutex::AsyncMutex;
+    ///
+    /// let mut mutex = AsyncMutex::new(0);
+    /// *mutex.get_mut() = 10;
+    /// assert_eq!(*mutex.lock().await, 10);
+    /// ```
     pub fn get_mut(&mut self) -> &mut T {
         unsafe { &mut *self.data.get() }
     }
@@ -159,6 +251,17 @@ unsafe impl<T: Send + ?Sized> Send for AsyncMutexGuard<'_, T> {}
 unsafe impl<T: Sync + ?Sized> Sync for AsyncMutexGuard<'_, T> {}
 
 impl<'a, T: ?Sized> AsyncMutexGuard<'a, T> {
+    /// 返回内部锁的引用
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use async_mutex::{AsyncMutex, AsyncMutexGuard};
+    ///
+    /// let mutex = AsyncMutex::new(10i32);
+    /// let guard = mutex.lock().await;
+    /// dbg!(AsyncMutexGuard::source(&guard));
+    /// ```
     pub fn source(guard: &AsyncMutexGuard<'a, T>) -> &'a AsyncMutex<T> {
         guard.0
     }
@@ -197,6 +300,7 @@ impl<T: ?Sized> DerefMut for AsyncMutexGuard<'_, T> {
     }
 }
 
+/// Calls a function when dropped.
 struct CallOnDrop<F: Fn()>(F);
 
 impl<F: Fn()> Drop for CallOnDrop<F> {
