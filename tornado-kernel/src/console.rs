@@ -1,10 +1,11 @@
 use crate::sbi::*;
 use core::fmt::{self, Write};
+use super::task::Lock;
 
 struct Stdout;
 
 // 暂时不用关中断的锁lock::Lock，考虑多个硬件线程的情况
-static STDOUT_LOCK: spin::Mutex<()> = spin::Mutex::new(());
+static STDOUT_LOCK: Lock<()> = Lock::new(());
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
