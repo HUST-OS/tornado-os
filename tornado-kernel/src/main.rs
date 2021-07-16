@@ -74,25 +74,10 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     println!("heap test passed");
-    println!("Max asid = {:?}", memory::max_asid());
+    println!("Max asid = {:?}", mm::max_asid());
 
-    // 物理页分配
-    for i in 0..2 {
-        let frame_0 = match memory::frame_alloc() {
-            Some(frame_tracker) => frame_tracker,
-            None => panic!("frame allocation failed"),
-        };
-        let frame_1 = match memory::frame_alloc() {
-            Some(frame_tracker) => frame_tracker,
-            None => panic!("frame allocation failed"),
-        };
-        println!(
-            "Test #{}: {:?} and {:?}",
-            i,
-            frame_0.start_address(),
-            frame_1.start_address()
-        );
-    }
+    // 测试页帧分配器
+    mm::test_frame_alloc();
 
     println!("_swap_frame: {:#x}", _swap_frame as usize);
     println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
