@@ -68,6 +68,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "buddy_system_allocator"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55703ac5f02c246ce6158eff6ae2dd9e9069917969682b6831f8a5123abb8a48"
+dependencies = [
+ "spin 0.7.1",
+]
+
+[[package]]
 name = "clap"
 version = "2.33.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -203,7 +212,7 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 name = "shared-scheduler"
 version = "0.1.0"
 dependencies = [
- "buddy_system_allocator",
+ "buddy_system_allocator 0.6.0",
  "lazy_static",
  "r0",
  "riscv 0.6.0 (git+https://github.com.cnpmjs.org/rust-embedded/riscv.git?rev=7e9d2e5b)",
@@ -252,7 +261,7 @@ version = "0.1.0"
 dependencies = [
  "bit_field",
  "bitflags",
- "buddy_system_allocator",
+ "buddy_system_allocator 0.8.0",
  "hashbrown",
  "lazy_static",
  "r0",
@@ -265,7 +274,7 @@ dependencies = [
 name = "tornado-user"
 version = "0.1.0"
 dependencies = [
- "buddy_system_allocator",
+ "buddy_system_allocator 0.6.0",
  "lazy_static",
  "r0",
  "spin 0.5.2",

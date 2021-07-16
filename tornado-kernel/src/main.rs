@@ -4,6 +4,7 @@
 #![feature(drain_filter)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(naked_functions)]
+#![feature(destructuring_assignment)]
 #[macro_use]
 extern crate alloc;
 
@@ -20,6 +21,8 @@ mod syscall;
 mod task;
 mod trap;
 mod user;
+
+mod mm; 
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -47,7 +50,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     println!("booted");
 
-    memory::init();
+    mm::heap_init();
     trap::init();
 
     unsafe {

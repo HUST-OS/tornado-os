@@ -9,9 +9,9 @@ pub use config::*;
 pub use frame::{frame_alloc, FrameTracker};
 pub use mapping::{Flags, MapType, Mapping, MemorySet, Satp, Segment};
 
-pub fn init() {
-    heap::init();
-}
+// pub fn init() {
+//     heap::init();
+// }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(C)]
