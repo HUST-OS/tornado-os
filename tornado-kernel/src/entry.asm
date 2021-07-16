@@ -10,13 +10,10 @@ _start:
     sfence.vma # 更新页表缓存
 
     # 加载栈地址
-    lui sp, %hi(boot_stack_top)
-    addi sp, sp, %lo(boot_stack_top)
+    la  sp, boot_stack_top
 
     # 跳转到rust_main
-    lui t0, %hi(rust_main)
-    addi t0, t0, %lo(rust_main)
-    jr t0
+    j  rust_main
 
     .section .bss.stack
     .global boot_stack

@@ -2,8 +2,8 @@ OUTPUT_ARCH(riscv)
 
 ENTRY(_start)
 
-/* 省点虚拟空间……假设内核最多只有1G大小 */
-BASE_ADDRESS = 0xffffffffc0200000;
+/* 恒等映射 */
+BASE_ADDRESS = 0x80200000;
 
 SECTIONS
 {
@@ -20,6 +20,12 @@ SECTIONS
         *(.swap)
         ASSERT(. - _swap_frame <= 4K, "swap frame larger than one page");
         _etext = .;
+    }
+    
+    .trampoline : ALIGN(4K) {
+        strampoline = .;
+        *(.trampoline)
+        etrampoline = .;
     }
 
     .rodata : ALIGN(4K) {
