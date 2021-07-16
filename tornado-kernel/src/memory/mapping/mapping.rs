@@ -212,7 +212,7 @@ impl Mapping {
     /// 把当前的映射保存到satp寄存器
     pub fn activate_on(&self, asid: AddressSpaceId) {
         use riscv::register::satp::{self, Mode};
-        let asid = asid.into_inner();
+        let asid = unsafe { core::mem::transmute::<_, u16>(asid) } as usize;
         unsafe {
             // 将新的ppn和asid值写到satp寄存器
             satp::set(Mode::Sv39, asid, self.root_ppn.into());
@@ -229,7 +229,7 @@ impl Mapping {
         use riscv::register::satp::Mode;
         let mut bits = 0usize;
         bits.set_bits(60..64, Mode::Sv39 as usize);
-        bits.set_bits(44..60, asid.into_inner());
+        bits.set_bits(44..60, unsafe { core::mem::transmute::<_, u16>(asid) } as usize);
         bits.set_bits(0..44, self.root_ppn.into());
         bits
     }

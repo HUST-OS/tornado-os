@@ -37,7 +37,7 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     let user_stack_top = user_stack_handle.end.0 - 4;
 
     // 获取用户地址空间编号
-    let user_asid = process.address_space_id().into_inner();
+    let user_asid = unsafe { core::mem::transmute::<_, u16>(process.address_space_id()) } as usize;
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 

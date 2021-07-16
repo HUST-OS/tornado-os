@@ -24,7 +24,7 @@ use crate::hart::KernelHartInfo;
 /// 地址空间和进程也可以有进一步的联系，在传统的内核中，他们是一对一的从属关系。
 /// 许多的指令集架构存在也是名为“地址空间”的优化方法，来提高页表缓存的访问效率，我们可以用它们实现软件上的地址空间。
 /// 如果具体的处理核上没有实现这种硬件优化，我们只用软件给出“地址空间”的概念，而不在硬件上利用它们。
-use crate::memory::AddressSpaceId;
+use crate::mm::AddressSpaceId;
 use core::mem;
 use core::ptr::NonNull;
 

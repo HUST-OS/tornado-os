@@ -35,7 +35,8 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
 fn switch_next_task(param: [usize; 6], func: usize) -> SyscallResult {
-    let next_asid = unsafe { AddressSpaceId::from_raw(param[0]) }; // a0
+    // todo: as u16 转换需要检查
+    let next_asid = unsafe { AddressSpaceId::from_raw(param[0] as u16) }; // a0
     todo!()
 }
 

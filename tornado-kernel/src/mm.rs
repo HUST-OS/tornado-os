@@ -165,6 +165,7 @@ pub(crate) fn test_frame_alloc() {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[repr(transparent)]
 pub struct AddressSpaceId(u16);
 
 impl AddressSpaceId {
@@ -175,9 +176,13 @@ impl AddressSpaceId {
             Some(AddressSpaceId(self.0.wrapping_add(1)))
         }
     }
+
+    pub unsafe fn from_raw(n: u16) -> Self {
+        Self(n)
+    }
 }
 
-const DEFAULT_ASID: AddressSpaceId = AddressSpaceId(0); // RISC-V架构规定，必须实现
+pub const DEFAULT_ASID: AddressSpaceId = AddressSpaceId(0); // RISC-V架构规定，必须实现
 
 // 每个平台上是不一样的，需要通过读写satp寄存器获得
 pub fn max_asid() -> AddressSpaceId {
@@ -240,7 +245,7 @@ impl StackAsidAllocator {
         }
     }
     
-    fn deallocate_asid(&mut self, asid: AddressSpaceId) {
+    pub fn deallocate_asid(&mut self, asid: AddressSpaceId) {
         if asid.next_asid(self.max).is_none() || self.recycled.iter().find(|&v| {*v == asid}).is_some() {
             panic!("Asid {:x?} has not been allocated!", asid);
         }

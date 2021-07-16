@@ -1,5 +1,6 @@
 //! 和处理核相关的函数
-use crate::memory::{AddressSpaceId, Satp};
+use crate::mm;
+use riscv::register::satp::Satp;
 use crate::task::Process;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
@@ -10,7 +11,7 @@ use alloc::sync::Arc;
 pub unsafe fn write_tp(tp: usize) {
     asm!("mv tp, {}", in(reg) tp, options(nostack));
 }
-
+//
 /// 从tp寄存器读上下文指针
 #[inline]
 pub fn read_tp() -> usize {
@@ -25,11 +26,11 @@ pub fn read_tp() -> usize {
 // 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，以及已经分配的地址空间
 pub struct KernelHartInfo {
     hart_id: usize,
-    current_address_space_id: AddressSpaceId,
+    current_address_space_id: mm::AddressSpaceId,
     current_process: Option<Arc<Process>>,
-    hart_max_asid: AddressSpaceId,
-    asid_alloc: (LinkedList<usize>, usize), // 空余的编号回收池；目前已分配最大的编号
-    satps: LinkedList<(AddressSpaceId, Satp)>, // 记录地址空间与 satp 寄存器的对应关系
+    hart_max_asid: mm::AddressSpaceId,
+    asid_alloc: mm::StackAsidAllocator,
+    satps: LinkedList<(mm::AddressSpaceId, Satp)>, // 记录地址空间与 satp 寄存器的对应关系
 }
 
 impl KernelHartInfo {
@@ -37,10 +38,10 @@ impl KernelHartInfo {
     pub unsafe fn load_hart(hart_id: usize) {
         let hart_info = Box::new(KernelHartInfo {
             hart_id,
-            current_address_space_id: AddressSpaceId::from_raw(0),
+            current_address_space_id: mm::DEFAULT_ASID,
             current_process: None,
-            hart_max_asid: crate::memory::max_asid(),
-            asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
+            hart_max_asid: mm::max_asid(),
+            asid_alloc: mm::StackAsidAllocator::new(mm::max_asid()),
             satps: LinkedList::new(),
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
@@ -59,12 +60,12 @@ impl KernelHartInfo {
         use_tp_box(|b| b.hart_id)
     }
 
-    pub unsafe fn load_address_space_id(asid: AddressSpaceId) {
+    pub unsafe fn load_address_space_id(asid: mm::AddressSpaceId) {
         use_tp_box(|b| b.current_address_space_id = asid);
     }
 
     /// 得到当前的地址空间编号
-    pub fn current_address_space_id() -> AddressSpaceId {
+    pub fn current_address_space_id() -> mm::AddressSpaceId {
         use_tp_box(|b| b.current_address_space_id)
     }
 
@@ -77,50 +78,21 @@ impl KernelHartInfo {
     }
 
     /// 分配一个地址空间编号
-    pub fn alloc_address_space_id() -> Option<AddressSpaceId> {
+    pub fn alloc_address_space_id() -> Result<mm::AddressSpaceId, mm::AsidAllocError> {
         use_tp_box(|b| {
-            let (free, max) = &mut b.asid_alloc;
-            if let Some(_) = free.front() {
-                // 如果链表有内容，返回内容
-                return free
-                    .pop_front()
-                    .map(|idx| unsafe { AddressSpaceId::from_raw(idx) });
-            }
-            // 如果链表是空的
-            if *max < b.hart_max_asid.into_inner() {
-                let ans = *max;
-                *max += 1;
-                Some(unsafe { AddressSpaceId::from_raw(ans) })
-            } else {
-                None
-            }
+            b.asid_alloc.allocate_asid()
         })
     }
 
     /// 释放地址空间编号
-    pub fn free_address_space_id(asid: AddressSpaceId) {
+    pub fn free_address_space_id(asid: mm::AddressSpaceId) {
         use_tp_box(|b| {
-            let (free, max) = &mut b.asid_alloc;
-            if asid.into_inner() == *max && *max > 0 {
-                *max -= 1;
-                return;
-            } else {
-                free.push_back(asid.into_inner())
-            }
-            let satps = &mut b.satps;
-            let len = satps.len();
-            for _ in 0..len {
-                if let Some(x) = satps.pop_front() {
-                    if x.0 != asid {
-                        satps.push_back((x.0, x.1));
-                    }
-                }
-            }
+            b.asid_alloc.deallocate_asid(asid)
         });
     }
 
     /// 添加地址空间编号和 satp 寄存器的对应关系
-    pub fn add_asid_satp_map(asid: AddressSpaceId, satp: Satp) {
+    pub fn add_asid_satp_map(asid: mm::AddressSpaceId, satp: Satp) {
         // todo: 需要判断是否地址空间编号已经存在
         use_tp_box(|b| {
             b.satps.push_back((asid, satp));
@@ -128,7 +100,7 @@ impl KernelHartInfo {
     }
 
     /// 根据地址空间编号获得 satp 寄存器
-    pub fn get_satp(asid: AddressSpaceId) -> Option<Satp> {
+    pub fn get_satp(asid: mm::AddressSpaceId) -> Option<Satp> {
         use_tp_box(|b| {
             let v = &mut b.satps;
             for x in v.iter() {

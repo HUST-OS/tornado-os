@@ -34,7 +34,9 @@ impl Process {
             inner: Mutex::new(ProcessInner { memory_set }),
         });
         unsafe {
-            KernelHartInfo::load_address_space_id(process.address_space_id());
+            KernelHartInfo::load_address_space_id(
+                core::mem::transmute(process.address_space_id())
+            );
             KernelHartInfo::load_process(process.clone());
         };
         Some(process)
@@ -49,7 +51,9 @@ impl Process {
             inner: Mutex::new(ProcessInner { memory_set }),
         });
         unsafe {
-            KernelHartInfo::load_address_space_id(process.address_space_id());
+            KernelHartInfo::load_address_space_id(
+                core::mem::transmute(process.address_space_id())
+            );
             KernelHartInfo::load_process(process.clone());
         };
         Some(process)
