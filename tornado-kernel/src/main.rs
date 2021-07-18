@@ -24,6 +24,8 @@ mod user;
 
 mod mm; 
 
+use alloc::vec::Vec;
+
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
 
@@ -59,7 +61,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     // 动态内存分配测试
     use alloc::boxed::Box;
-    use alloc::vec::Vec;
     let v = Box::new(5);
     assert_eq!(*v, 5);
     core::mem::drop(v);
@@ -99,7 +100,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("Current hart: {}", hart::KernelHartInfo::hart_id());
 
     // 创建内核地址空间
-    let (kernel_addr_space, frames, _trampoline_va_start) = 
+    let (kernel_addr_space, _kernel_as_frames, _trampoline_va_start) = 
         create_sv39_kernel_address_space(&frame_alloc);
     let kernel_asid = hart::KernelHartInfo::alloc_address_space_id()
         .expect("allocate kernel address space id");
@@ -119,7 +120,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     let process = task::Process::new(
         vec![],
-        vec![]
     );
     // let hart_id = crate::hart::KernelHartInfo::hart_id();
     // let address_space_id = process.address_space_id();
@@ -130,12 +130,12 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    // let task_2 = task::new_kernel(
-    //     task_2(),
-    //     process.clone(),
-    //     shared_payload.shared_scheduler,
-    //     shared_payload.shared_set_task_state,
-    // );
+    let task_2 = task::new_kernel(
+        task_2(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
     // let task_3 = task::new_kernel(
     //     FibonacciFuture::new(8),
     //     process.clone(),
@@ -157,15 +157,15 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     //     shared_payload.shared_scheduler,
     //     shared_payload.shared_set_task_state,
     // );
-    // println!("task_1: {:?}", task_1);
-    // println!("task_2: {:?}", task_2);
+    println!("task_1: {:?}", task_1);
+    println!("task_2: {:?}", task_2);
     // println!("task_3: {:?}", task_3);
     // println!("task_4: {:?}", task_4);
     // println!("task_5: {:?}", task_5);
 
     unsafe {
         shared_payload.add_task(hart_id, kernel_asid, task_1.task_repr());
-    //     shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
+        shared_payload.add_task(hart_id, kernel_asid, task_2.task_repr());
     //     shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
     //     shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
     //     shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
@@ -233,8 +233,6 @@ impl Future for FibonacciFuture {
         }
     }
 }
-
-use alloc::vec::Vec;
 
 fn create_sv39_kernel_address_space<A: mm::FrameAllocator + Clone>(frame_alloc: A) -> (mm::PagedAddrSpace<mm::Sv39, A>, Vec<mm::FrameBox<A>>, mm::VirtAddr) {
     let mut kernel_addr_space = mm::PagedAddrSpace::try_new_in(mm::Sv39, frame_alloc)

@@ -12,18 +12,15 @@ pub struct Process {
     pid: ProcessId,
     /// 相关联的地址空间区域。关闭进程时，进程管理器根据这些信息，删除地址映射关系
     related_address_spaces: Vec<(AddressSpaceId, Range<VirtPageNum>)>,
-    /// 关联的帧。关闭进程时，释放这些帧
-    frames: Vec<FrameBox>,
 }
 
 impl Process {
     /// 创建一个新的进程
-    pub fn new(related_address_spaces: Vec<(AddressSpaceId, Range<VirtPageNum>)>, frames: Vec<FrameBox>) -> Arc<Self> {
+    pub fn new(related_address_spaces: Vec<(AddressSpaceId, Range<VirtPageNum>)>) -> Arc<Self> {
         let pid = next_process_id();
         Arc::new(Process {
             pid,
             related_address_spaces,
-            frames,
         })
     }
 }
