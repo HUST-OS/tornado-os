@@ -1,4 +1,4 @@
-use crate::memory::VirtualAddress;
+use crate::mm::VirtAddr;
 use crate::task::Process;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -44,7 +44,7 @@ pub struct TaskInner {
     /// 本任务运行的栈
     ///
     /// 内核任务复用执行器的栈。用户任务占有一个栈，下一个任务复用此栈。强制中断暂停时，下一个任务使用新分配的栈。
-    pub stack: Option<Range<VirtualAddress>>,
+    pub stack: Option<Range<VirtAddr>>,
 }
 
 impl KernelTask {

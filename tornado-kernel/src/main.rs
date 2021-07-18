@@ -1,10 +1,12 @@
+#![feature(naked_functions, asm, global_asm)]
+#![feature(llvm_asm)]
+#![feature(alloc_error_handler)]
+#![feature(panic_info_message)]
+#![feature(generator_trait)]
+#![feature(destructuring_assignment)]
 #![no_std]
 #![no_main]
-#![feature(global_asm, llvm_asm, asm, alloc_error_handler)]
-#![feature(drain_filter)]
-#![feature(maybe_uninit_uninit_array)]
-#![feature(naked_functions)]
-#![feature(destructuring_assignment)]
+
 #[macro_use]
 extern crate alloc;
 
@@ -14,14 +16,13 @@ mod algorithm;
 mod async_mutex;
 mod event;
 mod hart;
-mod memory;
 mod panic;
 mod sbi;
 mod syscall;
 mod task;
 mod trap;
 mod user;
-
+mod runtime;
 mod mm; 
 
 use alloc::vec::Vec;
@@ -29,53 +30,37 @@ use alloc::vec::Vec;
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
 
+extern "C" {
+    static mut _sbss: u32;
+    static mut _ebss: u32;
+
+    static mut _sdata: u32;
+    static mut _edata: u32;
+
+    static _sidata: u32;
+
+    fn _swap_frame();
+    fn _user_to_supervisor();
+    fn _supervisor_to_user();
+}
+
+lazy_static::lazy_static! {
+    pub static ref TRAMPOLINE_VA_START: spin::Mutex<Option<mm::VirtAddr>> = spin::Mutex::new(None);
+}
+
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
-    extern "C" {
-        static mut _sbss: u32;
-        static mut _ebss: u32;
-
-        static mut _sdata: u32;
-        static mut _edata: u32;
-
-        static _sidata: u32;
-
-        fn _swap_frame();
-        fn _user_to_supervisor();
-        fn _supervisor_to_user();
+    // 初始化内存
+    if hart_id == 0 {
+        unsafe {
+            r0::zero_bss(&mut _sbss, &mut _ebss);
+            r0::init_data(&mut _sdata, &mut _edata, &_sidata);
+        }
+        mm::heap_init();
+        println!("_swap_frame: {:#x}", _swap_frame as usize);
+        println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
+        println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
     }
-
-    unsafe {
-        r0::zero_bss(&mut _sbss, &mut _ebss);
-        r0::init_data(&mut _sdata, &mut _edata, &_sidata);
-    }
-
-    println!("booted");
-
-    mm::heap_init();
-    trap::init();
-
-    unsafe {
-        asm!("ebreak");
-    };
-
-    // 动态内存分配测试
-    use alloc::boxed::Box;
-    let v = Box::new(5);
-    assert_eq!(*v, 5);
-    core::mem::drop(v);
-
-    let mut vec = Vec::new();
-    for i in 0..10000 {
-        vec.push(i);
-    }
-    assert_eq!(vec.len(), 10000);
-    for (i, value) in vec.into_iter().enumerate() {
-        assert_eq!(value, i);
-    }
-
-    println!("heap test passed");
-    println!("Max asid = {:?}", mm::max_asid());
 
     // 测试页帧分配器
     mm::test_frame_alloc();
@@ -88,36 +73,64 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // 测试大页求解算法
     mm::test_map_solve();
 
-    println!("_swap_frame: {:#x}", _swap_frame as usize);
-    println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
-    println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
-
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     // 这里将创建一个地址空间分配器
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };
     // 这之后就可以分配地址空间了，这之前只能用内核的地址空间
 
-    println!("Current hart: {}", hart::KernelHartInfo::hart_id());
+    println!("[kernel] current hart: {}", hart::KernelHartInfo::hart_id());
 
-    // 创建内核地址空间
-    let (kernel_addr_space, _kernel_as_frames, _trampoline_va_start) = 
-        create_sv39_kernel_address_space(&frame_alloc);
-    let kernel_asid = hart::KernelHartInfo::alloc_address_space_id()
-        .expect("allocate kernel address space id");
-    println!("[kernel] activate kernel address space");
-    // 激活内核空间
-    let kernel_satp = unsafe {
-        mm::activate_paged_riscv_sv39(kernel_addr_space.root_page_number(), kernel_asid)
-    };
-    unsafe { 
-        hart::KernelHartInfo::load_address_space_id(kernel_asid);
-        hart::KernelHartInfo::add_asid_satp_map(kernel_asid, kernel_satp); // 暂时不知道什么用，后面再说
+    // 加载共享调度器
+    let shared_payload = unsafe { task::SharedPayload::load(0x8600_0000) };
+
+    if hart_id == 0 {
+        // 创建内核地址空间
+        let (kernel_addr_space, _kernel_as_frames, trampoline_va_start) = 
+            create_sv39_kernel_address_space(&frame_alloc);
+        *TRAMPOLINE_VA_START.lock() = Some(trampoline_va_start);
+        let kernel_asid = hart::KernelHartInfo::alloc_address_space_id()
+            .expect("allocate kernel address space id");
+        println!("[kernel] activate kernel address space");
+        // 激活内核空间
+        let kernel_satp = unsafe {
+            mm::activate_paged_riscv_sv39(kernel_addr_space.root_page_number(), kernel_asid)
+        };
+        unsafe { 
+            hart::KernelHartInfo::load_address_space_id(kernel_asid);
+            hart::KernelHartInfo::add_asid_satp_map(kernel_asid, kernel_satp); // 暂时不知道什么用，后面再说
+        }
+        // 创建内核启动所需的进程
+        insert_kernel_start_tasks(hart_id, kernel_asid, shared_payload);
     }
 
     unsafe {dummy()};
 
-    let shared_payload = unsafe { task::SharedPayload::load(0x8600_0000) };
+    // 初始化运行时，只需要初始化一次
+    loop { 
+        if let Some(trampoline_va_start) = *TRAMPOLINE_VA_START.lock() {
+            runtime::init(trampoline_va_start);
+            break
+        }
+    }
+    // 开始运行任务
+    // executor, runtime, ...
 
+    // task::run_until_idle(
+    //     || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+    //     |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+    //     |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
+    // );
+
+    // // 进入用户态
+    // user::first_enter_user(stack_handle.end.0 - 4)
+
+    // // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
+    unsafe { hart::KernelHartInfo::unload_hart() };
+    // // 没有任务了，关机
+    sbi::shutdown()
+}
+
+fn insert_kernel_start_tasks(hart_id: usize, kernel_asid: mm::AddressSpaceId, shared_payload: task::SharedPayload) {
     let process = task::Process::new(
         vec![],
     );
@@ -170,20 +183,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     //     shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
     //     shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
     }
-
-    // task::run_until_idle(
-    //     || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
-    //     |task_repr| unsafe { shared_payload.delete_task(task_repr) },
-    //     |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
-    // );
-
-    // // 进入用户态
-    // user::first_enter_user(stack_handle.end.0 - 4)
-
-    // // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
-    unsafe { hart::KernelHartInfo::unload_hart() };
-    // // 没有任务了，关机
-    sbi::shutdown()
 }
 
 async fn task_1() {

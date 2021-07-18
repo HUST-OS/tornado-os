@@ -212,49 +212,49 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
     )
 }
 
-use crate::memory::{SWAP_CONTEXT_VA, SWAP_FRAME_VA};
+// use crate::memory::{SWAP_CONTEXT_VA, SWAP_FRAME_VA};
 
-/// 上升到用户态
-/// 目前让这个函数接收一个 SwapContext 参数和用户的页表，测试使用
-#[no_mangle]
-pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
-    use riscv::register::{
-        sstatus::{self, SPP},
-        stvec::{self, TrapMode},
-    };
-    // 关中断
-    unsafe {
-        sstatus::clear_sie();
-    }
-    extern "C" {
-        fn _swap_frame();
-        fn _supervisor_to_user();
-    }
-    // 用户态发生中断时 pc 将会被设置成此值
-    let user_trap_va = SWAP_FRAME_VA as usize;
-    // 该函数最后应该跳转的虚拟地址
-    let jmp_va = _supervisor_to_user as usize - _swap_frame as usize + SWAP_FRAME_VA;
+// /// 上升到用户态
+// /// 目前让这个函数接收一个 SwapContext 参数和用户的页表，测试使用
+// #[no_mangle]
+// pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
+//     use riscv::register::{
+//         sstatus::{self, SPP},
+//         stvec::{self, TrapMode},
+//     };
+//     // 关中断
+//     unsafe {
+//         sstatus::clear_sie();
+//     }
+//     extern "C" {
+//         fn _swap_frame();
+//         fn _supervisor_to_user();
+//     }
+//     // 用户态发生中断时 pc 将会被设置成此值
+//     let user_trap_va = SWAP_FRAME_VA as usize;
+//     // 该函数最后应该跳转的虚拟地址
+//     let jmp_va = _supervisor_to_user as usize - _swap_frame as usize + SWAP_FRAME_VA;
 
-    // 设置用户态陷入内核时需要跳转的地址
-    unsafe {
-        stvec::write(user_trap_va, TrapMode::Direct);
-    }
-    // todo: 将 trap::handler 中的 trap_vector 以 Vectored 模式写入到 stvec 寄存器
+//     // 设置用户态陷入内核时需要跳转的地址
+//     unsafe {
+//         stvec::write(user_trap_va, TrapMode::Direct);
+//     }
+//     // todo: 将 trap::handler 中的 trap_vector 以 Vectored 模式写入到 stvec 寄存器
 
-    // 设置 sstatus.SPP 的值为 User
-    unsafe {
-        sstatus::set_spp(SPP::User);
-    }
+//     // 设置 sstatus.SPP 的值为 User
+//     unsafe {
+//         sstatus::set_spp(SPP::User);
+//     }
 
-    // 将 SwapContext.epc 写到 sepc 寄存器
-    // 这个是用户程序入口
-    riscv::register::sepc::write(context.epc);
+//     // 将 SwapContext.epc 写到 sepc 寄存器
+//     // 这个是用户程序入口
+//     riscv::register::sepc::write(context.epc);
 
-    // todo: 如何处理 tp 寄存器
+//     // todo: 如何处理 tp 寄存器
 
-    unsafe {
-        llvm_asm!("fence.i" :::: "volatile");
-        llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(SWAP_CONTEXT_VA), "{a1}"(user_satp) :: "volatile");
-    }
-    unreachable!()
-}
+//     unsafe {
+//         llvm_asm!("fence.i" :::: "volatile");
+//         llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(SWAP_CONTEXT_VA), "{a1}"(user_satp) :: "volatile");
+//     }
+//     unreachable!()
+// }

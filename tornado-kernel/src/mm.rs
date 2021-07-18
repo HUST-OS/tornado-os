@@ -23,11 +23,21 @@ pub(crate) fn heap_init() {
             HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE
         )
     }
+    use alloc::boxed::Box;
+    let v = Box::new(5);
+    assert_eq!(*v, 5);
+    core::mem::drop(v);
+
     let mut vec = Vec::new();
-    for i in 0..5 {
+    for i in 0..10000 {
         vec.push(i);
     }
-    println!("[kernel] Alloc test: {:?}", vec);
+    assert_eq!(vec.len(), 10000);
+    for (i, value) in vec.into_iter().enumerate() {
+        assert_eq!(value, i);
+    }
+
+    println!("[kernel] Heap memory test passed");
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
