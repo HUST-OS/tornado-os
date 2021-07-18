@@ -70,7 +70,6 @@ impl fmt::Debug for KernelTask {
         let inner = self.inner.lock();
         f.debug_struct("KernelTask")
             .field("task id", &self.id)
-            .field("address space id", &self.process.address_space_id())
             .field("stack", &inner.stack)
             .finish()
     }
