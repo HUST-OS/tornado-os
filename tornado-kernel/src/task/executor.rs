@@ -36,10 +36,10 @@ pub fn run_until_idle(
                     delete_task(task_repr);
                 } // 隐含一个drop(task)
             }
-            TaskResult::ShouldYield(next_asid) => {
+            TaskResult::Yield(next_asid) => {
                 todo!("切换到 next_asid (= {}) 对应的地址空间", next_asid)
             }
-            TaskResult::NoWakeTask => {
+            TaskResult::Wait => {
                 // 当前共享调度器里面没有醒着的任务
                 todo!()
             }

@@ -5,18 +5,17 @@ use core::ptr::NonNull;
 use spin::Mutex;
 
 /// 共享调度器返回的结果
-// 不应该移除，这对FFI是安全的，我们只考虑Rust用户，其它语言自己想办法
 #[derive(Debug)]
-#[repr(C)]
+#[repr(C)] // 不应该移除 repr(C)，这对FFI是安全的，我们只考虑Rust用户，其它语言自己想办法
 pub enum TaskResult {
     /// 应当立即执行特定任务，里面是表示形式
     // 如果不释放任务，再次执行，还是会得到相同的任务，必须释放任务
     Task(TaskRepr),
     /// 其他地址空间的任务要运行，应当让出时间片
     /// 并返回下一个地址空间的编号
-    ShouldYield(usize),
+    Yield(usize),
     /// 调度器里面没有醒着的任务，但存在睡眠任务
-    NoWakeTask,
+    Wait,
     /// 队列已空，所有任务已经结束
     Finished,
 }
@@ -108,9 +107,9 @@ pub unsafe extern "C" fn shared_peek_task(
                 if task.state == TaskState::Sleeping {
                     if count >= scheduler.queue_len().unwrap() {
                         // 已经全部遍历过一遍，没有找到醒着的任务
-                        // 返回 TaskResult::NoWakeTask, 提示执行器调度器里面还有睡眠任务
+                        // 返回 TaskResult::Wait, 提示执行器调度器里面还有睡眠任务
                         // 如果等待时间过长，则下一次时间中断的时候切换地址空间
-                        return TaskResult::NoWakeTask;
+                        return TaskResult::Wait;
                     }
                     // 睡眠状态，将当前任务放到调度队列尾部
                     let sleep_task = scheduler.next_task().unwrap();
@@ -121,7 +120,7 @@ pub unsafe extern "C" fn shared_peek_task(
                 } else {
                     if should_switch(task.address_space_id) {
                         // 如果需要跳转到其他地址空间，则不弹出任务，返回需要跳转到的地址空间编号
-                        return TaskResult::ShouldYield(task.address_space_id.into_inner());
+                        return TaskResult::Yield(task.address_space_id.into_inner());
                     } else {
                         // 直接把任务交给调用者
                         let task_repr = task.task_repr;

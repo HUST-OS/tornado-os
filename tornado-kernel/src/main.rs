@@ -148,8 +148,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
                     unsafe { shared_payload.delete_task(kernel_task_repr) };
                 } // 隐含一个drop(task)
             }
+            TaskResult::Yield(next_asid) => {
+                todo!()
+            }
+            TaskResult::Wait => {
+                unsafe { riscv::asm::wfi() };
+                continue
+            },
             TaskResult::Finished => break,
-            _ => todo!(),
         }
     }
     // 开始运行任务
