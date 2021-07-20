@@ -57,16 +57,12 @@ impl Runtime {
         &mut *(self.context_addr.0 as *mut ResumeContext)
     }
 
-    pub unsafe fn prepare_switch(&mut self, new_stack: mm::VirtAddr, new_sepc: usize, new_satp: Satp, privilege: SPP) {
-        self.reset();
+    pub unsafe fn prepare_user_app(&mut self, new_stack: mm::VirtAddr, new_sepc: usize, new_satp: Satp, privilege: SPP) {
         sstatus::set_spp(privilege);
+        self.reset();
         self.context_mut().sp = new_stack.0;
         self.context_mut().sepc = new_sepc;
         self.task_satp = new_satp;
-    }
-
-    pub unsafe fn prepare_task_stackless(&mut self) {
-        self.reset();
     }
 
     pub fn execute_until_trap(self: Pin<&mut Self>) -> KernelTrap {

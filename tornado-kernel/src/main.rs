@@ -4,6 +4,7 @@
 #![feature(panic_info_message)]
 #![feature(generator_trait)]
 #![feature(destructuring_assignment)]
+#![feature(once_cell)]
 #![no_std]
 #![no_main]
 
@@ -44,9 +45,8 @@ extern "C" {
     fn _supervisor_to_user();
 }
 
-lazy_static::lazy_static! {
-    pub static ref TRAMPOLINE_VA_START: spin::Mutex<Option<mm::VirtAddr>> = spin::Mutex::new(None);
-}
+static KERNEL_TRAMPOLINE: spin::Mutex<core::lazy::OnceCell<(mm::VirtAddr, mm::VirtAddr)>> = 
+    spin::Mutex::new(core::lazy::OnceCell::new());
 
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
@@ -85,9 +85,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     if hart_id == 0 {
         // 创建内核地址空间
-        let (kernel_addr_space, _kernel_as_frames, trampoline_va_start) = 
+        let (kernel_addr_space, _kernel_as_frames, trampoline_va_start, trampoline_data_addr) = 
             create_sv39_kernel_address_space(&frame_alloc);
-        *TRAMPOLINE_VA_START.lock() = Some(trampoline_va_start);
+        KERNEL_TRAMPOLINE.lock().set((trampoline_va_start, trampoline_data_addr)).unwrap();
         let kernel_asid = hart::KernelHartInfo::alloc_address_space_id()
             .expect("allocate kernel address space id");
         println!("[kernel] activate kernel address space");
@@ -105,22 +105,22 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     unsafe {dummy()};
 
-    // 初始化运行时，每个核都初始化一次
+    // 初始化运行时，每个核都初始化一次 
     loop { 
-        if let Some(trampoline_va_start) = *TRAMPOLINE_VA_START.lock() {
+        if let Some(&(trampoline_va_start, _)) = KERNEL_TRAMPOLINE.lock().get() {
             runtime::init(trampoline_va_start);
             break
         }
     }
-    // let mut rt = runtime::Runtime::new(
-    //     0x1000, 
-    //     user_stack_addr,
-    //     mm::get_satp_sv39(user_asid, user_space.root_page_number()),
-    //     trampoline_va_start,
-    //     trampoline_data_addr,
-    // ); 
-    // use core::pin::Pin;
-    // use core::ops::{Generator, GeneratorState};
+    let (trampoline_va_start, trampoline_data_addr) = {
+        *KERNEL_TRAMPOLINE.lock().get().unwrap()
+    };
+    let mut rt = runtime::Runtime::new(
+        trampoline_va_start,
+        trampoline_data_addr,
+    ); 
+    use core::pin::Pin;
+    use core::ops::{Generator, GeneratorState};
     pub extern "C" fn kernel_should_switch(address_space_id: mm::AddressSpaceId) -> bool {
         // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
         hart::KernelHartInfo::current_address_space_id() != address_space_id
@@ -279,8 +279,8 @@ impl Future for FibonacciFuture {
     }
 }
 
-fn create_sv39_kernel_address_space<A: mm::FrameAllocator + Clone>(frame_alloc: A) -> (mm::PagedAddrSpace<mm::Sv39, A>, Vec<mm::FrameBox<A>>, mm::VirtAddr) {
-    let mut kernel_addr_space = mm::PagedAddrSpace::try_new_in(mm::Sv39, frame_alloc)
+fn create_sv39_kernel_address_space<A: mm::FrameAllocator + Clone>(frame_alloc: A) -> (mm::PagedAddrSpace<mm::Sv39, A>, Vec<mm::FrameBox<A>>, mm::VirtAddr, mm::VirtAddr) {
+    let mut kernel_addr_space = mm::PagedAddrSpace::try_new_in(mm::Sv39, frame_alloc.clone())
         .expect("allocate page to create kernel paged address space");
     // 暂时暴力映射所有需要的内核空间
     kernel_addr_space.allocate_map(
@@ -297,24 +297,24 @@ fn create_sv39_kernel_address_space<A: mm::FrameAllocator + Clone>(frame_alloc: 
         mm::Sv39Flags::R | mm::Sv39Flags::W | mm::Sv39Flags::X
     ).expect("allocate trampoline code mapped space");
     // 跳板数据页
-    let /*mut */frames = Vec::new();
-    // let data_len = core::mem::size_of::<executor::ResumeContext>();
-    // let frame_size = 1_usize << <mm::Sv39 as mm::PageMode>::FRAME_SIZE_BITS;
-    // assert!(data_len > 0, "resume context should take place in memory");
-    // let data_frame_count = (data_len - 1) / frame_size + 1; // roundup(data_len / frame_size)
-    // for i in 0..data_frame_count {
-    //     let frame_box = mm::FrameBox::try_new_in(&frame_alloc).expect("allocate user stack frame");
-    //     kernel_addr_space.allocate_map(
-    //         // 去掉代码页的数量n
-    //         mm::VirtAddr(usize::MAX - n * 0x1000 - data_frame_count * 0x1000 + i * 0x1000 + 1).page_number::<mm::Sv39>(), 
-    //         frame_box.phys_page_num(), 
-    //         1,
-    //         mm::Sv39Flags::R | mm::Sv39Flags::W
-    //     ).expect("allocate trampoline data mapped space");
-    //     frames.push((i, frame_box))
-    // }
-    // let trampoline_data_addr = mm::VirtAddr(usize::MAX - n * 0x1000 - data_frame_count * 0x1000 + 1);
-    (kernel_addr_space, frames, trampoline_va_start)
+    let mut frames = Vec::new();
+    let data_len = core::mem::size_of::<runtime::ResumeContext>();
+    let frame_size = 1_usize << <mm::Sv39 as mm::PageMode>::FRAME_SIZE_BITS;
+    assert!(data_len > 0, "resume context should take place in memory");
+    let data_frame_count = (data_len - 1) / frame_size + 1; // roundup(data_len / frame_size)
+    for i in 0..data_frame_count {
+        let frame_box = mm::FrameBox::try_new_in(frame_alloc.clone()).expect("allocate user stack frame");
+        kernel_addr_space.allocate_map(
+            // 去掉代码页的数量n
+            mm::VirtAddr(usize::MAX - n * 0x1000 - data_frame_count * 0x1000 + i * 0x1000 + 1).page_number::<mm::Sv39>(), 
+            frame_box.phys_page_num(), 
+            1,
+            mm::Sv39Flags::R | mm::Sv39Flags::W
+        ).expect("allocate trampoline data mapped space");
+        frames.push(frame_box)
+    }
+    let trampoline_data_addr = mm::VirtAddr(usize::MAX - n * 0x1000 - data_frame_count * 0x1000 + 1);
+    (kernel_addr_space, frames, trampoline_va_start, trampoline_data_addr)
 }
 
 fn get_trampoline_text_paging_config<M: mm::PageMode>() -> (mm::VirtPageNum, mm::PhysPageNum, usize) {
