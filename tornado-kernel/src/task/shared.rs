@@ -42,6 +42,7 @@ pub extern "C" fn kernel_should_switch(address_space_id: AddressSpaceId) -> bool
 }
 
 /// 共享载荷
+#[derive(Clone)]
 #[repr(C)]
 pub struct SharedPayload {
     pub(crate) shared_scheduler: NonNull<()>,

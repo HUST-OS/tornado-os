@@ -24,17 +24,17 @@ pub fn init(trampoline_va_start: mm::VirtAddr) {
 
 #[repr(C)]
 pub struct Runtime { 
-    user_satp: Satp,
+    task_satp: Satp,
     trampoline_resume: fn(*mut ResumeContext, Satp),
-    current_user_stack: mm::VirtAddr,
+    current_stack: mm::VirtAddr,
     context_addr: mm::VirtAddr,
 }
 
 impl Runtime {
-    pub fn new_user(new_sepc: usize, user_stack_addr: mm::VirtAddr, new_satp: Satp, trampoline_va_start: mm::VirtAddr, context_addr: mm::VirtAddr) -> Self {
+    pub fn new(new_sepc: usize, stack_addr: mm::VirtAddr, new_satp: Satp, trampoline_va_start: mm::VirtAddr, context_addr: mm::VirtAddr) -> Self {
         let mut ans: Runtime = Runtime {
-            user_satp: unsafe { core::mem::MaybeUninit::zeroed().assume_init() },
-            current_user_stack: user_stack_addr,
+            task_satp: unsafe { core::mem::MaybeUninit::zeroed().assume_init() },
+            current_stack: stack_addr,
             trampoline_resume: {
                 extern "C" { fn strampoline(); }
                 let trampoline_pa_start = strampoline as usize;
@@ -50,7 +50,7 @@ impl Runtime {
     }
 
     unsafe fn reset(&mut self) {
-        self.context_mut().sp = self.current_user_stack.0;
+        self.context_mut().sp = self.current_stack.0;
         sstatus::set_spp(SPP::User);
         self.context_mut().sstatus = sstatus::read();
         self.context_mut().kernel_stack = 0x233333666666; // 将会被resume函数覆盖
@@ -64,7 +64,7 @@ impl Runtime {
     pub unsafe fn prepare_next_app(&mut self, new_sepc: usize, new_satp: Satp) {
         self.reset();
         self.context_mut().sepc = new_sepc;
-        self.user_satp = new_satp;
+        self.task_satp = new_satp;
     }
 }
 
@@ -74,7 +74,7 @@ impl Generator for Runtime {
     fn resume(mut self: Pin<&mut Self>, _arg: ()) -> GeneratorState<Self::Yield, Self::Return> {
         (self.trampoline_resume)(
             unsafe { self.context_mut() } as *mut _,
-            self.user_satp
+            self.task_satp
         );
         let stval = stval::read();
         let trap = match scause::read().cause() {

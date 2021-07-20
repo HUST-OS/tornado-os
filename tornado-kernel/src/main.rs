@@ -100,7 +100,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
             hart::KernelHartInfo::add_asid_satp_map(kernel_asid, kernel_satp); // 暂时不知道什么用，后面再说
         }
         // 创建内核启动所需的进程
-        insert_kernel_start_tasks(hart_id, kernel_asid, shared_payload);
+        insert_kernel_start_tasks(hart_id, kernel_asid, shared_payload.clone());
     }
 
     unsafe {dummy()};
@@ -110,6 +110,46 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         if let Some(trampoline_va_start) = *TRAMPOLINE_VA_START.lock() {
             runtime::init(trampoline_va_start);
             break
+        }
+    }
+    // let mut rt = runtime::Runtime::new(
+    //     0x1000, 
+    //     user_stack_addr,
+    //     mm::get_satp_sv39(user_asid, user_space.root_page_number()),
+    //     trampoline_va_start,
+    //     trampoline_data_addr,
+    // ); 
+    // use core::pin::Pin;
+    // use core::ops::{Generator, GeneratorState};
+    pub extern "C" fn kernel_should_switch(address_space_id: mm::AddressSpaceId) -> bool {
+        // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
+        hart::KernelHartInfo::current_address_space_id() != address_space_id
+    }
+    loop {
+        use task::{TaskResult, TaskState, KernelTaskRepr};
+        use alloc::sync::Arc;
+        let task_result = unsafe {
+            shared_payload.peek_task(kernel_should_switch)
+        };
+        match task_result {
+            TaskResult::Task(kernel_task_repr) => { // 轮询到的任务在相同的（内核）地址空间里面
+                unsafe {
+                    shared_payload.set_task_state(kernel_task_repr, TaskState::Sleeping)
+                };
+                let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(kernel_task_repr as *mut _) };
+                // 注册 waker
+                let waker = woke::waker_ref(&task);
+                let mut context = Context::from_waker(&*waker);
+                let ret = task.task().future.lock().as_mut().poll(&mut context);
+                if let Poll::Pending = ret {
+                    core::mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
+                } else {
+                    // 否则，释放task的内存
+                    unsafe { shared_payload.delete_task(kernel_task_repr) };
+                } // 隐含一个drop(task)
+            }
+            TaskResult::Finished => break,
+            _ => todo!(),
         }
     }
     // 开始运行任务
