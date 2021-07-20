@@ -105,7 +105,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     unsafe {dummy()};
 
-    // 初始化运行时，只需要初始化一次
+    // 初始化运行时，每个核都初始化一次
     loop { 
         if let Some(trampoline_va_start) = *TRAMPOLINE_VA_START.lock() {
             runtime::init(trampoline_va_start);

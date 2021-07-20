@@ -1,6 +1,6 @@
 use riscv::register::{
     sstatus::{self, Sstatus, SPP},
-    scause::{self, Trap, Exception},
+    scause::{self, Scause, Trap, Exception},
     stvec::{self, TrapMode}, stval,
     satp::Satp,
 };
@@ -31,10 +31,10 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new(new_sepc: usize, stack_addr: mm::VirtAddr, new_satp: Satp, trampoline_va_start: mm::VirtAddr, context_addr: mm::VirtAddr) -> Self {
-        let mut ans: Runtime = Runtime {
+    pub fn new(trampoline_va_start: mm::VirtAddr, context_addr: mm::VirtAddr) -> Self {
+        Runtime {
             task_satp: unsafe { core::mem::MaybeUninit::zeroed().assume_init() },
-            current_stack: stack_addr,
+            current_stack: unsafe { core::mem::MaybeUninit::zeroed().assume_init() },
             trampoline_resume: {
                 extern "C" { fn strampoline(); }
                 let trampoline_pa_start = strampoline as usize;
@@ -44,14 +44,10 @@ impl Runtime {
                 unsafe { core::mem::transmute(resume_fn_va) }
             },
             context_addr,
-        };
-        unsafe { ans.prepare_next_app(new_sepc, new_satp) };
-        ans
+        }
     }
 
     unsafe fn reset(&mut self) {
-        self.context_mut().sp = self.current_stack.0;
-        sstatus::set_spp(SPP::User);
         self.context_mut().sstatus = sstatus::read();
         self.context_mut().kernel_stack = 0x233333666666; // 将会被resume函数覆盖
     }
@@ -61,15 +57,36 @@ impl Runtime {
         &mut *(self.context_addr.0 as *mut ResumeContext)
     }
 
-    pub unsafe fn prepare_next_app(&mut self, new_sepc: usize, new_satp: Satp) {
+    pub unsafe fn prepare_switch(&mut self, new_stack: mm::VirtAddr, new_sepc: usize, new_satp: Satp, privilege: SPP) {
         self.reset();
+        sstatus::set_spp(privilege);
+        self.context_mut().sp = new_stack.0;
         self.context_mut().sepc = new_sepc;
         self.task_satp = new_satp;
+    }
+
+    pub unsafe fn prepare_task_stackless(&mut self) {
+        self.reset();
+    }
+
+    pub fn execute_until_trap(self: Pin<&mut Self>) -> KernelTrap {
+        let (scause, stval) = match self.resume(()) {
+            GeneratorState::Yielded(v) => v,
+            _ => unreachable!()
+        };
+        match scause.cause() {
+            Trap::Exception(Exception::UserEnvCall) => KernelTrap::Syscall(),
+            Trap::Exception(Exception::LoadFault) => KernelTrap::LoadAccessFault(stval),
+            Trap::Exception(Exception::StoreFault) => KernelTrap::StoreAccessFault(stval),
+            Trap::Exception(Exception::IllegalInstruction) => KernelTrap::IllegalInstruction(stval),
+            e => panic!("unhandled exception: {:?}! stval: {:#x?}", e, stval),
+            // e => panic!("unhandled exception: {:?}! stval: {:#x?}, ctx: {:#x?}", e, stval, unsafe { self.context_mut() })
+        }
     }
 }
 
 impl Generator for Runtime {
-    type Yield = KernelTrap;
+    type Yield = (Scause, usize);
     type Return = ();
     fn resume(mut self: Pin<&mut Self>, _arg: ()) -> GeneratorState<Self::Yield, Self::Return> {
         (self.trampoline_resume)(
@@ -77,14 +94,7 @@ impl Generator for Runtime {
             self.task_satp
         );
         let stval = stval::read();
-        let trap = match scause::read().cause() {
-            Trap::Exception(Exception::UserEnvCall) => KernelTrap::Syscall(),
-            Trap::Exception(Exception::LoadFault) => KernelTrap::LoadAccessFault(stval),
-            Trap::Exception(Exception::StoreFault) => KernelTrap::StoreAccessFault(stval),
-            Trap::Exception(Exception::IllegalInstruction) => KernelTrap::IllegalInstruction(stval),
-            e => panic!("unhandled exception: {:?}! stval: {:#x?}, ctx: {:#x?}", e, stval, unsafe { self.context_mut() })
-        };
-        GeneratorState::Yielded(trap)
+        GeneratorState::Yielded((scause::read(), stval))
     }
 }
 
