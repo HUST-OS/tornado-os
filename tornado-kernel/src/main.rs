@@ -27,6 +27,7 @@ mod runtime;
 mod mm; 
 
 use alloc::vec::Vec;
+use alloc::sync::Arc;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -68,7 +69,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     extern "C" { fn free_memory_start(); }
     let from = mm::PhysAddr(free_memory_start as usize).page_number::<mm::Sv39>();
     let to = mm::PhysAddr(0x8800_0000).page_number::<mm::Sv39>(); // 暂时对qemu写死
-    let frame_alloc = spin::Mutex::new(mm::StackFrameAllocator::new(from, to));
+    let frame_alloc = Arc::new(spin::Mutex::new(mm::StackFrameAllocator::new(from, to)));
 
     // 测试大页求解算法
     mm::test_map_solve();
@@ -85,20 +86,21 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     if hart_id == 0 {
         // 创建内核地址空间
-        let (kernel_addr_space, _kernel_as_frames, trampoline_va_start, trampoline_data_addr) = 
-            create_sv39_kernel_address_space(&frame_alloc);
+        let (kernel_addr_space, mut kernel_as_frames, trampoline_va_start, trampoline_data_addr) = 
+            create_sv39_kernel_address_space(frame_alloc);
         KERNEL_TRAMPOLINE.lock().set((trampoline_va_start, trampoline_data_addr)).unwrap();
         let kernel_asid = hart::KernelHartInfo::alloc_address_space_id()
             .expect("allocate kernel address space id");
         println!("[kernel] activate kernel address space");
         // 激活内核空间
-        let kernel_satp = unsafe {
+        let _kernel_satp = unsafe {
             mm::activate_paged_riscv_sv39(kernel_addr_space.root_page_number(), kernel_asid)
         };
         unsafe { 
             hart::KernelHartInfo::load_address_space_id(kernel_asid);
-            hart::KernelHartInfo::add_asid_satp_map(kernel_asid, kernel_satp); // 暂时不知道什么用，后面再说
         }
+        hart::KernelHartInfo::insert_frame_box(kernel_asid, &mut kernel_as_frames);
+        hart::KernelHartInfo::create_address_space(kernel_asid, kernel_addr_space);
         // 创建内核启动所需的进程
         insert_kernel_start_tasks(hart_id, kernel_asid, shared_payload.clone());
     }
@@ -119,8 +121,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         trampoline_va_start,
         trampoline_data_addr,
     ); 
-    use core::pin::Pin;
-    use core::ops::{Generator, GeneratorState};
+    let rt = Pin::new(&mut rt);
     pub extern "C" fn kernel_should_switch(address_space_id: mm::AddressSpaceId) -> bool {
         // 如果当前和下一个任务间地址空间变化了，就说明应当切换上下文
         hart::KernelHartInfo::current_address_space_id() != address_space_id
@@ -149,7 +150,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
                 } // 隐含一个drop(task)
             }
             TaskResult::Yield(next_asid) => {
-                todo!()
+                // todo: 获取进程信息？
+                // let next_asid = unsafe { mm::AddressSpaceId::from_raw(next_asid as u16) };
+                // let next_satp = hart::KernelHartInfo::get_satp(next_asid).expect("get asid for next task");
+                // let privilege = riscv::register::sstatus::SPP::User;
+                // unsafe { rt.prepare_user_app(new_stack, new_sepc, next_satp, privilege) };
             }
             TaskResult::Wait => {
                 unsafe { riscv::asm::wfi() };

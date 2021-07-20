@@ -1,10 +1,11 @@
 //! 和处理核相关的函数
 use crate::mm;
-use riscv::register::satp::Satp;
 use crate::task::Process;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 /// 写一个指针到上下文指针
 #[inline]
@@ -28,9 +29,9 @@ pub struct KernelHartInfo {
     hart_id: usize,
     current_address_space_id: mm::AddressSpaceId,
     current_process: Option<Arc<Process>>,
-    hart_max_asid: mm::AddressSpaceId,
     asid_alloc: mm::StackAsidAllocator,
-    satps: LinkedList<(mm::AddressSpaceId, Satp)>, // 记录地址空间与 satp 寄存器的对应关系
+    addr_spaces: HashMap<mm::AddressSpaceId, Arc<spin::Mutex<mm::PagedAddrSpace<mm::Sv39>>>>,
+    frame_boxes: HashMap<mm::AddressSpaceId, Vec<mm::FrameBox>>,
 }
 
 impl KernelHartInfo {
@@ -40,9 +41,9 @@ impl KernelHartInfo {
             hart_id,
             current_address_space_id: mm::DEFAULT_ASID,
             current_process: None,
-            hart_max_asid: mm::max_asid(),
             asid_alloc: mm::StackAsidAllocator::new(mm::max_asid()),
-            satps: LinkedList::new(),
+            addr_spaces: HashMap::new(),
+            frame_boxes: HashMap::new(),
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
@@ -92,21 +93,32 @@ impl KernelHartInfo {
     }
 
     /// 添加地址空间编号和 satp 寄存器的对应关系
-    pub fn add_asid_satp_map(asid: mm::AddressSpaceId, satp: Satp) {
+    pub fn create_address_space(asid: mm::AddressSpaceId, addr_space: mm::PagedAddrSpace<mm::Sv39>) {
         // todo: 需要判断是否地址空间编号已经存在
+        use_tp_box(move |b| {
+            b.addr_spaces.insert(asid, Arc::new(spin::Mutex::new(addr_space)));
+        })
+    }
+
+    pub fn insert_frame_box(asid: mm::AddressSpaceId, frames: &mut Vec<mm::FrameBox>) {
+        use_tp_box(move |b| {
+            b.frame_boxes.entry(asid).or_default()
+                .append(frames)
+        })
+    }
+
+    pub fn delete_frame_box(asid: mm::AddressSpaceId) {
         use_tp_box(|b| {
-            b.satps.push_back((asid, satp));
+            b.frame_boxes.remove(&asid);
         })
     }
 
     /// 根据地址空间编号获得 satp 寄存器
-    pub fn get_satp(asid: mm::AddressSpaceId) -> Option<Satp> {
+    pub unsafe fn get_address_space(asid: mm::AddressSpaceId) -> Option<Arc<spin::Mutex<mm::PagedAddrSpace<mm::Sv39>>>> {
         use_tp_box(|b| {
-            let v = &mut b.satps;
-            for x in v.iter() {
-                if x.0 == asid {
-                    return Some(x.1);
-                }
+            let v = &mut b.addr_spaces;
+            if let Some(x) = v.get(&asid) {
+                return Some(Arc::clone(x));
             }
             return None;
         })
@@ -114,7 +126,7 @@ impl KernelHartInfo {
 }
 
 #[inline]
-fn use_tp_box<F: Fn(&mut Box<KernelHartInfo>) -> T, T>(f: F) -> T {
+fn use_tp_box<F: FnOnce(&mut Box<KernelHartInfo>) -> T, T>(f: F) -> T {
     let addr = read_tp();
     let mut bx: Box<KernelHartInfo> = unsafe { Box::from_raw(addr as *mut _) };
     let ans = f(&mut bx);

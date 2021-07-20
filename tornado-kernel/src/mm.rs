@@ -1,4 +1,5 @@
 use alloc::alloc::Layout;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use buddy_system_allocator::LockedHeap;
 use core::ops::Range;
@@ -174,7 +175,7 @@ pub(crate) fn test_frame_alloc() {
     println!("[kernel-frame-test] Frame allocator test passed");
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 #[repr(transparent)]
 pub struct AddressSpaceId(u16);
 
@@ -300,7 +301,7 @@ pub trait FrameAllocator {
     fn deallocate_frame(&self, ppn: PhysPageNum);
 }
 
-pub type DefaultFrameAllocator = spin::Mutex<StackFrameAllocator>;
+pub type DefaultFrameAllocator = Arc<spin::Mutex<StackFrameAllocator>>;
 
 impl FrameAllocator for DefaultFrameAllocator {
     fn allocate_frame(&self) -> Result<PhysPageNum, FrameAllocError> {

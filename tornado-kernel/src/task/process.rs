@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use crate::mm::{AddressSpaceId, FrameBox, VirtPageNum};
+use crate::mm::{AddressSpaceId, VirtPageNum};
 
 /// 进程代表一组使用相同资源、共同承担错误的任务
 #[derive(Debug)]
