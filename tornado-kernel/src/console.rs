@@ -1,10 +1,9 @@
+use super::task::Lock;
 use crate::sbi::*;
 use core::fmt::{self, Write};
-use super::task::Lock;
-
 struct Stdout;
 
-// 暂时不用关中断的锁lock::Lock，考虑多个硬件线程的情况
+// 使用关中断的锁
 static STDOUT_LOCK: Lock<()> = Lock::new(());
 
 impl Write for Stdout {

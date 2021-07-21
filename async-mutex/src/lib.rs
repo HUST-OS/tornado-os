@@ -1,11 +1,12 @@
 //! Async Mutex Implementation
 //! ref: https://github.com/smol-rs/async-lock/blob/master/src/mutex.rs
-use super::event::Event;
+#![no_std]
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
     sync::atomic::{AtomicUsize, Ordering},
 };
+use event::Event;
 
 /// 一个异步锁实现
 ///
@@ -29,10 +30,10 @@ pub struct AsyncMutex<T: ?Sized> {
     /// 如果锁被锁住，最低有效位被置为 1
     /// 其他位保存锁请求操作的数量
     state: AtomicUsize,
-    
+
     /// 等待锁被释放的监听行为
     lock_ops: Event,
-    
+
     /// 锁的内部数据
     data: UnsafeCell<T>,
 }
@@ -309,21 +310,22 @@ impl<F: Fn()> Drop for CallOnDrop<F> {
     }
 }
 
-// Simple test for async mutex
-use alloc::sync::Arc;
-pub async fn async_mutex_test0<T>(mutex: Arc<AsyncMutex<T>>, event: Arc<Event>) {
-    let listener = event.listen();
-    println!("[async_mutex_test0]: try acquire mutex!");
-    let _s = mutex.lock().await;
-    println!("[async_mutex_test0]: acquire mutex!");
-    listener.await;
-    println!("[async_mutex_test0]: release the mutex!");
-}
+// // Simple test for async mutex
+// extern crate alloc;
+// use alloc::sync::Arc;
+// pub async fn async_mutex_test0<T>(mutex: Arc<AsyncMutex<T>>, event: Arc<Event>) {
+//     let listener = event.listen();
+//     println!("[async_mutex_test0]: try acquire mutex!");
+//     let _s = mutex.lock().await;
+//     println!("[async_mutex_test0]: acquire mutex!");
+//     listener.await;
+//     println!("[async_mutex_test0]: release the mutex!");
+// }
 
-pub async fn async_mutex_test1<T>(mutex: Arc<AsyncMutex<T>>, event: Arc<Event>) {
-    event.notify(1);
-    println!("[async_mutex_test1]: try acquire mutex!");
-    let _s = mutex.lock().await;
-    println!("[async_mutex_test1]: acquire mutex!");
-    println!("[async_mutex_test1]: release the mutex!");
-}
+// pub async fn async_mutex_test1<T>(mutex: Arc<AsyncMutex<T>>, event: Arc<Event>) {
+//     event.notify(1);
+//     println!("[async_mutex_test1]: try acquire mutex!");
+//     let _s = mutex.lock().await;
+//     println!("[async_mutex_test1]: acquire mutex!");
+//     println!("[async_mutex_test1]: release the mutex!");
+// }

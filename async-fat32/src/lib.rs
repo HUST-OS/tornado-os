@@ -28,7 +28,7 @@ pub type Result<T = ()> = core::result::Result<T, FAT32Error>;
 #[derive(Debug)]
 pub enum FAT32Error {
     NotFound,
-    CreateFileError
+    CreateFileError,
 }
 
 #[async_trait]
