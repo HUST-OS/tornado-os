@@ -3,6 +3,8 @@ members = [
     "tornado-kernel",
     "tornado-user",
     "shared-scheduler",
+    "async-fat32",
+    "async-fat32/example",
     "xtask"
 ]
 default-members = ["xtask"]
