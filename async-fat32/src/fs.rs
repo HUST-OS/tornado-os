@@ -173,7 +173,9 @@ impl FAT32 {
     /// 一种解决办法：在内存里创建一个数据结构来对 `FAT` 表进行管理
     pub async fn create<S: Into<String>>(&mut self, dir: S, file: S) -> Result<()> {
         let node = self.tree.find_mut(dir);
-        if node.is_none() { return Err(FAT32Error::NotFound); }
+        if node.is_none() {
+            return Err(FAT32Error::NotFound);
+        }
         let s: String = file.into();
         match Self::is_long(&s) {
             false => {
@@ -188,8 +190,8 @@ impl FAT32 {
                         for (idx, c) in v.iter().flat_map(|ss| ss.chars()).enumerate() {
                             name[idx] = c as u8;
                         }
-                    },
-                    false => name.copy_from_slice(s.as_bytes())
+                    }
+                    false => name.copy_from_slice(s.as_bytes()),
                 }
                 if let Some(fst_cluster) = self.fat.first_blank(&*self.device).await {
                     // 标记 fat 表为已占用
@@ -204,13 +206,18 @@ impl FAT32 {
                     };
                     let node = node.unwrap();
                     // todo: 将 entry 写入块设备
-                    let file = File::new(entry, Arc::clone(&self.fat), Arc::new(self.bpb.clone()), Arc::clone(&self.device));
+                    let file = File::new(
+                        entry,
+                        Arc::clone(&self.fat),
+                        Arc::new(self.bpb.clone()),
+                        Arc::clone(&self.device),
+                    );
                     node.insert(Box::new(file));
                     Ok(())
                 } else {
                     Err(FAT32Error::CreateFileError)
                 }
-            },
+            }
             true => {
                 // 长文件名
                 todo!()
@@ -221,22 +228,20 @@ impl FAT32 {
         let s = s.as_ref();
         match s.len() {
             0 => panic!("empty name!"),
-            1..=11 => {
-                match s.contains(".") {
-                    true => {
-                        let mut s = s.split(".").collect::<Vec<_>>();
-                        let ext = s.pop().unwrap();
-                        if ext.len() > 3 {
-                            true
-                        } else {
-                            let len = s.iter().fold(0, |acc, &x| acc + x.len());
-                            len > 8
-                        }
-                    },
-                    false => { s.len() > 8 }
+            1..=11 => match s.contains(".") {
+                true => {
+                    let mut s = s.split(".").collect::<Vec<_>>();
+                    let ext = s.pop().unwrap();
+                    if ext.len() > 3 {
+                        true
+                    } else {
+                        let len = s.iter().fold(0, |acc, &x| acc + x.len());
+                        len > 8
+                    }
                 }
+                false => s.len() > 8,
             },
-            _ => true
+            _ => true,
         }
     }
 }

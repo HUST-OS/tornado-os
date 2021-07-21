@@ -5,7 +5,8 @@
 //! # Examples
 //! ```
 //! ```
-
+#![no_std]
+extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::cell::{Cell, UnsafeCell};
@@ -487,6 +488,7 @@ struct Entry {
 
 /// 链表
 struct List {
+    #[allow(unused)]
     head: Option<NonNull<Entry>>,
     tail: Option<NonNull<Entry>>,
     start: Option<NonNull<Entry>>,

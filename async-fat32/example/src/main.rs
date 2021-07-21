@@ -1,28 +1,32 @@
 //! `async-fat32` 测试
 use async_fat32::{AsyncBlockDevive, FAT32};
-use async_std::io::prelude::{SeekExt, WriteExt, ReadExt};
-use async_trait::async_trait;
 use async_std::fs::File;
-use async_std::sync::Mutex;
-use async_std::io::SeekFrom;
+use async_std::io::prelude::{ReadExt, SeekExt, WriteExt};
 use async_std::io::Result;
+use async_std::io::SeekFrom;
 use async_std::sync::Arc;
+use async_std::sync::Mutex;
+use async_trait::async_trait;
 
 const BLOCK_SIZE: u64 = 512;
 struct BlockDevice {
-    file: Mutex<File>
+    file: Mutex<File>,
 }
 
 #[async_trait]
 impl AsyncBlockDevive for BlockDevice {
     async fn read(&self, block_id: usize, buf: &mut [u8]) {
         let mut f = self.file.lock().await;
-        f.seek(SeekFrom::Start(block_id as u64 * BLOCK_SIZE)).await.unwrap();
+        f.seek(SeekFrom::Start(block_id as u64 * BLOCK_SIZE))
+            .await
+            .unwrap();
         let _n = f.read(buf).await.unwrap();
     }
     async fn write(&self, block_id: usize, buf: &[u8]) {
         let mut f = self.file.lock().await;
-        f.seek(SeekFrom::Start(block_id as u64 * BLOCK_SIZE)).await.unwrap();
+        f.seek(SeekFrom::Start(block_id as u64 * BLOCK_SIZE))
+            .await
+            .unwrap();
         let _n = f.write(buf).await.unwrap();
     }
 }
@@ -30,7 +34,9 @@ impl AsyncBlockDevive for BlockDevice {
 #[async_std::main]
 async fn main() -> Result<()> {
     let file = File::open("fs.img").await?;
-    let device = BlockDevice { file: Mutex::new(file) };
+    let device = BlockDevice {
+        file: Mutex::new(file),
+    };
     let fs = FAT32::init(Arc::new(device)).await;
     println!("fs init!");
     let files = fs.list("/");
@@ -38,7 +44,9 @@ async fn main() -> Result<()> {
         println!("[root] {}", f);
     }
     fs.list("bbb").iter().for_each(|f| println!("[bbb] {}", f));
-    fs.list("cccccccccc").iter().for_each(|f| println!("[cccccccccc] {}", f));
+    fs.list("cccccccccc")
+        .iter()
+        .for_each(|f| println!("[cccccccccc] {}", f));
     let data_rs = fs.load_binary("test.rs").await.unwrap();
     let data_c = fs.load_binary("test.c").await.unwrap();
     let data_cpp = fs.load_binary("test.cpp").await.unwrap();
