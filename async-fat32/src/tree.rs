@@ -100,7 +100,10 @@ impl<T, C, R> NTree<T, C, R> {
         Self::traverse_mut(root, &ident.into())
     }
     /// 层序遍历
-    pub fn traverse_mut<'a>(root: &'a mut Node<T, C, R>, ident: &T) -> Option<&'a mut Node<T, C, R>> {
+    pub fn traverse_mut<'a>(
+        root: &'a mut Node<T, C, R>,
+        ident: &T,
+    ) -> Option<&'a mut Node<T, C, R>> {
         let mut queue = Vec::new();
         queue.push(root);
         while let Some(node) = queue.pop() {

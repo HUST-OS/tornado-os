@@ -168,11 +168,7 @@ impl DirectoryEntry {
     }
 
     /// 获取该目录项占据的块号
-    pub async fn clusters(
-        &self,
-        async_block_cache: &Arc<ABC>,
-        fat: &Arc<FAT>
-    ) -> Vec<u32> {
+    pub async fn clusters(&self, async_block_cache: &Arc<ABC>, fat: &Arc<FAT>) -> Vec<u32> {
         fat.get_link(async_block_cache, self.fst_cluster).await
     }
 

@@ -13,7 +13,7 @@ pub struct AsyncBlockCache<
     const B: usize,
     const N: usize,
 > {
-    block_device: Arc<dyn AsyncBlockDevive + Send + Sync>,
+    pub block_device: Arc<dyn AsyncBlockDevive + Send + Sync>,
     cache: Mutex<C>,
 }
 
@@ -65,6 +65,20 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
         drop(s); // 释放锁
         if let Some((id, mut block)) = write_back {
             self.block_device.write(id, &mut block).await;
+        }
+    }
+
+    /// 异步，写穿方式往缓冲区中写入一个块
+    pub async fn write_sync(&self, block_id: usize, buf: [u8; BLOCK_SIZE]) {
+        self.write_block(block_id, buf.clone()).await;
+        self.block_device.write(block_id, &buf).await
+    }
+
+    /// 将缓冲层中的所有数据写回到块设备
+    pub async fn sync(&self) {
+        let mut s = self.cache.lock();
+        for (id, block) in s.all() {
+            self.block_device.write(id, &block).await;
         }
     }
 }

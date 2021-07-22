@@ -38,11 +38,18 @@ impl FAT32 {
             bpb.clone(),
             Arc::clone(&async_block_cache),
         );
-
+        let fat_offset = fat1_offset_bytes(&*bpb);
+        let root_offset = cluster_offset_bytes(&*bpb, 2);
+        println!(
+            "fat offset: {:x}, root offset: {:x}",
+            fat_offset, root_offset
+        );
         let mut tree = NTree::new(Box::new(root.clone()));
         let mut long_start = false;
         let mut long_entries = Vec::new();
-        let mut dirs: Vec<Box<dyn AsNode<Ident = String, Content = Vec<u8>, ContentRef = Vec<u32>>>> = Vec::new();
+        let mut dirs: Vec<
+            Box<dyn AsNode<Ident = String, Content = Vec<u8>, ContentRef = Vec<u32>>>,
+        > = Vec::new();
         dirs.push(Box::new(root));
         while let Some(dir) = dirs.pop() {
             let data = dir.content().await;
@@ -191,7 +198,7 @@ impl FAT32 {
                             name[idx] = c as u8;
                         }
                     }
-                    false => name.copy_from_slice(s.as_bytes()),
+                    false => name[0..s.len()].copy_from_slice(s.as_bytes()),
                 }
                 if let Some(fst_cluster) = self.fat.first_blank(&*self.device).await {
                     // 标记 fat 表为已占用
@@ -211,40 +218,48 @@ impl FAT32 {
                     let mut has_free = false;
                     let mut free_entry = (0, 0);
                     for cluster in &clusters {
-                        let block = self.device.read_block(*cluster as usize).await;
+                        // 获取块号对应的扇区偏移
+                        let sector = cluster_offset_sectors(&self.bpb, *cluster);
+                        let block = self.device.read_block(sector as usize).await;
                         for (idx, fat) in block.chunks(32).enumerate() {
                             if fat.iter().all(|b| *b == 0x0) {
                                 has_free = true;
-                                free_entry = (*cluster, idx);
+                                free_entry = (sector, idx);
                                 break;
                             }
                         }
-                        if has_free { break; }
+                        if has_free {
+                            break;
+                        }
                     }
-                    if has_free { // 如果有空的 `FAT` 表项
+                    if has_free {
+                        // 如果有空的 `FAT` 表项
                         let mut block = self.device.read_block(free_entry.0 as usize).await;
-                        for (idx, fat) in block.chunks_mut(32).enumerate() {
+                        for (idx, e) in block.chunks_mut(32).enumerate() {
                             if idx == free_entry.1 {
-                                let e: [u8; 32] = entry.clone().into();
-                                fat.copy_from_slice(&e);
+                                let new_e: [u8; 32] = entry.clone().into();
+                                e.copy_from_slice(&new_e);
                                 break;
                             }
                         }
                         // 写回块设备
                         self.device.write_block(free_entry.0 as usize, block).await;
-                    } else { // 如果父节点占据的块里面所有目录项都被占用了，则需要申请新的块
+                    } else {
+                        // 如果父节点占据的块里面所有目录项都被占用了，则需要申请新的块
                         if let Some(new_cluster) = self.fat.first_blank(&*self.device).await {
                             // 父节点最后的块号
                             let last = *clusters.last().unwrap();
                             // 更新 `FAT` 表
                             self.fat.set(&*self.device, last, new_cluster).await;
+                            self.fat.set(&*self.device, new_cluster, 0xfffffff).await;
                             // 将新的块读取进内存
-                            let mut block = self.device.read_block(new_cluster as usize).await;
+                            let sector = cluster_offset_sectors(&self.bpb, new_cluster);
+                            let mut block = self.device.read_block(sector as usize).await;
                             // 设置第一项的值
                             let e: [u8; 32] = entry.clone().into();
                             block[0..32].copy_from_slice(&e);
                             // 写回块设备
-                            self.device.write_block(new_cluster as usize, block).await;
+                            self.device.write_block(sector as usize, block).await;
                         } else {
                             panic!("no avaiable space in disk!")
                         }
@@ -287,5 +302,11 @@ impl FAT32 {
             },
             _ => true,
         }
+    }
+    pub fn cluster_to_sector(&self, cluster: u32) -> u32 {
+        cluster_offset_sectors(&self.bpb, cluster)
+    }
+    pub async fn sync(&self) {
+        self.device.sync().await
     }
 }

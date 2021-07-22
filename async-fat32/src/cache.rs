@@ -12,6 +12,7 @@ pub trait Cache<const N: usize> {
     fn get(&mut self, key: &Self::Key) -> Option<Self::Value>;
     // 如果有需要写回的值，将它返回
     fn put(&mut self, key: &Self::Key, value: Self::Value) -> Option<(Self::Key, Self::Value)>;
+    fn all(&mut self) -> Vec<(Self::Key, Self::Value)>;
 }
 
 #[derive(Clone, Copy)]
@@ -134,6 +135,12 @@ impl<K: Eq + PartialEq + Copy, V: Clone, const N: usize> Cache<N> for LFUCache<K
                 }
             }
         }
+    }
+    fn all(&mut self) -> Vec<(Self::Key, Self::Value)> {
+        self.data[0..self.size]
+            .iter()
+            .map(|n| (n.key, n.value.clone()))
+            .collect()
     }
 }
 

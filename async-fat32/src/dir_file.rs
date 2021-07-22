@@ -92,7 +92,10 @@ impl AsNode for Directory {
         self.inner.data().await
     }
     async fn content_ref(&self) -> Self::ContentRef {
-        self.inner.entry.clusters(&self.inner.cache, &self.inner.fat).await
+        self.inner
+            .entry
+            .clusters(&self.inner.cache, &self.inner.fat)
+            .await
     }
 }
 
@@ -138,7 +141,10 @@ impl AsNode for File {
         self.data().await
     }
     async fn content_ref(&self) -> Self::ContentRef {
-        self.inner.entry.clusters(&self.inner.cache, &self.inner.fat).await
+        self.inner
+            .entry
+            .clusters(&self.inner.cache, &self.inner.fat)
+            .await
     }
 }
 
@@ -237,7 +243,10 @@ impl AsNode for LongDirectory {
         self.inner.data().await
     }
     async fn content_ref(&self) -> Self::ContentRef {
-        self.inner.entry.clusters(&self.inner.cache, &self.inner.fat).await
+        self.inner
+            .entry
+            .clusters(&self.inner.cache, &self.inner.fat)
+            .await
     }
 }
 
@@ -281,7 +290,10 @@ impl AsNode for LongFile {
         self.data().await
     }
     async fn content_ref(&self) -> Self::ContentRef {
-        self.inner.entry.clusters(&self.inner.cache, &self.inner.fat).await
+        self.inner
+            .entry
+            .clusters(&self.inner.cache, &self.inner.fat)
+            .await
     }
 }
 
