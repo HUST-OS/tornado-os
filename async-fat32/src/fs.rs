@@ -17,7 +17,7 @@ use alloc::sync::Arc;
 pub struct FAT32 {
     bpb: [u8; BLOCK_SIZE],
     fat: Arc<FAT>,
-    tree: NTree<String, Vec<u8>>,
+    tree: NTree<String, Vec<u8>, Vec<u32>>,
     device: Arc<ABC>,
 }
 
@@ -42,7 +42,7 @@ impl FAT32 {
         let mut tree = NTree::new(Box::new(root.clone()));
         let mut long_start = false;
         let mut long_entries = Vec::new();
-        let mut dirs: Vec<Box<dyn AsNode<Ident = String, Content = Vec<u8>>>> = Vec::new();
+        let mut dirs: Vec<Box<dyn AsNode<Ident = String, Content = Vec<u8>, ContentRef = Vec<u32>>>> = Vec::new();
         dirs.push(Box::new(root));
         while let Some(dir) = dirs.pop() {
             let data = dir.content().await;

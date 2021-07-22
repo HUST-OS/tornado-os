@@ -81,6 +81,7 @@ impl Directory {
 impl AsNode for Directory {
     type Ident = String;
     type Content = Vec<u8>;
+    type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
         &self.name() == ident
     }
@@ -89,6 +90,9 @@ impl AsNode for Directory {
     }
     async fn content(&self) -> Self::Content {
         self.inner.data().await
+    }
+    async fn content_ref(&self) -> Self::ContentRef {
+        self.inner.entry.clusters(&self.inner.cache, &self.inner.fat).await
     }
 }
 
@@ -123,6 +127,7 @@ impl File {
 impl AsNode for File {
     type Ident = String;
     type Content = Vec<u8>;
+    type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
         &self.name() == ident
     }
@@ -131,6 +136,9 @@ impl AsNode for File {
     }
     async fn content(&self) -> Self::Content {
         self.data().await
+    }
+    async fn content_ref(&self) -> Self::ContentRef {
+        self.inner.entry.clusters(&self.inner.cache, &self.inner.fat).await
     }
 }
 
@@ -218,6 +226,7 @@ impl LongDirectory {
 impl AsNode for LongDirectory {
     type Ident = String;
     type Content = Vec<u8>;
+    type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
         &self.name() == ident
     }
@@ -226,6 +235,9 @@ impl AsNode for LongDirectory {
     }
     async fn content(&self) -> Self::Content {
         self.inner.data().await
+    }
+    async fn content_ref(&self) -> Self::ContentRef {
+        self.inner.entry.clusters(&self.inner.cache, &self.inner.fat).await
     }
 }
 
@@ -258,6 +270,7 @@ impl LongFile {
 impl AsNode for LongFile {
     type Ident = String;
     type Content = Vec<u8>;
+    type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
         &self.name() == ident
     }
@@ -266,6 +279,9 @@ impl AsNode for LongFile {
     }
     async fn content(&self) -> Self::Content {
         self.data().await
+    }
+    async fn content_ref(&self) -> Self::ContentRef {
+        self.inner.entry.clusters(&self.inner.cache, &self.inner.fat).await
     }
 }
 
@@ -295,6 +311,7 @@ impl RootDirectory {
 impl AsNode for RootDirectory {
     type Ident = String;
     type Content = Vec<u8>;
+    type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
         &self.name == ident
     }
@@ -309,5 +326,8 @@ impl AsNode for RootDirectory {
             block.iter().for_each(|b| ret.push(*b));
         }
         ret
+    }
+    async fn content_ref(&self) -> Self::ContentRef {
+        self.clusters.clone()
     }
 }
