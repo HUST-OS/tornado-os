@@ -205,17 +205,61 @@ impl FAT32 {
                         ..Default::default()
                     };
                     let node = node.unwrap();
-                    // todo: 将 entry 写入块设备
+                    // 下面将 entry 写入块设备
+                    // 获取父节点结点占用的块号
+                    let clusters = node.inner().content_ref().await;
+                    let mut has_free = false;
+                    let mut free_entry = (0, 0);
+                    for cluster in &clusters {
+                        let block = self.device.read_block(*cluster as usize).await;
+                        for (idx, fat) in block.chunks(32).enumerate() {
+                            if fat.iter().all(|b| *b == 0x0) {
+                                has_free = true;
+                                free_entry = (*cluster, idx);
+                                break;
+                            }
+                        }
+                        if has_free { break; }
+                    }
+                    if has_free { // 如果有空的 `FAT` 表项
+                        let mut block = self.device.read_block(free_entry.0 as usize).await;
+                        for (idx, fat) in block.chunks_mut(32).enumerate() {
+                            if idx == free_entry.1 {
+                                let e: [u8; 32] = entry.clone().into();
+                                fat.copy_from_slice(&e);
+                                break;
+                            }
+                        }
+                        // 写回块设备
+                        self.device.write_block(free_entry.0 as usize, block).await;
+                    } else { // 如果父节点占据的块里面所有目录项都被占用了，则需要申请新的块
+                        if let Some(new_cluster) = self.fat.first_blank(&*self.device).await {
+                            // 父节点最后的块号
+                            let last = *clusters.last().unwrap();
+                            // 更新 `FAT` 表
+                            self.fat.set(&*self.device, last, new_cluster).await;
+                            // 将新的块读取进内存
+                            let mut block = self.device.read_block(new_cluster as usize).await;
+                            // 设置第一项的值
+                            let e: [u8; 32] = entry.clone().into();
+                            block[0..32].copy_from_slice(&e);
+                            // 写回块设备
+                            self.device.write_block(new_cluster as usize, block).await;
+                        } else {
+                            panic!("no avaiable space in disk!")
+                        }
+                    }
                     let file = File::new(
                         entry,
                         Arc::clone(&self.fat),
                         Arc::new(self.bpb.clone()),
                         Arc::clone(&self.device),
                     );
+                    // 更新目录树
                     node.insert(Box::new(file));
                     Ok(())
                 } else {
-                    Err(FAT32Error::CreateFileError)
+                    panic!("no avaiable space in disk!")
                 }
             }
             true => {
