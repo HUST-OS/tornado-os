@@ -51,6 +51,7 @@ pub struct Directory {
 }
 
 impl Directory {
+    /// 新建
     pub fn new(
         entry: DirectoryEntry,
         fat: Arc<FAT>,
@@ -62,9 +63,11 @@ impl Directory {
             inner: Inner::new(entry, fat, bpb, cache),
         }
     }
+    /// 目录名
     pub fn name(&self) -> String {
         self.inner.name()
     }
+    /// 获取该目录对应的数据区数据，返回值以目录项大小为单位分割
     pub async fn children(&self) -> Vec<[u8; 32]> {
         let data = self.inner.data().await;
         data.chunks(32)
@@ -105,6 +108,7 @@ pub struct File {
 }
 
 impl File {
+    /// 新建
     pub fn new(
         entry: DirectoryEntry,
         fat: Arc<FAT>,
@@ -115,12 +119,15 @@ impl File {
             inner: Inner::new(entry, fat, bpb, cache),
         }
     }
+    /// 文件名
     pub fn name(&self) -> String {
         self.inner.name()
     }
+    /// 文件大小
     pub fn size(&self) -> u32 {
         self.inner.entry.file_size
     }
+    /// 文件对应的数据区数据
     pub async fn data(&self) -> Vec<u8> {
         self.inner.data().await
     }
@@ -201,6 +208,7 @@ pub struct LongDirectory {
 }
 
 impl LongDirectory {
+    /// 新建
     pub fn new<I: Iterator<Item = LongDirectoryEntry>>(
         entry: DirectoryEntry,
         long_entries: I,
@@ -213,9 +221,11 @@ impl LongDirectory {
             inner: LongInner::new(entry, long_entries, bpb, fat, cache),
         }
     }
+    /// 目录名
     pub fn name(&self) -> String {
         self.inner.name()
     }
+    /// 同 [`Directory`]
     pub async fn children(&self) -> Vec<[u8; 32]> {
         let data = self.inner.data().await;
         data.chunks(32)
@@ -256,6 +266,7 @@ pub struct LongFile {
 }
 
 impl LongFile {
+    /// 新建
     pub fn new<I: Iterator<Item = LongDirectoryEntry>>(
         entry: DirectoryEntry,
         long_entries: I,
@@ -267,9 +278,11 @@ impl LongFile {
             inner: LongInner::new(entry, long_entries, bpb, fat, cache),
         }
     }
+    /// 文件名
     pub fn name(&self) -> String {
         self.inner.name()
     }
+    /// 同 [`File`]
     pub async fn data(&self) -> Vec<u8> {
         self.inner.data().await
     }

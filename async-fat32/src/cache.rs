@@ -1,20 +1,29 @@
-//! Cache Trait
+//! 缓存实现
 //!
 //! 目前的实现暂时是对整个缓冲层加锁，但不会在拿锁和解锁之间读写块设备
 //! 执行 `put` 方法的时候，当有数据需要写回的时候，返回 Some<(Key, Value)>，否则返回 None
 //!
 //! todo: 这里涉及到一个体系结构领域很经典的问题：缓存一致性，后面考虑对这部分实现进行优化，实现高性能的缓存一致性模型
 
-/// N: Cache 条目的数量
+/// 各种缓存替换算法需要实现的 trait
+///
+/// N: 缓存项的数量
 pub trait Cache<const N: usize> {
     type Key;
     type Value;
+    /// 根据 `Key` 返回对应的 `Value`
     fn get(&mut self, key: &Self::Key) -> Option<Self::Value>;
-    // 如果有需要写回的值，将它返回
+    /// 写入一对 `(Key, Value)`
+    ///
+    /// 如果有需要写回的值，将它返回
     fn put(&mut self, key: &Self::Key, value: Self::Value) -> Option<(Self::Key, Self::Value)>;
+    /// 返回所有的缓存项，用于数据同步
     fn all(&mut self) -> Vec<(Self::Key, Self::Value)>;
 }
 
+/// [`LFUCache`] 的缓存项
+///
+/// 除了记录键值对，还记录访问次数，最后访问时间，是否写脏
 #[derive(Clone, Copy)]
 pub struct Node<K: Eq + PartialEq + Copy, V: Clone> {
     key: K,
@@ -58,7 +67,9 @@ impl<K: Eq + PartialEq + Copy, V: Clone> PartialOrd for Node<K, V> {
     }
 }
 
-/// 这里采用比较保守的 LFU 算法实现，将来可能考虑采用性能更好的方案
+/// 采用 `LFU` 替换算法的缓存实现
+///
+/// 这里采用比较保守的 `LFU` 算法实现，将来可能考虑采用性能更好的方案
 pub struct LFUCache<K: Eq + PartialEq + Copy, V: Clone, const N: usize> {
     data: [Node<K, V>; N],
     size: usize,
@@ -66,6 +77,7 @@ pub struct LFUCache<K: Eq + PartialEq + Copy, V: Clone, const N: usize> {
 }
 
 impl<K: Eq + PartialEq + Copy, V: Clone, const N: usize> LFUCache<K, V, N> {
+    /// 初始化
     pub fn init(data: [Node<K, V>; N]) -> Self {
         Self {
             data,

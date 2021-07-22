@@ -1,7 +1,7 @@
 use crate::ABC;
 use core::convert::TryInto;
 
-/// FAT Data Structure
+/// `FAT` 数据结构
 ///
 /// 这里假设一个块一个扇区
 pub struct FAT {
@@ -13,8 +13,6 @@ pub struct FAT {
     pub base: u32,
     /// 每扇区的字节数，从 `BPB` 中读出
     pub bytes_per_sector: u16,
-    // /// 一个块对应的扇区数
-    // sectors_per_cluster: u8
 }
 
 impl FAT {
@@ -76,6 +74,7 @@ impl FAT {
                     panic!("FATContent must not be zero in one link!");
                 }
                 0xffffff8..=0xfffffff => {
+                    // 文档里面提到的结束符判断伪代码：
                     // if (FATType == FAT32) {
                     //  if (FATContent >= 0xffffff8) {
                     //          IsEOF = TRUE;

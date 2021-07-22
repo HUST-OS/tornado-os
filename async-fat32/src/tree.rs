@@ -1,21 +1,31 @@
-//! N-Tree Implementation
+//! N-Tree 实现
 
 use async_trait::async_trait;
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::Debug;
 #[async_trait]
 pub trait AsNode {
+    /// 标识类型，通过这个类型进行结点查找
     type Ident: Debug;
+    /// 结点附带的数据内容
     type Content;
+    /// 结点附带的数据内容的引用
     type ContentRef;
+    /// 对比标识，一致返回 `true`
     fn identify(&self, ident: &Self::Ident) -> bool;
+    /// 返回结点的标识，`Clone` 语义
     fn ident(&self) -> Self::Ident;
+    /// 返回结点附带的数据内容
     async fn content(&self) -> Self::Content;
+    /// 返回结点附带的数据内容的引用
     async fn content_ref(&self) -> Self::ContentRef;
 }
 
+/// 结点
 pub struct Node<T, C, R> {
+    /// 内部数据
     inner: Box<dyn AsNode<Ident = T, Content = C, ContentRef = R>>,
+    /// 子结点
     children: Vec<Box<Node<T, C, R>>>,
 }
 
@@ -66,11 +76,13 @@ impl<T, C, R> Node<T, C, R> {
     }
 }
 
+/// `N-Tree` 结构体
 pub struct NTree<T, C, R> {
     root: Node<T, C, R>,
 }
 
 impl<T: Debug, C, R> NTree<T, C, R> {
+    /// 根据根结点新建一棵 `N-Tree`
     pub fn new(root_inner: Box<dyn AsNode<Ident = T, Content = C, ContentRef = R>>) -> Self {
         Self {
             root: Node::empty(root_inner),

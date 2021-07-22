@@ -46,10 +46,17 @@ async fn main() -> Result<()> {
     let mut fs = FAT32::init(Arc::new(device)).await;
     println!("fs init!");
     let files = fs.list("/");
-    for f in files {
+    for f in &files {
         println!("[root] {}", f);
     }
-    fs.create("/", "test").await.expect("create file failed");
+    fs.create("/", "test0", 1)
+        .await
+        .expect("create file failed");
+    fs.sync().await;
+    let src = "test0".as_bytes();
+    fs.store_binary("test0   ", src)
+        .await
+        .expect("store binary failed");
     fs.sync().await;
     Ok(())
 }

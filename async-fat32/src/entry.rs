@@ -1,11 +1,10 @@
-//! FAT32 文件目录项
 use super::bs_bpb::cluster_offset_sectors;
 use crate::{config::BLOCK_SIZE, fat::FAT, ABC};
 use alloc::sync::Arc;
 use bit_field::BitField;
 use core::convert::TryInto;
 
-/// 文件目录项
+/// 短文件名目录项
 #[derive(Clone, Default)]
 pub struct DirectoryEntry {
     /// 文件名
@@ -106,6 +105,9 @@ impl Into<[u8; 32]> for DirectoryEntry {
 
 impl DirectoryEntry {
     /// 文件名
+    ///
+    /// note: 返回的字符串包含空格，比如文件系统中有个文件为 `test`,
+    /// 这里返回的 `String` 为 "test    "
     pub fn name(&self) -> String {
         let name = String::from_utf8(self.name.to_vec()).unwrap();
         let mut has_ext = false;
@@ -148,6 +150,21 @@ impl DirectoryEntry {
     }
 
     /// 校验和，用于长目录项
+    ///
+    /// 文档里面计算校验和的伪代码：
+    /// ```
+    /// unsigned char ChkSum (unsigned char *pFcbName)
+    /// {
+    ///     short FcbNameLen;
+    ///     unsigned char Sum;
+    ///     Sum = 0;
+    ///     for (FcbNameLen=11; FcbNameLen!=0; FcbNameLen--) {
+    ///         // NOTE: The operation is an unsigned char rotate right
+    ///         Sum = ((Sum & 1) ? 0x80 : 0) + (Sum >> 1) + *pFcbName++;
+    ///     }
+    ///     return (Sum);
+    /// }
+    /// ```
     pub fn checksum(&self) -> u8 {
         let mut sum = 0;
         for c in self.name.iter() {
@@ -191,6 +208,7 @@ impl DirectoryEntry {
     }
 }
 
+/// 长文件名目录项
 #[derive(Clone)]
 pub struct LongDirectoryEntry {
     pub order: LongOrder,
@@ -203,6 +221,7 @@ pub struct LongDirectoryEntry {
 }
 
 impl LongDirectoryEntry {
+    /// 名字
     pub fn name(&self) -> Vec<char> {
         let iter = [
             self.name1.iter().as_slice(),
@@ -216,6 +235,7 @@ impl LongDirectoryEntry {
             .map(|c| *c as char)
             .collect::<Vec<char>>()
     }
+    /// 是否是最后一个长文件名目录项
     pub fn is_last(&self) -> bool {
         self.order.is_last()
     }
@@ -317,8 +337,10 @@ pub enum Attribute {
     ATTR_HIDDEN = 0x02,
     ATTR_SYSTEM = 0x04,
     ATTR_VOLUME_ID = 0x08,
+    /// 标识该目录项对应一个目录而不是文件
     ATTR_DIRECTORY = 0x10,
     ATTR_ARCHIVE = 0x20,
+    /// 长文件名目录项
     ATTR_LONG_NAME = 0x0f,
 }
 

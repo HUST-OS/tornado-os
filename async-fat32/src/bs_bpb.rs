@@ -1,8 +1,11 @@
 //! Boot Sector and BPB Structure
-
-use core::convert::TryInto;
-
+//!
+//! 这是 `FAT32` 文件系统的第一个扇区，只从块设备中读取一次保存到内存
+//!
+//! 照着文档写的: https://d1.amobbs.com/bbs_upload782111/files_7/armok01151038.pdf
+//! (写完才发现有中文文档)
 use crate::fat::FAT;
+use core::convert::TryInto;
 
 /// Boot Sector 各字段的偏移
 enum BootSectorOffset {
@@ -60,6 +63,7 @@ impl BootSectorOffset {
         &buf[start as usize..end as usize]
     }
 }
+
 /// BPB 各字段的偏移
 enum BPBOffset {
     /// Count of bytes per sector
@@ -108,6 +112,7 @@ enum BPBOffset {
 }
 
 impl BPBOffset {
+    /// 每个扇区的字节数
     pub fn bytes_per_sector(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::BytsPerSec, Self::SecPerClus, sector)
@@ -115,6 +120,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// 每个块对应的扇区数
     pub fn sector_per_cluster(sector: &[u8]) -> u8 {
         u8::from_le_bytes(
             Self::split(Self::SecPerClus, Self::RsvdSecCnt, sector)
@@ -122,6 +128,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// 保留扇区数
     pub fn reserved_sector_number(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::RsvdSecCnt, Self::NumFATs, sector)
@@ -129,6 +136,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// `FAT` 表数目
     pub fn fats_number(sector: &[u8]) -> u8 {
         u8::from_le_bytes(
             Self::split(Self::NumFATs, Self::RootEntCnt, sector)
@@ -136,6 +144,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// 根目录的目录项数量，对于 `FAT32` 来说，这个域必须是 0
     pub fn root_entry_count(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::RootEntCnt, Self::TotSec16, sector)
@@ -143,6 +152,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// 该分区的总扇区数，该域可以是 0，如果该域是 0，`BPB_TotSec32` 域必须非零
     pub fn total_sector_16(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::TotSec16, Self::Media, sector)
@@ -150,6 +160,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// 在 `FAT32` 上必须为 0
     pub fn fat_size_16(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::FATSz16, Self::SecPerTrk, sector)
@@ -157,6 +168,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// 隐藏分区数
     pub fn hidden_sector(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::HiddSec, Self::TotSec32, sector)
@@ -164,6 +176,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// 该分区的总扇区数，如果 `BPB_TotSec16` 域为零，该域必须是非零
     pub fn total_sector_32(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::TotSec32, Self::FATSz32, sector)
@@ -171,6 +184,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    /// 一个 `FAT` 表包含的扇区数
     pub fn fat_size_32(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::FATSz32, Self::ExtFlags, sector)
@@ -247,6 +261,7 @@ pub(crate) fn fat1_offset_sectors(sector0: &[u8]) -> u32 {
     BPBOffset::reserved_sector_number(sector0) as u32 + BPBOffset::hidden_sector(sector0)
 }
 
+/// 由该分区的第一个扇区来生成 [`FAT`] 数据结构
 pub(crate) fn fat1(sector0: &[u8]) -> FAT {
     let fat_nums = BPBOffset::fats_number(sector0);
     let fat_size = fat_size(sector0);
