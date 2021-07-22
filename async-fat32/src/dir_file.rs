@@ -83,7 +83,7 @@ impl AsNode for Directory {
     type Content = Vec<u8>;
     type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
-        &self.name() == ident
+        self.name() == *ident
     }
     fn ident(&self) -> Self::Ident {
         self.name()
@@ -132,7 +132,7 @@ impl AsNode for File {
     type Content = Vec<u8>;
     type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
-        &self.name() == ident
+        self.name() == *ident
     }
     fn ident(&self) -> Self::Ident {
         self.name()
@@ -234,7 +234,7 @@ impl AsNode for LongDirectory {
     type Content = Vec<u8>;
     type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
-        &self.name() == ident
+        self.name() == *ident
     }
     fn ident(&self) -> Self::Ident {
         self.name()
@@ -281,7 +281,7 @@ impl AsNode for LongFile {
     type Content = Vec<u8>;
     type ContentRef = Vec<u32>;
     fn identify(&self, ident: &Self::Ident) -> bool {
-        &self.name() == ident
+        self.name() == *ident
     }
     fn ident(&self) -> Self::Ident {
         self.name()

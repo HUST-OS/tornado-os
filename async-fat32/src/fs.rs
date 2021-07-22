@@ -158,7 +158,7 @@ impl FAT32 {
     pub fn list<S: Into<String>>(&self, dir: S) -> Vec<String> {
         match self.tree.find(dir) {
             Some(node) => node
-                .children_iter()
+                .children_ref()
                 .iter()
                 .map(|n| n.inner().ident())
                 .collect(),
@@ -178,7 +178,7 @@ impl FAT32 {
     /// 另外一个任务在读写这个 `FAT` 表项。
     ///
     /// 一种解决办法：在内存里创建一个数据结构来对 `FAT` 表进行管理
-    pub async fn create<S: Into<String>>(&mut self, dir: S, file: S) -> Result<()> {
+    pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) -> Result<()> {
         let node = self.tree.find_mut(dir);
         if node.is_none() {
             return Err(FAT32Error::NotFound);
@@ -201,13 +201,26 @@ impl FAT32 {
                     false => name[0..s.len()].copy_from_slice(s.as_bytes()),
                 }
                 if let Some(fst_cluster) = self.fat.first_blank(&*self.device).await {
-                    // 标记 fat 表为已占用
+                    // 标记 `fat` 表为已占用
                     self.fat.set(&*self.device, fst_cluster, 0xfffffff).await;
+                    let mut last = fst_cluster;
+                    // 分配足够的 `FAT` 表项
+                    for _ in 0..size - 1 {
+                        let new_cluster = self
+                            .fat
+                            .first_blank(&*self.device)
+                            .await
+                            .map_or_else(|| panic!("no avaiable space!"), |x| x);
+                        self.fat.set(&*self.device, last, new_cluster).await;
+                        last = new_cluster;
+                    }
+                    self.fat.set(&*self.device, last, 0xfffffff).await;
                     let entry = DirectoryEntry {
                         name,
                         ext_name,
                         attribute: Attribute::ATTR_ARCHIVE,
                         _reserved: 0,
+                        file_size: 512,
                         fst_cluster,
                         ..Default::default()
                     };
@@ -283,6 +296,54 @@ impl FAT32 {
             }
         }
     }
+    /// note: 这里语法上不需要可变引用，语义上需要
+    pub async fn store_binary<S: Into<String>>(&mut self, file: S, src: &[u8]) -> Result<()> {
+        if let Some(node) = self.tree.find(file) {
+            // 需要的块数
+            let size = src.len() / BLOCK_SIZE + 1;
+            let mut clusters = node.inner().content_ref().await;
+            println!("size: {}, clusters: {:?}", size, clusters);
+            if size > clusters.len() {
+                // 需要分配新的块
+                let diff = size - clusters.len();
+                let mut last = *clusters.last().unwrap();
+                for _ in 0..diff {
+                    let new_cluster = self
+                        .fat
+                        .first_blank(&*self.device)
+                        .await
+                        .map_or_else(|| panic!("no avaiable space!"), |x| x);
+                    self.fat.set(&*self.device, last, new_cluster).await;
+                    last = new_cluster;
+                }
+                self.fat.set(&*self.device, last, 0xfffffff).await;
+                // 更新完 `FAT` 表重新获得文件占用的块数
+                clusters = node.inner().content_ref().await;
+            }
+            for b in src.chunks(BLOCK_SIZE) {
+                let cluster = clusters.remove(0);
+                let sector = cluster_offset_sectors(&self.bpb, cluster) as usize;
+                let mut block = self.device.read_block(sector).await;
+                println!("b: {:x?}", b);
+                block[0..b.len()].copy_from_slice(b);
+                block[b.len()..].fill(0);
+                self.device.write_block(sector, block).await;
+            }
+            // 清空剩余的块
+            for cluster in clusters {
+                let sector = cluster_offset_sectors(&self.bpb, cluster) as usize;
+                let mut block = self.device.read_block(sector).await;
+                block.fill(0);
+                self.device.write_block(sector, block).await;
+            }
+            Ok(())
+        } else {
+            Err(FAT32Error::NotFound)
+        }
+    }
+    pub async fn sync(&self) {
+        self.device.sync().await
+    }
     fn is_long<S: AsRef<str>>(s: &S) -> bool {
         let s = s.as_ref();
         match s.len() {
@@ -302,11 +363,5 @@ impl FAT32 {
             },
             _ => true,
         }
-    }
-    pub fn cluster_to_sector(&self, cluster: u32) -> u32 {
-        cluster_offset_sectors(&self.bpb, cluster)
-    }
-    pub async fn sync(&self) {
-        self.device.sync().await
     }
 }

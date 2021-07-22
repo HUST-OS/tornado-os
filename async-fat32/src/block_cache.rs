@@ -13,7 +13,7 @@ pub struct AsyncBlockCache<
     const B: usize,
     const N: usize,
 > {
-    pub block_device: Arc<dyn AsyncBlockDevive + Send + Sync>,
+    block_device: Arc<dyn AsyncBlockDevive + Send + Sync>,
     cache: Mutex<C>,
 }
 

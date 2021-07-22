@@ -2,10 +2,10 @@
 
 use async_trait::async_trait;
 use core::borrow::{Borrow, BorrowMut};
-
+use core::fmt::Debug;
 #[async_trait]
 pub trait AsNode {
-    type Ident;
+    type Ident: Debug;
     type Content;
     type ContentRef;
     fn identify(&self, ident: &Self::Ident) -> bool;
@@ -57,7 +57,7 @@ impl<T, C, R> Node<T, C, R> {
         }
     }
     /// 返回所有子结点的不可变引用
-    pub fn children_iter<'a>(&'a self) -> Vec<&'a Node<T, C, R>> {
+    pub fn children_ref<'a>(&'a self) -> Vec<&'a Node<T, C, R>> {
         self.children.iter().map(|b| b.borrow()).collect()
     }
     /// 返回所有子结点的可变引用
@@ -70,7 +70,7 @@ pub struct NTree<T, C, R> {
     root: Node<T, C, R>,
 }
 
-impl<T, C, R> NTree<T, C, R> {
+impl<T: Debug, C, R> NTree<T, C, R> {
     pub fn new(root_inner: Box<dyn AsNode<Ident = T, Content = C, ContentRef = R>>) -> Self {
         Self {
             root: Node::empty(root_inner),
@@ -89,7 +89,7 @@ impl<T, C, R> NTree<T, C, R> {
             if node.inner.identify(ident) {
                 return Some(node);
             } else {
-                node.children_iter().iter().for_each(|n| queue.push(*n));
+                node.children_ref().iter().for_each(|n| queue.push(*n));
             }
         }
         None
@@ -127,7 +127,7 @@ impl<T, C, R> NTree<T, C, R> {
     /// 列出某个结点的所有子结点
     pub fn list<'a, S: Into<T>>(&'a self, ident: S) -> Vec<&'a Node<T, C, R>> {
         if let Some(node) = self.find(ident) {
-            node.children_iter()
+            node.children_ref()
         } else {
             Vec::new()
         }
@@ -213,7 +213,7 @@ mod test {
             let file = File { ident: "mod.rs" };
             node.insert(Box::new(file));
             let v = node
-                .children_iter()
+                .children_ref()
                 .iter()
                 .map(|c| c.inner.ident())
                 .collect::<Vec<String>>();
@@ -221,7 +221,7 @@ mod test {
         }
         let root = ntree.root;
         let v = root
-            .children_iter()
+            .children_ref()
             .iter()
             .map(|c| c.inner.ident())
             .collect::<Vec<String>>();
