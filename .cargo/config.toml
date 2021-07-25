@@ -2,6 +2,7 @@
 xtask = "run --package xtask --"
 xbuild = "xtask build"
 qemu = "xtask qemu"
+k210 = "xtask k210"
 asm = "xtask asm"
 size = "xtask size"
 debug = "xtask debug"

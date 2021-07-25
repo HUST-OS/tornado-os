@@ -1,14 +1,12 @@
-use std::{
-    env,
-    ffi::OsStr,
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-};
+use std::{env, ffi::OsStr, fs, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}, process::{Command, Stdio}};
 
 #[macro_use]
 extern crate clap;
 
 const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
+const SERIAL_PORT: &'static str = "COM4";
+const KERNEL_OFFSET: u64 = 0x2_0000;
+const SCHEDULER_OFFSET: u64 = 0x20_0000;
 
 type Result<T = ()> = core::result::Result<T, XTaskError>;
 
@@ -41,6 +39,7 @@ enum XTaskError {
     SharedSchedulerObjcopyError,
     UserAppObjcopyError,
     QemuExecuteError,
+    K210ExecuteError,
     QemuDebugError,
     GDBError,
     AsmError,
@@ -54,11 +53,16 @@ fn main() -> Result {
         (about: crate_description!())
         (@subcommand build =>
             (about: "Build project")
+            (@arg platform: +required "Select execute platform")
             (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand qemu =>
             (about: "Execute qemu")
             (@arg user: +required "Select user binary to execute")
+            (@arg release: --release "Build artifacts in release mode, with optimizations")
+        )
+        (@subcommand k210 =>
+            (about: "Execute k210")
             (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand asm =>
@@ -83,21 +87,32 @@ fn main() -> Result {
         if matches.is_present("release") {
             xtask.set_release();
         }
-        xtask.build_kernel()?;
-        xtask.build_shared_scheduler()?;
+        let platform = matches.args.get("platform").unwrap();
+        let platform = platform.vals[0].to_str().unwrap();
+        xtask.build_kernel(platform)?;
+        xtask.build_shared_scheduler(platform)?;
         xtask.build_all_user_app()?;
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
         let app = matches.args.get("user").unwrap();
         if matches.is_present("release") {
             xtask.set_release();
         }
-        xtask.build_kernel()?;
-        xtask.build_shared_scheduler()?;
+        xtask.build_kernel("qemu")?;
+        xtask.build_shared_scheduler("qemu")?;
         xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
         xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
         xtask.execute_qemu(app.vals[0].to_str().unwrap(), 1)?;
+    } else if let Some(matches) = matches.subcommand_matches("k210") {
+        if matches.is_present("release") {
+            xtask.set_release();
+        }
+        xtask.build_kernel("k210")?;
+        xtask.build_shared_scheduler("k210")?;
+        xtask.kernel_binary()?;
+        xtask.shared_scheduler_binary()?;
+        xtask.execute_k210()?;
     } else if let Some(matches) = matches.subcommand_matches("asm") {
         let elf = matches.args.get("elf").unwrap().vals[0].to_str().unwrap();
         match elf {
@@ -114,8 +129,8 @@ fn main() -> Result {
         };
     } else if let Some(matches) = matches.subcommand_matches("debug") {
         let app = matches.args.get("user").unwrap();
-        xtask.build_kernel()?;
-        xtask.build_shared_scheduler()?;
+        xtask.build_kernel("qemu")?;
+        xtask.build_shared_scheduler("qemu")?;
         xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
@@ -124,7 +139,7 @@ fn main() -> Result {
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
     } else {
-        // todo
+        todo!()
     }
     Ok(())
 }
@@ -260,14 +275,16 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         p
     }
     /// 编译内核
-    fn build_kernel(&self) -> Result {
+    fn build_kernel<P: AsRef<OsStr>>(&self, platform: P) -> Result {
         let mut cargo = Command::new(&self.cargo);
         cargo.current_dir(self.root.join("tornado-kernel"));
         cargo.arg("build");
+        cargo.args(&["--features", platform.as_ref().to_str().unwrap()]);
         if matches!(self.mode, CompileMode::Release) {
             cargo.arg("--release");
         }
         cargo.args(&["--target", self.target]);
+        cargo.env("PLATFORM", platform);
         if let Ok(status) = cargo.status() {
             if status.success() {
                 Ok(())
@@ -279,7 +296,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
     }
     /// 编译共享调度器
-    fn build_shared_scheduler(&self) -> Result {
+    fn build_shared_scheduler<P: AsRef<OsStr>>(&self, platform: P) -> Result {
         let mut cargo = Command::new(&self.cargo);
         cargo.current_dir(self.root.join("shared-scheduler"));
         cargo.arg("build");
@@ -287,6 +304,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             cargo.arg("--release");
         }
         cargo.args(&["--target", self.target]);
+        cargo.env("PLATFORM", platform);
         if let Ok(status) = cargo.status() {
             if status.success() {
                 Ok(())
@@ -433,6 +451,44 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
                 Ok(())
             } else {
                 Err(XTaskError::QemuExecuteError)
+            }
+        } else {
+            Err(XTaskError::CommandNotFound)
+        }
+    }
+    /// 运行 k210
+    fn execute_k210(&self) -> Result {
+        let sbi_k210 = PathBuf::from("SBI/rustsbi-k210.bin");
+        let kernel = self.target_dir().join("tornado-kernel.bin");
+        let shared_scheduler = self.target_dir().join("shared-scheduler.bin");
+        let k210_bin = self.target_dir().join("k210.bin");
+        fs::copy(sbi_k210, &k210_bin).expect("copy sbi base");
+        let mut k210 = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&k210_bin)
+            .expect("open k210 output file");
+        let buf = fs::read(kernel).expect("read kernel binary");
+        k210.seek(SeekFrom::Start(KERNEL_OFFSET)).expect("seek to kernel offset");
+        k210.write(&buf).expect("write kernel binary to k210 output");
+        let buf = fs::read(shared_scheduler).expect("read kernel binary");
+        k210.seek(SeekFrom::Start(SCHEDULER_OFFSET)).expect("seek to shared-scheduler offsets");
+        k210.write(&buf).expect("write kernel binary to k210 ouput");
+        let mut py = Command::new("python");
+        py.current_dir(&self.root);
+         py
+            .arg("ktool.py")
+            .args(&["--port", SERIAL_PORT])
+            .args(&["--baudrate", "1500000"])
+            .arg("--terminal")
+            .arg(k210_bin)
+            .status().unwrap();
+        
+        if let Ok(status) = py.status() {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(XTaskError::K210ExecuteError)
             }
         } else {
             Err(XTaskError::CommandNotFound)

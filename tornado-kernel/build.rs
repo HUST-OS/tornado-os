@@ -5,12 +5,15 @@ use std::path::PathBuf;
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-
+    let platform = env::var("PLATFORM").expect("no specified platform");
     // Put the linker script somewhere the linker can find it
-    fs::File::create(out_dir.join("linker.ld"))
-        .unwrap()
-        .write_all(include_bytes!("src/linker.ld"))
-        .unwrap();
+    let mut linker = fs::File::create(out_dir.join("linker.ld")).unwrap();
+    match platform.as_str() {
+        "qemu" => linker.write_all(include_bytes!("src/linker-qemu.ld")).unwrap(),
+        "k210" => linker.write_all(include_bytes!("src/linker-k210.ld")).unwrap(),
+        p => panic!("haven't supported platform: {}", p)
+    }
+    
     println!("cargo:rustc-link-search={}", out_dir.display());
 
     println!("cargo:rerun-if-changed=build.rs");
