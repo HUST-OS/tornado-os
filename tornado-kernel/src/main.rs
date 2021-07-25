@@ -49,7 +49,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         r0::init_data(&mut _sdata, &mut _edata, &_sidata);
     }
 
-    println!("booted");
+    println!("hart {} booted", hart_id);
 
     memory::init();
     trap::init();
@@ -149,9 +149,15 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
-    // 进入用户态
-    // user::first_enter_user(stack_handle.end.0 - 4)
-    
+    end(stack_handle.end.0 - 4)
+}
+
+#[cfg(feature = "qemu")]
+fn end(stack_end: usize) -> ! {
+    user::first_enter_user(stack_end)
+}
+#[cfg(feature = "k210")]
+fn end(_stack_end: usize) -> ! {
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
     unsafe { hart::KernelHartInfo::unload_hart() };
     // 没有任务了，关机

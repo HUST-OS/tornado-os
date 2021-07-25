@@ -1,7 +1,7 @@
 use crate::memory::{PhysicalAddress, VirtualAddress};
 use lazy_static::lazy_static;
 
-pub const KERNEL_HEAP_SIZE: usize = 0x80_0000;
+pub const KERNEL_HEAP_SIZE: usize = 0x8_0000;
 
 pub const MEMORY_END_ADDRESS: PhysicalAddress = PhysicalAddress(0x8800_0000);
 
