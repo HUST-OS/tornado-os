@@ -125,8 +125,7 @@ impl MemorySet {
             Some(swap_frame_ppn),
             Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
         )?;
-
-        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
+        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?;
         println!("Kernel new asid = {:?}", address_space_id);
 
         let satp = super::Satp::new(mapping.get_satp(address_space_id).into());

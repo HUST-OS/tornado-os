@@ -77,6 +77,7 @@ impl KernelHartInfo {
     }
 
     /// 分配一个地址空间编号
+    #[cfg(feature = "qemu")]
     pub fn alloc_address_space_id() -> Option<AddressSpaceId> {
         use_tp_box(|b| {
             let (free, max) = &mut b.asid_alloc;
@@ -95,6 +96,11 @@ impl KernelHartInfo {
                 None
             }
         })
+    }
+
+    #[cfg(feature = "k210")]
+    pub fn alloc_address_space_id() -> Option<AddressSpaceId> {
+        unsafe { Some(AddressSpaceId::from_raw(0)) }
     }
 
     /// 释放地址空间编号
