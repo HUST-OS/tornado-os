@@ -161,8 +161,8 @@ impl<'x> Xtask<'x, String> {
             root,
             target: DEFAULT_TARGET,
             cargo,
-            qemu: "qemu-system-riscv64.exe".to_string(),
-            gdb: "riscv64-unknown-elf-gdb.exe".to_string(), // todo: 检查系统中 riscv gdb 的位置
+            qemu: "qemu-system-riscv64".to_string(),
+            gdb: "riscv64-unknown-elf-gdb".to_string(), // todo: 检查系统中 riscv gdb 的位置
             objcopy,
             objdump,
             size,
