@@ -54,6 +54,7 @@ fn main() -> Result {
         (about: crate_description!())
         (@subcommand build =>
             (about: "Build project")
+            (@arg platform: +required "Select execute platform")
             (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand qemu =>
@@ -83,16 +84,18 @@ fn main() -> Result {
         if matches.is_present("release") {
             xtask.set_release();
         }
-        xtask.build_kernel()?;
-        xtask.build_shared_scheduler()?;
+        let platform = matches.args.get("platform").unwrap();
+        let platform = platform.vals[0].to_str().unwrap();
+        xtask.build_kernel(platform)?;
+        xtask.build_shared_scheduler(platform)?;
         xtask.build_all_user_app()?;
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
         let app = matches.args.get("user").unwrap();
         if matches.is_present("release") {
             xtask.set_release();
         }
-        xtask.build_kernel()?;
-        xtask.build_shared_scheduler()?;
+        xtask.build_kernel("qemu")?;
+        xtask.build_shared_scheduler("qemu")?;
         xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
@@ -114,8 +117,8 @@ fn main() -> Result {
         };
     } else if let Some(matches) = matches.subcommand_matches("debug") {
         let app = matches.args.get("user").unwrap();
-        xtask.build_kernel()?;
-        xtask.build_shared_scheduler()?;
+        xtask.build_kernel("qemu")?;
+        xtask.build_shared_scheduler("qemu")?;
         xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
@@ -146,8 +149,8 @@ impl<'x> Xtask<'x, String> {
             root,
             target: DEFAULT_TARGET,
             cargo,
-            qemu: "qemu-system-riscv64".to_string(),
-            gdb: "riscv64-unknown-elf-gdb".to_string(), // todo: 检查系统中 riscv gdb 的位置
+            qemu: "qemu-system-riscv64.exe".to_string(),
+            gdb: "riscv64-unknown-elf-gdb.exe".to_string(), // todo: 检查系统中 riscv gdb 的位置
             objcopy,
             objdump,
             size,
@@ -260,14 +263,16 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         p
     }
     /// 编译内核
-    fn build_kernel(&self) -> Result {
+    fn build_kernel<P: AsRef<OsStr>>(&self, platform: P) -> Result {
         let mut cargo = Command::new(&self.cargo);
         cargo.current_dir(self.root.join("tornado-kernel"));
         cargo.arg("build");
+        cargo.args(&["--features", platform.as_ref().to_str().unwrap()]);
         if matches!(self.mode, CompileMode::Release) {
             cargo.arg("--release");
         }
         cargo.args(&["--target", self.target]);
+        cargo.env("PLATFORM", platform);
         if let Ok(status) = cargo.status() {
             if status.success() {
                 Ok(())
@@ -279,7 +284,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
     }
     /// 编译共享调度器
-    fn build_shared_scheduler(&self) -> Result {
+    fn build_shared_scheduler<P: AsRef<OsStr>>(&self, platform: P) -> Result {
         let mut cargo = Command::new(&self.cargo);
         cargo.current_dir(self.root.join("shared-scheduler"));
         cargo.arg("build");
@@ -287,6 +292,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             cargo.arg("--release");
         }
         cargo.args(&["--target", self.target]);
+        cargo.env("PLATFORM", platform);
         if let Ok(status) = cargo.status() {
             if status.success() {
                 Ok(())

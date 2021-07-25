@@ -57,7 +57,7 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     );
 
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
-    swap_cx.set_gp(0x8600_0000);
+    swap_cx.set_gp(crate::SHAREDPAYLOAD_BASE);
     swap_cx.set_tp(user_asid);
     trap::switch_to_user(swap_cx, user_satp)
 }

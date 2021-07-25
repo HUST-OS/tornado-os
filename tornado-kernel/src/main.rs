@@ -22,6 +22,12 @@ mod user;
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
 
+#[cfg(feature = "qemu")]
+const SHAREDPAYLOAD_BASE: usize = 0x8600_0000;
+
+#[cfg(feature = "k210")]
+const SHAREDPAYLOAD_BASE: usize = 0x8060_0000;
+
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
     extern "C" {
@@ -103,7 +109,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
 
-    let shared_payload = unsafe { task::SharedPayload::load(0x8600_0000) };
+    let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let hart_id = crate::hart::KernelHartInfo::hart_id();
@@ -143,14 +149,13 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
-
     // 进入用户态
-    user::first_enter_user(stack_handle.end.0 - 4)
-
-    // // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
-    // unsafe { hart::KernelHartInfo::unload_hart() };
-    // // 没有任务了，关机
-    // sbi::shutdown()
+    // user::first_enter_user(stack_handle.end.0 - 4)
+    
+    // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
+    unsafe { hart::KernelHartInfo::unload_hart() };
+    // 没有任务了，关机
+    sbi::shutdown()
 }
 
 async fn task_1() {

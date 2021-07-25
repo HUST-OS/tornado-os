@@ -6,6 +6,7 @@ use crate::memory::{
     AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,
     VirtualAddress, VirtualPageNumber,
 };
+use crate::SHAREDPAYLOAD_BASE;
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
 
@@ -106,8 +107,8 @@ impl MemorySet {
         }
 
         // 映射共享载荷，目前地址是写死的
-        let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8640_0000);
-        let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8640_0000);
+        let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
+        let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
         mapping.map_defined(
             &va_range,
             &pa_range,
@@ -180,9 +181,8 @@ impl MemorySet {
         )?;
 
         // 映射共享运行时段
-        // 目前共享运行时写死在 0x86000000 这个物理地址上
-        let va_range = VirtualAddress(0x8600_0000)..VirtualAddress(0x8680_0000);
-        let pa_range = PhysicalAddress(0x8600_0000)..PhysicalAddress(0x8680_0000);
+        let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
+        let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
         mapping.map_defined(
             &va_range,
             &pa_range,

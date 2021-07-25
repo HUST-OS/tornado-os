@@ -12,3 +12,4 @@ spin = "0.7"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 bit_field = "0.10"
 bitflags = "1.2"
+async-mutex = { path = "../async-mutex" }
