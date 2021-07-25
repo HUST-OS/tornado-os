@@ -1,8 +1,11 @@
 #![no_std]
-
+#![feature(llvm_asm)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 #![allow(unused)]
+
+mod sbi;
+mod console;
 
 use k210_pac::{Peripherals, SPI0};
 use k210_hal::prelude::*;
@@ -15,7 +18,10 @@ use k210_soc::{
     sysctl,
     sleep::usleep,
 };
+use spin::Mutex;
+use lazy_static::*;
 use core::convert::TryInto;
+
 
 pub struct SDCard<SPI> {
     spi: SPI,
@@ -709,9 +715,9 @@ fn io_init() {
     fpioa::set_io_pull(io::SPI0_CS0, fpioa::pull::DOWN); // GPIO output=pull down
 }
 
-// lazy_static! {
-//     static ref PERIPHERALS: Mutex<Peripherals> = Mutex::new(Peripherals::take().unwrap());
-// }
+lazy_static! {
+    static ref PERIPHERALS: Mutex<Peripherals> = Mutex::new(Peripherals::take().unwrap());
+}
 
 fn init_sdcard() -> SDCard<SPIImpl<SPI0>> {
     // wait previous output
@@ -732,19 +738,22 @@ fn init_sdcard() -> SDCard<SPIImpl<SPI0>> {
     sd
 }
 
-// pub struct SDCardWrapper(Mutex<SDCard<SPIImpl<SPI0>>>);
+use async_mutex::AsyncMutex;
+pub struct SDCardWrapper(AsyncMutex<SDCard<SPIImpl<SPI0>>>);
 
-// impl SDCardWrapper {
-//     pub fn new() -> Self {
-//         Self(Mutex::new(init_sdcard()))
-//     }
-// }
+impl SDCardWrapper {
+    pub fn new() -> Self {
+        Self(AsyncMutex::new(init_sdcard()))
+    }
+}
 
-// impl BlockDevice for SDCardWrapper {
-//     fn read_block(&self, block_id: usize, buf: &mut [u8]) {
-//         self.0.lock().read_sector(buf,block_id as u32).unwrap();
-//     }
-//     fn write_block(&self, block_id: usize, buf: &[u8]) {
-//         self.0.lock().write_sector(buf,block_id as u32).unwrap();
-//     }
-// }
+impl SDCardWrapper {
+    pub async fn read(&self, block_id: usize, buf: &mut [u8]) {
+        let s = self.0.lock().await;
+        s.read_sector(buf,block_id as u32).unwrap();
+    }
+    pub async fn write(&self, block_id: usize, buf: &[u8]) {
+        let s = self.0.lock().await;
+        s.write_sector(buf,block_id as u32).unwrap();
+    }
+}
