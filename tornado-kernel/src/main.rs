@@ -26,7 +26,7 @@ global_asm!(include_str!("entry.asm"));
 const SHAREDPAYLOAD_BASE: usize = 0x8600_0000;
 
 #[cfg(feature = "k210")]
-const SHAREDPAYLOAD_BASE: usize = 0x8060_0000;
+const SHAREDPAYLOAD_BASE: usize = 0x8020_0000;
 
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
