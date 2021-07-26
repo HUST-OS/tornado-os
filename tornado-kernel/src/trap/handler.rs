@@ -223,9 +223,12 @@ pub unsafe extern "C" fn supervisor_timer() {
 
 pub extern "C" fn rust_supervisor_timer(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     // panic!("Supervisor timer: {:08x}", sepc::read());
-    timer::tick(); // 设置下一个时钟中断时间
-                   // 保存当前任务的上下文
-                   // todo
+    // 设置下一个时钟中断时间
+    timer::set_next_timeout();
+    // 找到下一个应当切换到的地址空间
+    
+    // 根据地址空间，找到相应的satp寄存器和用户信息，如SwapContext
+
     trap_frame
 }
 

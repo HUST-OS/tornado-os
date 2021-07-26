@@ -28,6 +28,12 @@ const SHAREDPAYLOAD_BASE: usize = 0x8600_0000;
 #[cfg(feature = "k210")]
 const SHAREDPAYLOAD_BASE: usize = 0x8020_0000;
 
+lazy_static::lazy_static! {
+    pub static ref SHARED_PAYLOAD: SharedPayload = unsafe {
+        SharedPayload::load(SHAREDPAYLOAD_BASE)
+    };
+}
+
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
     extern "C" {
@@ -109,7 +115,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
 
-    let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
+    let shared_payload = &*SHARED_PAYLOAD;
 
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let hart_id = crate::hart::KernelHartInfo::hart_id();
@@ -186,6 +192,8 @@ impl FibonacciFuture {
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
+
+use task::SharedPayload;
 
 impl Future for FibonacciFuture {
     type Output = ();

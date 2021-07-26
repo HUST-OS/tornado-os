@@ -12,18 +12,18 @@ pub fn init() {
 
 static INTERVAL: usize = 100000;
 
-fn set_next_timeout() {
+pub(crate) fn set_next_timeout() {
     set_timer(time::read() + INTERVAL);
 }
 
-pub static mut TICKS: usize = 0;
+// pub static mut TICKS: usize = 0;
 
-pub fn tick() {
-    set_next_timeout();
-    unsafe {
-        TICKS = TICKS.wrapping_add(1);
-        if TICKS % 100 == 0 {
-            println!("{} tick", TICKS);
-        }
-    }
-}
+// pub fn tick() {
+//     set_next_timeout();
+//     unsafe {
+//         TICKS = TICKS.wrapping_add(1);
+//         if TICKS % 100 == 0 {
+//             println!("{} tick", TICKS);
+//         }
+//     }
+// }
