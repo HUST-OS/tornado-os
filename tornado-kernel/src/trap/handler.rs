@@ -1,5 +1,7 @@
 use super::timer;
-use crate::syscall::{syscall as do_syscall, SyscallResult};
+use crate::{syscall::{syscall as do_syscall, SyscallResult}, task::kernel_should_switch};
+use crate::task::TaskResult;
+use crate::hart;
 use core::fmt;
 use riscv::register::{
     scause::{self, Exception, Trap},
@@ -226,9 +228,23 @@ pub extern "C" fn rust_supervisor_timer(trap_frame: &mut TrapFrame) -> *mut Trap
     // 设置下一个时钟中断时间
     timer::set_next_timeout();
     // 找到下一个应当切换到的地址空间
-    
+      // 当前的asid用于should_yield函数
+    let next_task = unsafe {
+        (&*crate::SHARED_PAYLOAD).peek_task(kernel_should_switch)
+    };
     // 根据地址空间，找到相应的satp寄存器和用户信息，如SwapContext
-
+    match next_task {
+        TaskResult::ShouldYield(user_asid_val) => {
+            let user_asid = unsafe {core::mem::transmute(user_asid_val as u16) };
+            // 切换到对应的地址空间
+            let user_satp = hart::KernelHartInfo::get_satp(user_asid)
+                .expect("fetch satp register from next asid");
+            super::switch_to_user(context, user_satp)
+        },
+        TaskResult::Task(_task) => unimplemented!("should not be a task here"),
+        TaskResult::NoWakeTask => unsafe { riscv::asm::wfi() },
+        TaskResult::Finished => crate::sbi::shutdown()
+    }
     trap_frame
 }
 

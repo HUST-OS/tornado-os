@@ -1,6 +1,7 @@
 use crate::memory;
 use crate::task;
 use crate::trap;
+use crate::hart;
 
 /// 第一次进入用户态
 pub fn first_enter_user(kernel_stack_top: usize) -> ! {
@@ -38,6 +39,9 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
 
     // 获取用户地址空间编号
     let user_asid = process.address_space_id().into_inner();
+    // 填写当前的地址空间编号，用于时钟中断中，提供给共享调度器，判断下一个应该提出的任务（切换地址空间）
+    unsafe { hart::KernelHartInfo::load_address_space_id(user_asid) };
+    
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 
