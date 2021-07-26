@@ -323,22 +323,22 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
      *         - 0xFF: Sequence failed
      *         - 0: Sequence succeed
      */
-    // fn get_response(&self) -> u8 {
-    //     let result = &mut [0u8];
-    //     let mut timeout = 0x0FFF;
-    //     /* Check if response is got or a timeout is happen */
-    //     while timeout != 0 {
-    //         self.read_data(result);
-    //         /* Right response got */
-    //         if result[0] != 0xFF {
-    //             return result[0];
-    //         }
-    //         timeout -= 1;
-    //     }
-    //     /* After time out */
-    //     return 0xFF;
-    // }
-    async fn get_response(&self) -> u8 {
+    fn get_response(&self) -> u8 {
+        let result = &mut [0u8];
+        let mut timeout = 0x0FFF;
+        /* Check if response is got or a timeout is happen */
+        while timeout != 0 {
+            self.read_data(result);
+            /* Right response got */
+            if result[0] != 0xFF {
+                return result[0];
+            }
+            timeout -= 1;
+        }
+        /* After time out */
+        return 0xFF;
+    }
+    async fn async_response(&self) -> u8 {
         self.spawn_response().await.expect("get response")
     }
 
@@ -378,16 +378,16 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
      *         - `Err()`: Sequence failed
      *         - `Ok(info)`: Sequence succeed
      */
-    async fn get_csdregister(&self) -> Result<SDCardCSD, ()> {
+    fn get_csdregister(&self) -> Result<SDCardCSD, ()> {
         let mut csd_tab = [0u8; 18];
         /* Send CMD9 (CSD register) */
         self.send_cmd(CMD::CMD9, 0, 0);
         /* Wait for response in the R1 format (0x00 is no errors) */
-        if self.get_response().await != 0x00 {
+        if self.get_response() != 0x00 {
             self.end_cmd();
             return Err(());
         }
-        if self.get_response().await != SD_START_DATA_SINGLE_BLOCK_READ {
+        if self.get_response() != SD_START_DATA_SINGLE_BLOCK_READ {
             self.end_cmd();
             return Err(());
         }
@@ -461,16 +461,16 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
      *         - `Err()`: Sequence failed
      *         - `Ok(info)`: Sequence succeed
      */
-    async fn get_cidregister(&self) -> Result<SDCardCID, ()> {
+    fn get_cidregister(&self) -> Result<SDCardCID, ()> {
         let mut cid_tab = [0u8; 18];
         /* Send CMD10 (CID register) */
         self.send_cmd(CMD::CMD10, 0, 0);
         /* Wait for response in the R1 format (0x00 is no errors) */
-        if self.get_response().await != 0x00 {
+        if self.get_response() != 0x00 {
             self.end_cmd();
             return Err(());
         }
-        if self.get_response().await != SD_START_DATA_SINGLE_BLOCK_READ {
+        if self.get_response() != SD_START_DATA_SINGLE_BLOCK_READ {
             self.end_cmd();
             return Err(());
         }
@@ -514,10 +514,10 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
      *         - `Err(())`: Sequence failed
      *         - `Ok(info)`: Sequence succeed
      */
-    async fn get_cardinfo(&self) -> Result<SDCardInfo, ()> {
+    fn get_cardinfo(&self) -> Result<SDCardInfo, ()> {
         let mut info = SDCardInfo {
-            SD_csd: self.get_csdregister().await?,
-            SD_cid: self.get_cidregister().await?,
+            SD_csd: self.get_csdregister()?,
+            SD_cid: self.get_cidregister()?,
             CardCapacity: 0,
             CardBlockSize: 0,
         };
@@ -532,7 +532,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
      * @param  None
      * @retval The SD Response info if succeeeded, otherwise Err
      */
-    pub async  fn init(&self) -> Result<SDCardInfo, InitError> {
+    pub fn init(&self) -> Result<SDCardInfo, InitError> {
         /* Initialize SD_SPI */
         self.lowlevel_init();
         /* SD chip select high */
@@ -549,7 +549,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
 
         /* Send software reset */
         self.send_cmd(CMD::CMD0, 0, 0x95);
-        let result = self.get_response().await;
+        let result = self.get_response();
         self.end_cmd();
         if result != 0x01 {
             return Err(InitError::CMDFailed(CMD::CMD0, result));
@@ -558,7 +558,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         /* Check voltage range */
         self.send_cmd(CMD::CMD8, 0x01AA, 0x87);
         /* 0x01 or 0x05 */
-        let result = self.get_response().await;
+        let result = self.get_response();
         let mut frame = [0u8; 4];
         self.read_data(&mut frame);
         self.end_cmd();
@@ -569,14 +569,14 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         while index != 0 {
             /* <ACMD> */
             self.send_cmd(CMD::CMD55, 0, 0);
-            let result = self.get_response().await;
+            let result = self.get_response();
             self.end_cmd();
             if result != 0x01 {
                 return Err(InitError::CMDFailed(CMD::CMD55, result));
             }
             /* Initiate SDC initialization process */
             self.send_cmd(CMD::ACMD41, 0x40000000, 0);
-            let result = self.get_response().await;
+            let result = self.get_response();
             self.end_cmd();
             if result == 0x00 {
                 break;
@@ -591,7 +591,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         while index != 0 {
             /* Read OCR */
             self.send_cmd(CMD::CMD58, 0, 1);
-            let result = self.get_response().await;
+            let result = self.get_response();
             self.read_data(&mut frame);
             self.end_cmd();
             if result == 0 {
@@ -606,7 +606,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
             return Err(InitError::CardCapacityStatusNotSet(frame));
         }
         self.HIGH_SPEED_ENABLE();
-        self.get_cardinfo().await
+        self.get_cardinfo()
             .map_err(|_| InitError::CannotGetCardInfo)
     }
 
@@ -629,7 +629,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
             true
         };
         /* Check if the SD acknowledged the read block command: R1 response (0x00: no errors) */
-        if self.get_response().await != 0x00 {
+        if self.async_response().await != 0x00 {
             self.end_cmd();
             return Err(());
         }
@@ -637,7 +637,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         //let mut dma_chunk = [0u32; SEC_LEN];
         let mut tmp_chunk = [0u8; SEC_LEN];
         for chunk in data_buf.chunks_mut(SEC_LEN) {
-            if self.get_response().await != SD_START_DATA_SINGLE_BLOCK_READ {
+            if self.async_response().await != SD_START_DATA_SINGLE_BLOCK_READ {
                 error = true;
                 break;
             }
@@ -656,7 +656,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         self.end_cmd();
         if flag {
             self.send_cmd(CMD::CMD12, 0, 0);
-            self.get_response();
+            self.async_response().await;
             self.end_cmd();
             self.end_cmd();
         }
@@ -689,12 +689,12 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
                 (data_buf.len() / SEC_LEN).try_into().unwrap(),
                 0,
             );
-            self.get_response();
+            self.async_response().await;
             self.end_cmd();
             self.send_cmd(CMD::CMD25, sector, 0);
         }
         /* Check if the SD acknowledged the write block command: R1 response (0x00: no errors) */
-        if self.get_response().await != 0x00 {
+        if self.async_response().await != 0x00 {
             self.end_cmd();
             return Err(());
         }
@@ -783,7 +783,7 @@ fn io_init() {
     fpioa::set_io_pull(io::SPI0_CS0, fpioa::pull::DOWN); // GPIO output=pull down
 }
 
-async fn init_sdcard() -> SDCard<SPIImpl<SPI0>> {
+fn init_sdcard() -> SDCard<SPIImpl<SPI0>> {
     // wait previous output
     usleep(100000);
     let peripherals = unsafe { Peripherals::steal() };
@@ -791,24 +791,23 @@ async fn init_sdcard() -> SDCard<SPIImpl<SPI0>> {
     sysctl::pll_set_freq(sysctl::pll::PLL1, 300_000_000).unwrap();
     sysctl::pll_set_freq(sysctl::pll::PLL2, 45_158_400).unwrap();
     let clocks = k210_hal::clock::Clocks::new();
-    // peripherals.UARTHS.configure(115_200.bps(), &clocks);
+    peripherals.UARTHS.configure(115_200.bps(), &clocks);
     io_init();
 
-    // let spi = peripherals.SPI0.constrain();
-    // let sd = SDCard::new(spi, SD_CS, SD_CS_GPIONUM);
-    // let info = sd.init().await.unwrap();
-    // let num_sectors = info.CardCapacity / 512;
-    // assert!(num_sectors > 0);
-    // sd
-    todo!()
+    let spi = peripherals.SPI0.constrain();
+    let sd = SDCard::new(spi, SD_CS, SD_CS_GPIONUM);
+    let info = sd.init().unwrap();
+    let num_sectors = info.CardCapacity / 512;
+    assert!(num_sectors > 0);
+    sd
 }
 
 use async_mutex::AsyncMutex;
 pub struct SDCardWrapper(AsyncMutex<SDCard<SPIImpl<SPI0>>>);
 
 impl SDCardWrapper {
-    pub async fn new() -> Self {
-        Self(AsyncMutex::new(init_sdcard().await))
+    pub fn new() -> Self {
+        Self(AsyncMutex::new(init_sdcard()))
     }
 }
 
