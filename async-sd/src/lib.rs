@@ -814,10 +814,12 @@ impl SDCardWrapper {
 impl SDCardWrapper {
     pub async fn read(&self, block_id: usize, buf: &mut [u8]) {
         let s = self.0.lock().await;
+        print!("");
         s.read_sector(buf, block_id as u32).await.unwrap();
     }
     pub async fn write(&self, block_id: usize, buf: &[u8]) {
         let s = self.0.lock().await;
+        print!("");
         s.write_sector(buf, block_id as u32).await.unwrap();
     }
 }
