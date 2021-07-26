@@ -21,7 +21,7 @@ pub fn run_until_idle(
         let task = peek_task();
         println!(">>> kernel executor: next task = {:x?}", task);
         match task {
-            TaskResult::Task(task_repr) => {
+            TaskResult::Task(_task_id, task_repr) => {
                 // 轮询到的任务在相同的（内核）地址空间里面
                 set_task_state(task_repr, TaskState::Sleeping);
                 let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
@@ -36,8 +36,8 @@ pub fn run_until_idle(
                     delete_task(task_repr);
                 } // 隐含一个drop(task)
             }
-            TaskResult::ShouldYield(next_asid) => {
-                todo!("切换到 next_asid (= {}) 对应的地址空间", next_asid)
+            TaskResult::ShouldYield(task_id, next_asid) => {
+                todo!("切换到任务编号{}，空间{}", task_id, next_asid)
             }
             TaskResult::NoWakeTask => {
                 // 当前共享调度器里面没有醒着的任务

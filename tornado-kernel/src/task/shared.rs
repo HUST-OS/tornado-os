@@ -45,7 +45,7 @@ pub extern "C" fn kernel_should_switch(address_space_id: AddressSpaceId) -> bool
 #[repr(C)]
 pub struct SharedPayload {
     pub(crate) shared_scheduler: NonNull<()>,
-    shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool,
+    shared_add_task: unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> usize,
     shared_peek_task:
         unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult,
     shared_delete_task: unsafe extern "C" fn(NonNull<()>, usize) -> bool,
@@ -61,7 +61,7 @@ type SharedPayloadRaw = (
     usize, // 编译时基地址，转换后类型占位，不使用
     usize, // 初始化函数，执行完之后，内核将函数指针置空
     NonNull<()>,
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> bool, // 添加任务
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, usize) -> usize, // 添加任务，非0为成功
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务
     unsafe extern "C" fn(NonNull<()>, usize) -> bool, // 删除任务
     unsafe extern "C" fn(NonNull<()>, usize, TaskState), // 改变任务的状态
@@ -106,7 +106,7 @@ impl SharedPayload {
         hart_id: usize,
         address_space_id: AddressSpaceId,
         task_repr: usize,
-    ) -> bool {
+    ) -> usize { // 非0为成功
         let f = self.shared_add_task;
         // println!("Add = {:x}, p1 = {:p}, p2 = {:x}, p3 = {:?}, p4 = {:x}", f as usize, self.shared_scheduler,
         // hart_id, address_space_id, task_repr);

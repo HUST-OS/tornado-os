@@ -22,7 +22,7 @@ mod task;
 use crate::mm::AddressSpaceId;
 use crate::task::{
     shared_add_task, shared_delete_task, shared_peek_task, shared_set_task_state, SharedScheduler,
-    TaskRepr, TaskResult, TaskState, SHARED_SCHEDULER,
+    TaskId, TaskRepr, TaskResult, TaskState, SHARED_SCHEDULER,
 };
 use buddy_system_allocator::LockedHeap;
 use core::{mem::MaybeUninit, ptr::NonNull};
@@ -63,7 +63,7 @@ pub static SHARED_RAW_TABLE: (
     &'static u8,                        // 载荷编译时的基地址
     unsafe extern "C" fn() -> PageList, // 初始化函数，执行完之后，内核将函数指针置空
     &'static SharedScheduler,           // 共享调度器的地址
-    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> bool, // 添加任务
+    unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> Option<TaskId>, // 添加任务
     unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务
     unsafe extern "C" fn(NonNull<()>, TaskRepr) -> bool, // 删除任务
     unsafe extern "C" fn(NonNull<()>, TaskRepr, TaskState), // 改变任务的状态

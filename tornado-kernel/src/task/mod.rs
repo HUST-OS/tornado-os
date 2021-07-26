@@ -16,9 +16,9 @@ pub use shared::{kernel_should_switch, SharedPayload, TaskState};
 #[allow(dead_code)] // value is constructed elsewhere
 pub enum TaskResult {
     /// 应当立即执行特定任务
-    Task(usize),
+    Task(usize, usize),
     /// 其它地址空间的任务要运行，应当让出时间片
-    ShouldYield(usize),
+    ShouldYield(usize, usize),
     /// 调度器中没有非睡眠任务
     NoWakeTask,
     /// 队列已空，所有任务已经结束

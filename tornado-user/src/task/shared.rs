@@ -36,7 +36,7 @@ pub fn run_until_ready(
         let task = peek_task();
         println!(">>> user executor: next task = {:x?}", task);
         match task {
-            TaskResult::Task(task_repr) => {
+            TaskResult::Task(task_id, task_repr) => {
                 // 在相同的地址空间里面
                 set_task_state(task_repr, TaskState::Sleeping);
                 let task: Arc<UserTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
@@ -49,7 +49,7 @@ pub fn run_until_ready(
                     delete_task(task_repr);
                 }
             }
-            TaskResult::ShouldYield(next_asid) => {
+            TaskResult::ShouldYield(task_id, next_asid) => {
                 // 让出操作
                 do_yield(next_asid);
             }

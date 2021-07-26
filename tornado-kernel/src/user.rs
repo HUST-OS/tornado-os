@@ -40,8 +40,9 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     // 获取用户地址空间编号
     let user_asid = process.address_space_id().into_inner();
     // 填写当前的地址空间编号，用于时钟中断中，提供给共享调度器，判断下一个应该提出的任务（切换地址空间）
+    let user_asid = unsafe { core::mem::transmute(user_asid as u16)} ;
     unsafe { hart::KernelHartInfo::load_address_space_id(user_asid) };
-    
+
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 
@@ -62,6 +63,6 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
 
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
     swap_cx.set_gp(crate::SHAREDPAYLOAD_BASE);
-    swap_cx.set_tp(user_asid);
+    swap_cx.set_tp(user_asid.into_inner() as usize);
     trap::switch_to_user(swap_cx, user_satp)
 }

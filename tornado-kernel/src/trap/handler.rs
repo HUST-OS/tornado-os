@@ -234,14 +234,16 @@ pub extern "C" fn rust_supervisor_timer(trap_frame: &mut TrapFrame) -> *mut Trap
     };
     // 根据地址空间，找到相应的satp寄存器和用户信息，如SwapContext
     match next_task {
-        TaskResult::ShouldYield(user_asid_val) => {
+        TaskResult::ShouldYield(user_task_id, user_asid_val) => {
+            println!("[kernel] 时钟中断，任务编号{}，空间{}", user_task_id, user_asid_val);
             let user_asid = unsafe {core::mem::transmute(user_asid_val as u16) };
             // 切换到对应的地址空间
             let user_satp = hart::KernelHartInfo::get_satp(user_asid)
                 .expect("fetch satp register from next asid");
-            super::switch_to_user(context, user_satp)
+            // super::switch_to_user(context, user_satp.inner())
+            todo!()
         },
-        TaskResult::Task(_task) => unimplemented!("should not be a task here"),
+        TaskResult::Task(_task_id, _task_repr) => unimplemented!("should not be a task here"),
         TaskResult::NoWakeTask => unsafe { riscv::asm::wfi() },
         TaskResult::Finished => crate::sbi::shutdown()
     }

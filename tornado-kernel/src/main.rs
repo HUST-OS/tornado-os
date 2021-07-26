@@ -156,12 +156,12 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
     // 进入用户态
-    // user::first_enter_user(stack_handle.end.0 - 4)
+    user::first_enter_user(stack_handle.end.0 - 4)
     
-    // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
-    unsafe { hart::KernelHartInfo::unload_hart() };
-    // 没有任务了，关机
-    sbi::shutdown()
+    // // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
+    // unsafe { hart::KernelHartInfo::unload_hart() };
+    // // 没有任务了，关机
+    // sbi::shutdown()
 }
 
 async fn task_1() {

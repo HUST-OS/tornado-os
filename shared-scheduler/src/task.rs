@@ -1,6 +1,8 @@
 //! 共享任务调度器
 use crate::algorithm::{RingFifoScheduler, Scheduler};
 use crate::mm::AddressSpaceId;
+use core::convert::TryFrom;
+use core::num::NonZeroUsize;
 use core::ptr::NonNull;
 use spin::Mutex;
 
@@ -11,10 +13,10 @@ use spin::Mutex;
 pub enum TaskResult {
     /// 应当立即执行特定任务，里面是表示形式
     // 如果不释放任务，再次执行，还是会得到相同的任务，必须释放任务
-    Task(TaskRepr),
+    Task(TaskId, TaskRepr),
     /// 其他地址空间的任务要运行，应当让出时间片
     /// 并返回下一个地址空间的编号
-    ShouldYield(usize),
+    ShouldYield(TaskId, usize),
     /// 调度器里面没有醒着的任务，但存在睡眠任务
     NoWakeTask,
     /// 队列已空，所有任务已经结束
@@ -33,10 +35,21 @@ pub type SharedScheduler = Mutex<RingFifoScheduler<TaskMeta, 200>>;
 /// 放到数据段，内核或用户从这个地址里取得共享调度器
 pub static SHARED_SCHEDULER: SharedScheduler = Mutex::new(RingFifoScheduler::new());
 
+/// 共享任务的全局唯一编号
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct TaskId(NonZeroUsize);
+
+lazy_static::lazy_static! {
+    pub static ref NEXT_TASK_ID: Mutex<usize> = Mutex::new(1);
+}
+
 /// 共享任务的元数据
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct TaskMeta {
+    /// 当前任务的全局唯一编号
+    task_id: TaskId,
     /// 运行此任务的硬件线程编号
     pub(crate) hart_id: usize,
     /// 地址空间的编号
@@ -65,13 +78,17 @@ pub unsafe extern "C" fn shared_add_task(
     hart_id: usize,
     address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
-) -> bool {
+) -> Option<TaskId> {
     // 本次比赛的设计比较简单，true表示成功，false表示失败
     // println!("[Shared add task] {:p} {} {:?} {:x?}", shared_scheduler, hart_id, address_space_id, task_repr);
     let s: NonNull<SharedScheduler> = shared_scheduler.cast();
-    let handle = prepare_handle(hart_id, address_space_id, task_repr);
+    let (handle, task_id) = prepare_handle(hart_id, address_space_id, task_repr);
     let mut scheduler = s.as_ref().lock();
-    scheduler.add_task(handle).is_none()
+    if scheduler.add_task(handle).is_none() { // 成功
+        Some(task_id)
+    } else {
+        None
+    }
 }
 
 #[inline]
@@ -79,13 +96,24 @@ unsafe fn prepare_handle(
     hart_id: usize,
     address_space_id: AddressSpaceId,
     task_repr: TaskRepr,
-) -> TaskMeta {
-    TaskMeta {
+) -> (TaskMeta, TaskId) {
+    let task_id = next_task_id();
+    let meta = TaskMeta {
+        task_id,
         hart_id,
         address_space_id,
         task_repr,
         state: TaskState::Ready, // 默认为就绪状态
-    }
+    };
+    (meta, task_id)
+}
+
+#[inline]
+fn next_task_id() -> TaskId {
+    let mut id = NEXT_TASK_ID.lock();
+    let ans = *id;
+    *id += 1;
+    TaskId(NonZeroUsize::try_from(*id).expect("non-zero task id"))
 }
 
 /// 从共享调度器中找到下一个任务
@@ -121,12 +149,13 @@ pub unsafe extern "C" fn shared_peek_task(
                 } else {
                     if should_switch(task.address_space_id) {
                         // 如果需要跳转到其他地址空间，则不弹出任务，返回需要跳转到的地址空间编号
-                        return TaskResult::ShouldYield(task.address_space_id.into_inner());
+                        return TaskResult::ShouldYield(task.task_id, task.address_space_id.into_inner());
                     } else {
                         // 直接把任务交给调用者
+                        let task_id = task.task_id;
                         let task_repr = task.task_repr;
                         drop(scheduler); // 释放锁
-                        return TaskResult::Task(task_repr);
+                        return TaskResult::Task(task_id, task_repr);
                     }
                 }
             }
