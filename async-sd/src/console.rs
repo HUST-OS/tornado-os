@@ -1,6 +1,6 @@
 use crate::sbi::*;
-use spin::Mutex;
 use core::fmt::{self, Write};
+use spin::Mutex;
 struct Stdout;
 
 // 使用关中断的锁
