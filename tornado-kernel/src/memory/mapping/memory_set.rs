@@ -291,6 +291,15 @@ fn map_mmio(mapping: &mut Mapping) {
         Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
     );
 
+    // (0x5000_0000, 0x1000),      /* DMAC      */
+    let va = VirtualAddress(0x5000_0000);
+    let pa = PhysicalAddress(0x5000_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+    
     // (0x5020_0000, 0x1000),      /* GPIO      */
     let va = VirtualAddress(0x5020_0000);
     let pa = PhysicalAddress(0x5020_0000);

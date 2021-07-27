@@ -15,10 +15,9 @@ use core::convert::TryInto;
 use k210_hal::prelude::*;
 use k210_pac::{Peripherals, SPI0};
 use k210_soc::{
+    dmac::{dma_channel, DMACExt, DMAC},
     fpioa::{self, io},
-    //dmac::{dma_channel, DMAC, DMACExt},
-    gpio,
-    gpiohs,
+    gpio, gpiohs,
     sleep::usleep,
     spi::{aitm, frame_format, tmod, work_mode, SPIExt, SPIImpl, SPI},
     sysctl,
@@ -30,8 +29,8 @@ pub struct SDCard<SPI> {
     spi: Arc<Mutex<SPI>>,
     spi_cs: u32,
     cs_gpionum: u8,
-    //dmac: &'a DMAC,
-    //channel: dma_channel,
+    dmac: Arc<Mutex<DMAC>>,
+    channel: dma_channel,
 }
 unsafe impl<SPI> Send for SDCard<SPI> {}
 unsafe impl<SPI> Sync for SDCard<SPI> {}
@@ -169,20 +168,14 @@ pub struct SDCardInfo {
     pub CardBlockSize: u64, /* Card Block Size */
 }
 
-impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
-    pub fn new(
-        spi: X,
-        spi_cs: u32,
-        cs_gpionum: u8, /*, dmac: &'a DMAC, channel: dma_channel*/
-    ) -> Self {
+impl<X: SPI> SDCard<X> {
+    pub fn new(spi: X, spi_cs: u32, cs_gpionum: u8, dmac: DMAC, channel: dma_channel) -> Self {
         Self {
             spi: Arc::new(Mutex::new(spi)),
             spi_cs,
             cs_gpionum,
-            /*
-            dmac,
+            dmac: Arc::new(Mutex::new(dmac)),
             channel,
-             */
         }
     }
 
@@ -221,9 +214,9 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         s.send_data(self.spi_cs, data);
     }
 
-    /*
     fn write_data_dma(&self, data: &[u32]) {
-        self.spi.configure(
+        let spi = self.spi.lock();
+        spi.configure(
             work_mode::MODE0,
             frame_format::STANDARD,
             8, /* data bits */
@@ -234,10 +227,12 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
             aitm::STANDARD,
             tmod::TRANS,
         );
-        self.spi
-            .send_data_dma(self.dmac, self.channel, self.spi_cs, data);
+        let dmac = self.dmac.lock();
+
+        spi
+            .send_data_dma(&*dmac, self.channel, self.spi_cs, data);
     }
-     */
+    
 
     fn read_data(&self, data: &mut [u8]) {
         let s = self.spi.lock();
@@ -255,9 +250,9 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         s.recv_data(self.spi_cs, data);
     }
 
-    /*
     fn read_data_dma(&self, data: &mut [u32]) {
-        self.spi.configure(
+        let spi = self.spi.lock();
+        spi.configure(
             work_mode::MODE0,
             frame_format::STANDARD,
             8, /* data bits */
@@ -268,10 +263,10 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
             aitm::STANDARD,
             tmod::RECV,
         );
-        self.spi
-            .recv_data_dma(self.dmac, self.channel, self.spi_cs, data);
+        let dmac = self.dmac.lock();
+        spi
+            .recv_data_dma(&*dmac, self.channel, self.spi_cs, data);
     }
-     */
 
     /*
      * Send 5 bytes command to the SD card.
@@ -312,7 +307,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         Response {
             spi: Arc::clone(&self.spi),
             spi_cs: self.spi_cs,
-            time_out: 0x0fff
+            time_out: 0x0fff,
         }
     }
 
@@ -634,8 +629,8 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
             return Err(());
         }
         let mut error = false;
-        //let mut dma_chunk = [0u32; SEC_LEN];
-        let mut tmp_chunk = [0u8; SEC_LEN];
+        let mut dma_chunk = [0u32; SEC_LEN];
+        // let mut tmp_chunk = [0u8; SEC_LEN];
         for chunk in data_buf.chunks_mut(SEC_LEN) {
             if self.async_response().await != SD_START_DATA_SINGLE_BLOCK_READ {
                 error = true;
@@ -643,11 +638,11 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
             }
             /* Read the SD block data : read NumByteToRead data */
             //self.read_data_dma(&mut dma_chunk);
-            self.read_data(&mut tmp_chunk);
+            self.read_data_dma(&mut dma_chunk);
             /* Place the data received as u32 units from DMA into the u8 target buffer */
-            for (a, b) in chunk.iter_mut().zip(/*dma_chunk*/ tmp_chunk.iter()) {
+            for (a, b) in chunk.iter_mut().zip(/*dma_chunk*/ dma_chunk.iter()) {
                 //*a = (b & 0xff) as u8;
-                *a = *b;
+                *a = (b & 0xff) as u8;
             }
             /* Get CRC bytes (not really needed by us, but required by SD) */
             let mut frame = [0u8; 2];
@@ -698,18 +693,18 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
             self.end_cmd();
             return Err(());
         }
-        //let mut dma_chunk = [0u32; SEC_LEN];
-        let mut tmp_chunk = [0u8; SEC_LEN];
+        let mut dma_chunk = [0u32; SEC_LEN];
+        // let mut tmp_chunk = [0u8; SEC_LEN];
         for chunk in data_buf.chunks(SEC_LEN) {
             /* Send the data token to signify the start of the data */
             self.write_data(&frame);
             /* Write the block data to SD : write count data by block */
-            for (a, &b) in /*dma_chunk*/ tmp_chunk.iter_mut().zip(chunk.iter()) {
-                //*a = b.into();
-                *a = b;
+            for (a, &b) in /*dma_chunk*/ dma_chunk.iter_mut().zip(chunk.iter()) {
+                *a = b.into();
+                // *a = b;
             }
-            //self.write_data_dma(&mut dma_chunk);
-            self.write_data(&mut tmp_chunk);
+            self.write_data_dma(&mut dma_chunk);
+            // self.write_data(&mut tmp_chunk);
             /* Put dummy CRC bytes */
             self.write_data(&[0xff, 0xff]);
             /* Read data response */
@@ -759,8 +754,8 @@ impl<T: SPI> Future for Response<T> {
                     // 唤醒
                     cx.waker().wake_by_ref();
                     Poll::Pending
-                },
-                ret => Poll::Ready(Ok(ret))
+                }
+                ret => Poll::Ready(Ok(ret)),
             }
         } else {
             Poll::Ready(Err(()))
@@ -795,7 +790,8 @@ fn init_sdcard() -> SDCard<SPIImpl<SPI0>> {
     io_init();
 
     let spi = peripherals.SPI0.constrain();
-    let sd = SDCard::new(spi, SD_CS, SD_CS_GPIONUM);
+    let dmac = peripherals.DMAC.configure();
+    let sd = SDCard::new(spi, SD_CS, SD_CS_GPIONUM, dmac, dma_channel::CHANNEL0);
     let info = sd.init().unwrap();
     let num_sectors = info.CardCapacity / 512;
     assert!(num_sectors > 0);
