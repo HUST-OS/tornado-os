@@ -134,6 +134,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[cfg(feature = "k210")]
     let task_4 = task::new_kernel(
         sdcard_test(),
         process.clone(),
@@ -144,12 +145,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
+    #[cfg(feature = "k210")]
     println!("task_4: {:?}", task_4);
 
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
+        #[cfg(feature = "k210")]
         shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
     }
 
@@ -221,8 +224,9 @@ impl Future for FibonacciFuture {
     }
 }
 
+#[cfg(feature = "k210")]
 use async_sd::SDCardWrapper;
-
+#[cfg(feature = "k210")]
 async fn sdcard_test() {
     let sd_card = SDCardWrapper::new();
     println!("sdcard init");
