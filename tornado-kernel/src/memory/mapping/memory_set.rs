@@ -106,6 +106,8 @@ impl MemorySet {
             mapping.map_segment(segment, None)?;
         }
 
+        map_mmio(&mut mapping);
+
         // 映射共享载荷，目前地址是写死的
         let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
         let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
@@ -262,4 +264,93 @@ impl MemorySet {
 
 fn range_vpn_from_range_va(src: &Range<VirtualAddress>) -> Range<VirtualPageNumber> {
     VirtualPageNumber::floor(src.start)..VirtualPageNumber::floor(src.end.into())
+}
+
+#[cfg(feature = "qemu")]
+fn map_mmio(map: &mut Mapping) {
+    // todo
+}
+
+#[cfg(feature = "k210")]
+fn map_mmio(mapping: &mut Mapping) {
+    // (0x3800_0000, 0x1000),      /* UARTHS    */
+    let va = VirtualAddress(0x3800_0000);
+    let pa = PhysicalAddress(0x3800_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+
+    // (0x3800_1000, 0x1000),      /* GPIOHS    */
+    let va = VirtualAddress(0x3800_1000);
+    let pa = PhysicalAddress(0x3800_1000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+
+    // (0x5020_0000, 0x1000),      /* GPIO      */
+    let va = VirtualAddress(0x5020_0000);
+    let pa = PhysicalAddress(0x5020_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+
+    // (0x5024_0000, 0x1000),      /* SPI_SLAVE */
+    let va = VirtualAddress(0x5024_0000);
+    let pa = PhysicalAddress(0x5024_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+
+    // (0x502B_0000, 0x1000),      /* FPIOA     */
+    let va = VirtualAddress(0x502B_0000);
+    let pa = PhysicalAddress(0x502B_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+
+    // (0x5044_0000, 0x1000),      /* SYSCTL    */
+    let va = VirtualAddress(0x5044_0000);
+    let pa = PhysicalAddress(0x5044_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+
+    // (0x5200_0000, 0x1000),      /* SPI0      */
+    let va = VirtualAddress(0x5200_0000);
+    let pa = PhysicalAddress(0x5200_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+
+    // (0x5300_0000, 0x1000),      /* SPI1      */
+    let va = VirtualAddress(0x5300_0000);
+    let pa = PhysicalAddress(0x5300_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
+
+    // (0x5400_0000, 0x1000),      /* SPI2      */
+    let va = VirtualAddress(0x5400_0000);
+    let pa = PhysicalAddress(0x5400_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE,
+    );
 }

@@ -115,6 +115,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let hart_id = crate::hart::KernelHartInfo::hart_id();
     let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
+    
     let task_1 = task::new_kernel(
         task_1(),
         process.clone(),
@@ -133,15 +134,26 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[cfg(feature = "k210")]
+    let task_4 = task::new_kernel(
+        sdcard_test(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
 
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
+    #[cfg(feature = "k210")]
+    println!("task_4: {:?}", task_4);
 
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
+        #[cfg(feature = "k210")]
+        shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
     }
 
     task::run_until_idle(
@@ -210,4 +222,21 @@ impl Future for FibonacciFuture {
             Poll::Pending
         }
     }
+}
+
+#[cfg(feature = "k210")]
+use async_sd::SDCardWrapper;
+#[cfg(feature = "k210")]
+async fn sdcard_test() {
+    let sd_card = SDCardWrapper::new();
+    println!("sdcard init");
+    let mut read_buf = [0u8; 512];
+    let mut write_buf = [0u8; 512];
+    for i in 0..512 {
+        write_buf.iter_mut().for_each(|byte| *byte = i as u8);
+        sd_card.write(i as usize, &write_buf).await;
+        sd_card.read(i as usize, &mut read_buf).await;
+        assert_eq!(read_buf, write_buf);
+    }
+    println!("sdcard test pass");
 }
