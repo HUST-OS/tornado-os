@@ -11,6 +11,9 @@ use crate::FAT32Error;
 use crate::Result;
 use crate::ABC;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
+use alloc::boxed::Box;
+use alloc::string::String;
 
 /// FAT32 文件系统实现
 pub struct FAT32 {
@@ -24,7 +27,7 @@ impl FAT32 {
     /// 初始化文件系统
     pub async fn init(device: Arc<dyn AsyncBlockDevive + Send + Sync>) -> Self {
         let mut bpb = [0; BLOCK_SIZE];
-        device.read(0, &mut bpb).await;
+        device.read(0usize, &mut bpb).await;
         // 根据第一个扇区获取 [`FAT`]
         let fat = Arc::new(fat1(&bpb));
         let bpb = Arc::new(bpb);
@@ -37,12 +40,13 @@ impl FAT32 {
             bpb.clone(),
             Arc::clone(&async_block_cache),
         );
+        /*
         let fat_offset = fat1_offset_bytes(&*bpb);
         let root_offset = cluster_offset_bytes(&*bpb, 2);
         println!(
             "fat offset: {:x}, root offset: {:x}",
             fat_offset, root_offset
-        );
+        );*/
         let mut tree = NTree::new(Box::new(root.clone()));
         let mut long_start = false;
         let mut long_entries = Vec::new();

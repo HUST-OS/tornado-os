@@ -39,6 +39,7 @@ impl Process {
         };
         Some(process)
     }
+
     /// 创建一个用户进程
     ///
     /// 暂时和创建内核进程无太大区别，后续会思考这部分设计
@@ -59,6 +60,7 @@ impl Process {
     pub fn address_space_id(&self) -> AddressSpaceId {
         self.inner.lock().memory_set.address_space_id
     }
+
     /// 在本进程的地址空间下，分配一个新的任务栈
     pub fn alloc_stack(&self) -> Option<Range<VirtualAddress>> {
         let mut flags = Flags::READABLE | Flags::WRITABLE;
@@ -72,7 +74,6 @@ impl Process {
             .alloc_page_range(STACK_SIZE, flags)
     }
 
-    // 进程和satp值没有一一对应关系，地址空间对应satp值
 }
 
 /// 进程的编号

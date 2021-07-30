@@ -17,7 +17,7 @@ pub use async_blk::*;
 
 lazy_static! {
     static ref QUEUE_FRAMES: Mutex<Vec<FrameTracker>> = Mutex::new(Vec::new());
-    pub static ref BLOCK_DEVICE: VirtIOAsyncBlock = VirtIOAsyncBlock::new();
+    pub static ref VIRTIO_BLOCK: Arc<VirtIOAsyncBlock> = Arc::new(VirtIOAsyncBlock::new());
 }
 
 #[no_mangle]
@@ -79,8 +79,8 @@ pub async fn async_virtio_blk_test() {
     let mut write_buf = [0u8; 512];
     for i in 0..512 {
         write_buf.iter_mut().for_each(|byte| *byte = i as u8);
-        BLOCK_DEVICE.write_block(i as usize, &write_buf).await;
-        BLOCK_DEVICE.read_block(i as usize, &mut read_buf).await;
+        VIRTIO_BLOCK.write_block(i as usize, &write_buf).await;
+        VIRTIO_BLOCK.read_block(i as usize, &mut read_buf).await;
         assert_eq!(read_buf, write_buf);
     }
     println!("async_virtio_blk_test pass");

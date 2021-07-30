@@ -5,6 +5,8 @@
 //!
 //! todo: 这里涉及到一个体系结构领域很经典的问题：缓存一致性，后面考虑对这部分实现进行优化，实现高性能的缓存一致性模型
 
+use alloc::vec::Vec;
+
 /// 各种缓存替换算法需要实现的 trait
 ///
 /// N: 缓存项的数量
@@ -156,24 +158,24 @@ impl<K: Eq + PartialEq + Copy, V: Clone, const N: usize> Cache<N> for LFUCache<K
     }
 }
 
-#[test]
-fn lfu_cache_test() {
-    let nodes = [Node::new(0, 0); 2];
-    let mut lfu_cache = LFUCache::empty(nodes);
+// #[test]
+// fn lfu_cache_test() {
+//     let nodes = [Node::new(0, 0); 2];
+//     let mut lfu_cache = LFUCache::empty(nodes);
 
-    assert!(lfu_cache.get(&0).is_none());
-    assert!(lfu_cache.get(&1).is_none());
-    assert!(lfu_cache.get(&2).is_none());
-    lfu_cache.put(&1, 1);
-    lfu_cache.put(&1, 2);
-    lfu_cache.put(&2, 2);
-    assert_eq!(lfu_cache.get(&1), Some(2));
-    lfu_cache.put(&3, 3);
-    assert_eq!(lfu_cache.get(&2), None);
-    assert_eq!(lfu_cache.get(&3), Some(3));
-    assert_eq!(lfu_cache.get(&3), Some(3));
-    assert_eq!(lfu_cache.put(&4, 4), Some((1, 2)));
-    assert_eq!(lfu_cache.get(&1), None);
-    assert_eq!(lfu_cache.get(&3), Some(3));
-    assert_eq!(lfu_cache.get(&4), Some(4));
-}
+//     assert!(lfu_cache.get(&0).is_none());
+//     assert!(lfu_cache.get(&1).is_none());
+//     assert!(lfu_cache.get(&2).is_none());
+//     lfu_cache.put(&1, 1);
+//     lfu_cache.put(&1, 2);
+//     lfu_cache.put(&2, 2);
+//     assert_eq!(lfu_cache.get(&1), Some(2));
+//     lfu_cache.put(&3, 3);
+//     assert_eq!(lfu_cache.get(&2), None);
+//     assert_eq!(lfu_cache.get(&3), Some(3));
+//     assert_eq!(lfu_cache.get(&3), Some(3));
+//     assert_eq!(lfu_cache.put(&4, 4), Some((1, 2)));
+//     assert_eq!(lfu_cache.get(&1), None);
+//     assert_eq!(lfu_cache.get(&3), Some(3));
+//     assert_eq!(lfu_cache.get(&4), Some(4));
+// }

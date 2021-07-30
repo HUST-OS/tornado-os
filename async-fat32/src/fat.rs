@@ -1,5 +1,6 @@
 use crate::ABC;
 use core::convert::TryInto;
+use alloc::vec::Vec;
 
 /// `FAT` 数据结构
 ///

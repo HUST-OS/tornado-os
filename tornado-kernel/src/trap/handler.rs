@@ -254,7 +254,7 @@ pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) ->
         // virtio 外部中断
         println!("virtio external interrupt! irq: {}", irq);
         // 获得数据传输完成的块号，后面需要通过这个去唤醒相应的任务
-        let intr_ret = crate::virtio::BLOCK_DEVICE.handle_interrupt().expect("virtio handle interrupt error!");
+        let intr_ret = crate::virtio::VIRTIO_BLOCK.handle_interrupt().expect("virtio handle interrupt error!");
         println!("virtio handle interrupt return: {}", intr_ret);
         let t = crate::VIRTIO_TASK.lock();
         let task: Arc<KernelTaskRepr> = Arc::from_raw(t[0] as *mut _);

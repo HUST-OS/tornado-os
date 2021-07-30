@@ -1,12 +1,24 @@
-use std::{env, ffi::OsStr, fs, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}, process::{Command, Stdio}};
+use std::{
+    env,
+    ffi::OsStr,
+    fs,
+    io::{Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
+    process::{Command, Stdio}
+};
 
 #[macro_use]
 extern crate clap;
 
 const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
 const SERIAL_PORT: &'static str = "COM4";
+const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x20_0000;
+const USER_APPS: [&'static str; 2] = [
+    "user_task",
+    "alloc-test"
+    ];
 
 type Result<T = ()> = core::result::Result<T, XTaskError>;
 
@@ -44,6 +56,7 @@ enum XTaskError {
     GDBError,
     AsmError,
     SizeError,
+    MkfsError
 }
 
 fn main() -> Result {
@@ -79,6 +92,9 @@ fn main() -> Result {
         )
         (@subcommand gdb =>
             (about: "Run gdb debugger")
+        )
+        (@subcommand mkfs =>
+            (about: "Make FAT32 file system image")
         )
     )
     .get_matches();
@@ -138,6 +154,10 @@ fn main() -> Result {
         xtask.debug_qemu(app.vals[0].to_str().unwrap(), 1)?;
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
+    } else if let Some(_matches) = matches.subcommand_matches("mkfs") {
+        xtask.build_all_user_app()?;
+        xtask.all_user_app_binary()?;
+        xtask.mkfs_fat()?;
     } else {
         todo!()
     }
@@ -415,6 +435,13 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             Err(XTaskError::CommandNotFound)
         }
     }
+    /// 生成所有用户程序的二进制文件
+    fn all_user_app_binary(&self) -> Result {
+        for app in USER_APPS.iter() {
+            self.user_app_binary(*app)?;
+        }
+        Ok(())
+    }
     /// 运行 qemu
     fn execute_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
         /* @qemu-system-riscv64 \
@@ -596,6 +623,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             Err(XTaskError::CommandNotFound)
         }
     }
+    /// 用 gdb 进行调试
     fn gdb(&self) -> Result {
         // @{{gdb}} --eval-command="file {{kernel-elf}}" --eval-command="target remote localhost:1234"
         let mut gdb = Command::new(&self.gdb);
@@ -613,4 +641,45 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             Err(XTaskError::CommandNotFound)
         }
     }
+    /// 打包文件镜像
+    fn mkfs_fat(&self) -> Result {
+        let f = |mut cmd: Command| {
+            let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
+            if !status.success() {
+                return Err(XTaskError::MkfsError)
+            } else { Ok(()) }
+        };
+        let s = |mut sudo: Command| {
+            sudo.stdin(Stdio::piped());
+            let mut child = sudo.spawn().expect("execute sudo command");
+            {
+                let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+                stdin.write_all("xxx".as_bytes()).expect("Failed to write to stdin");
+            }
+            let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
+            if !status.success() {
+                return Err(XTaskError::MkfsError)
+            } else { Ok(()) }
+        };
+        let mut dd = Command::new(DD);
+        dd.args(&["if=/dev/zero", "of=fs.img", "bs=512k", "count=512"]);
+        f(dd)?;
+        let mut mkfs = Command::new("mkfs.vfat");
+        mkfs.args(&["-F", "32", "fs.img"]);
+        f(mkfs)?;
+        let mut sudo = Command::new("sudo");
+        sudo.args(&["-S", "mount", "fs.img", "/mnt"]);
+        s(sudo)?;
+        for app in USER_APPS.iter() {
+            let mut sudo = Command::new("sudo");
+            let app = format!("{}.bin", *app);
+            sudo.current_dir(self.target_dir()).args(&["-S", "cp"]).arg(app).arg("/mnt");
+            s(sudo)?;
+        }
+        let mut sudo = Command::new("sudo");
+        sudo.args(&["-S", "umount", "/mnt"]);
+        s(sudo)?;
+        Ok(())
+    }
+
 }

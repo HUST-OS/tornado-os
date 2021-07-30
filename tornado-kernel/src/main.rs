@@ -20,6 +20,8 @@ mod trap;
 mod user;
 mod virtio;
 mod plic;
+mod sdcard;
+mod fs;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -139,14 +141,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    #[cfg(feature = "k210")]
-    let task_4 = task::new_kernel(
-        sdcard_test(),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
-
     #[cfg(feature = "qemu")]
     let task_4 = task::new_kernel(
         virtio::async_virtio_blk_test(),
@@ -156,7 +150,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
     #[cfg(feature = "k210")]
     let task_4 = task::new_kernel(
-        sdcard_test(),
+        sdcard::sdcard_test(),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
@@ -263,20 +257,3 @@ use lazy_static::lazy_static;
 lazy_static!(
     pub static ref VIRTIO_TASK: Mutex<Vec<usize>> = Mutex::new(Vec::new());
 );
-
-#[cfg(feature = "k210")]
-use async_sd::SDCardWrapper;
-#[cfg(feature = "k210")]
-async fn sdcard_test() {
-    let sd_card = SDCardWrapper::new();
-    println!("sdcard init");
-    let mut read_buf = [0u8; 512];
-    let mut write_buf = [0u8; 512];
-    for i in 0..512 {
-        write_buf.iter_mut().for_each(|byte| *byte = i as u8);
-        sd_card.write(i as usize, &write_buf).await;
-        sd_card.read(i as usize, &mut read_buf).await;
-        assert_eq!(read_buf, write_buf);
-    }
-    println!("sdcard test pass");
-}
