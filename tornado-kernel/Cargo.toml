@@ -16,7 +16,7 @@ bitflags = "1.2"
 bit_field = "0.10"
 hashbrown = "0.9"
 r0 = "1.0"
-plic = { git = "https://github.com.cnpmjs.org/luojia65/plic.git" }
+plic = { git = "https://github.com.cnpmjs.org/HUST-OS/plic.git", branch = "main" }
 async-virtio-driver = { path = "../async-virtio-driver" }
 # async-virtio-driver = { git = "https://github.com.cnpmjs.org/HUST-OS/async-virtio-driver.git" }
 event = { path = "../event" }
