@@ -93,6 +93,9 @@ fn main() -> Result {
         (@subcommand gdb =>
             (about: "Run gdb debugger")
         )
+        (@subcommand mkfs =>
+            (about: "Make FAT32 file system image")
+        )
     )
     .get_matches();
     let mut xtask = Xtask::debug();
@@ -151,6 +154,8 @@ fn main() -> Result {
         xtask.debug_qemu(app.vals[0].to_str().unwrap(), 1)?;
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
+    } else if let Some(_matches) = matches.subcommand_matches("mkfs") {
+        xtask.mkfs_fat()?;
     } else {
         todo!()
     }
