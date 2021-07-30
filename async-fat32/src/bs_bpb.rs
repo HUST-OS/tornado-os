@@ -6,6 +6,7 @@
 //! (写完才发现有中文文档)
 use crate::fat::FAT;
 use core::convert::TryInto;
+use alloc::string::String;
 
 /// Boot Sector 各字段的偏移
 enum BootSectorOffset {

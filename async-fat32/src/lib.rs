@@ -18,7 +18,7 @@
 //! ```no_run
 //! todo!()
 //! ```
-
+#![no_std]
 mod block_cache;
 mod bs_bpb;
 mod cache;
@@ -34,6 +34,7 @@ pub use fs::FAT32;
 extern crate alloc;
 use async_trait::async_trait;
 use config::*;
+use alloc::boxed::Box;
 
 /// 块缓冲层的类型
 pub type ABC = block_cache::AsyncBlockCache<

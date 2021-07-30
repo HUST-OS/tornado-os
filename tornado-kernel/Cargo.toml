@@ -8,7 +8,6 @@ edition = "2018"
 
 [dependencies]
 buddy_system_allocator = "0.6"
-riscv = { git = "https://github.com.cnpmjs.org/HUST-OS/riscv.git"}
 spin = "0.7"
 woke = "0.0.2"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
@@ -16,13 +15,14 @@ bitflags = "1.2"
 bit_field = "0.10"
 hashbrown = "0.9"
 r0 = "1.0"
+async-trait = "0.1.50"
+riscv = { git = "https://github.com.cnpmjs.org/HUST-OS/riscv.git"}
 plic = { git = "https://github.com.cnpmjs.org/HUST-OS/plic.git", branch = "main" }
 async-virtio-driver = { path = "../async-virtio-driver" }
-# async-virtio-driver = { git = "https://github.com.cnpmjs.org/HUST-OS/async-virtio-driver.git" }
 event = { path = "../event" }
 async-mutex = { path = "../async-mutex" }
 async-sd = { path = "../async-sd" }
-
+async-fat32 = { path = "../async-fat32" }
 
 [features]
 default = []
