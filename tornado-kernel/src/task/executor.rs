@@ -16,18 +16,14 @@ pub fn run_until_idle(
     set_task_state: impl Fn(usize, TaskState),
 ) {
     loop {
-        #[cfg(feature = "qemu")]
         unsafe { riscv::register::sie::clear_sext(); }
         let task = peek_task();
-        #[cfg(feature = "qemu")]
         unsafe { riscv::register::sie::set_sext(); }
         println!(">>> kernel executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => { // 在相同的（内核）地址空间里面
-                #[cfg(feature = "qemu")]
                 unsafe { riscv::register::sie::clear_sext(); }
                 set_task_state(task_repr, TaskState::Sleeping);
-                #[cfg(feature = "qemu")]
                 unsafe { riscv::register::sie::set_sext(); }
                 let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
                 // 注册 waker
@@ -37,10 +33,8 @@ pub fn run_until_idle(
                 if let Poll::Pending = ret {
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 } else { // 否则，释放task的内存
-                    #[cfg(feature = "qemu")]
                     unsafe { riscv::register::sie::clear_sext(); }
                     delete_task(task_repr);
-                    #[cfg(feature = "qemu")]
                     unsafe { riscv::register::sie::set_sext(); }
                 } // 隐含一个drop(task)
             }
