@@ -139,6 +139,13 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[cfg(feature = "k210")]
+    let task_4 = task::new_kernel(
+        sdcard_test(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
 
     #[cfg(feature = "qemu")]
     let task_4 = task::new_kernel(
