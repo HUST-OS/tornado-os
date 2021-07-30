@@ -16,8 +16,8 @@ const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x20_0000;
 const USER_APPS: [&'static str; 2] = [
-    "user_task.bin",
-    "alloc-test.bin"
+    "user_task",
+    "alloc-test"
     ];
 
 type Result<T = ()> = core::result::Result<T, XTaskError>;
@@ -668,7 +668,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         s(sudo);
         for app in USER_APPS.iter() {
             let mut sudo = Command::new("sudo");
-            sudo.current_dir(self.target_dir()).arg("cp").arg(*app).arg("/mnt");
+            let app = format!("{}.bin", *app);
+            sudo.current_dir(self.target_dir()).arg("cp").arg(app).arg("/mnt");
             s(sudo);
         }
         let mut sudo = Command::new("sudo");
