@@ -654,7 +654,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             let mut child = sudo.spawn().expect("execute sudo command");
             {
                 let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-                stdin.write_all("SKTT1Faker668".as_bytes()).expect("Failed to write to stdin");
+                stdin.write_all("xxx".as_bytes()).expect("Failed to write to stdin");
             }
         };
         let mut dd = Command::new(DD);
@@ -664,16 +664,16 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         mkfs.args(&["-F", "32", "fs.img"]);
         f(mkfs)?;
         let mut sudo = Command::new("sudo");
-        sudo.args(&["mount", "fs.img", "/mnt"]);
+        sudo.args(&["-S", "mount", "fs.img", "/mnt"]);
         s(sudo);
         for app in USER_APPS.iter() {
             let mut sudo = Command::new("sudo");
             let app = format!("{}.bin", *app);
-            sudo.current_dir(self.target_dir()).arg("cp").arg(app).arg("/mnt");
+            sudo.current_dir(self.target_dir()).args(&["-S", "cp"]).arg(app).arg("/mnt");
             s(sudo);
         }
         let mut sudo = Command::new("sudo");
-        sudo.arg("umount");
+        sudo.args(&["-S", "umount", "/mnt"]);
         s(sudo);
         Ok(())
     }
