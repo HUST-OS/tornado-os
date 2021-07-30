@@ -656,6 +656,10 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
                 let stdin = child.stdin.as_mut().expect("Failed to open stdin");
                 stdin.write_all("xxx".as_bytes()).expect("Failed to write to stdin");
             }
+            let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
+            if !status.success() {
+                return Err(XTaskError::MkfsError)
+            } else { Ok(()) }
         };
         let mut dd = Command::new(DD);
         dd.args(&["if=/dev/zero", "of=fs.img", "bs=512k", "count=512"]);
@@ -665,16 +669,16 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         f(mkfs)?;
         let mut sudo = Command::new("sudo");
         sudo.args(&["-S", "mount", "fs.img", "/mnt"]);
-        s(sudo);
+        s(sudo)?;
         for app in USER_APPS.iter() {
             let mut sudo = Command::new("sudo");
             let app = format!("{}.bin", *app);
             sudo.current_dir(self.target_dir()).args(&["-S", "cp"]).arg(app).arg("/mnt");
-            s(sudo);
+            s(sudo)?;
         }
         let mut sudo = Command::new("sudo");
         sudo.args(&["-S", "umount", "/mnt"]);
-        s(sudo);
+        s(sudo)?;
         Ok(())
     }
 
