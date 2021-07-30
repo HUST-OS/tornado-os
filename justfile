@@ -37,6 +37,8 @@ qemu app: build build-shared (build-user app)
             -device loader,file={{shared-bin}},addr=0x86000000 \
             -device loader,file={{app-path}}{{app}}.bin,addr=0x87000000 \
             -smp threads={{threads}} \
+            -drive file=fs.img,if=none,format=raw,id=x0 \
+            -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 asm: build
     @{{objdump}} -D {{kernel-elf}} | less
@@ -58,6 +60,8 @@ debug app: build build-shared (build-user app)
             -device loader,file={{shared-bin}},addr=0x86000000 \
             -device loader,file={{app-path}}{{app}}.bin,addr=0x87000000 \
             -smp threads={{threads}} \
+            -drive file=fs.img,if=none,format=raw,id=x0 \
+            -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
             -gdb tcp::1234 -S \
             
 gdb: 

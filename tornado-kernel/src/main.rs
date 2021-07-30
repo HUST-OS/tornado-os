@@ -18,6 +18,8 @@ mod syscall;
 mod task;
 mod trap;
 mod user;
+mod virtio;
+mod plic;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -108,6 +110,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // todo: 这里要有个地方往tp里写东西，否则目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
+    
+    #[cfg(feature = "qemu")]
+    unsafe { plic::xv6_plic_init(); }
 
     let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
 
@@ -142,6 +147,21 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_set_task_state,
     );
 
+    #[cfg(feature = "qemu")]
+    let task_4 = task::new_kernel(
+        virtio::async_virtio_blk_test(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+    #[cfg(feature = "k210")]
+    let task_4 = task::new_kernel(
+        sdcard_test(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
@@ -154,6 +174,18 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
         #[cfg(feature = "k210")]
         shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
+    }
+
+    #[cfg(feature = "qemu")]
+    {
+        let mut t = VIRTIO_TASK.lock();
+        let task4_repr = unsafe { task_4.task_repr() };
+        t.push(task4_repr);
+        // 释放锁
+        drop(t);
+        unsafe {
+            shared_payload.add_task(hart_id, address_space_id, task4_repr);
+        }
     }
 
     task::run_until_idle(
@@ -201,6 +233,7 @@ impl FibonacciFuture {
         }
     }
 }
+
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
@@ -223,6 +256,13 @@ impl Future for FibonacciFuture {
         }
     }
 }
+
+use alloc::vec::Vec;
+use spin::Mutex;
+use lazy_static::lazy_static;
+lazy_static!(
+    pub static ref VIRTIO_TASK: Mutex<Vec<usize>> = Mutex::new(Vec::new());
+);
 
 #[cfg(feature = "k210")]
 use async_sd::SDCardWrapper;

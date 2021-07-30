@@ -60,7 +60,7 @@ impl KernelTaskRepr {
     pub unsafe fn do_wake(self: &Arc<Self>) {
         let shared_scheduler = NonNull::new(self.1 as *mut ()).unwrap();
         let task_repr = Arc::as_ptr(self) as usize;
-        (self.2)(shared_scheduler, task_repr, TaskState::Ready)
+        (self.2)(shared_scheduler, task_repr, TaskState::Ready);
     }
     #[inline]
     pub fn task(&self) -> &KernelTask {

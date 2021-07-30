@@ -3,7 +3,7 @@ use core::fmt::{self, Write};
 use spin::Mutex;
 struct Stdout;
 
-// 使用关中断的锁
+// todo: 使用关中断的锁
 static STDOUT_LOCK: Mutex<()> = Mutex::new(());
 
 impl Write for Stdout {

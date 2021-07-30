@@ -2,6 +2,7 @@ use super::config::{KERNEL_MAP_OFFSET, PAGE_SIZE};
 use bit_field::BitField;
 
 /// 物理地址，其实可以比usize要长
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysicalAddress(pub usize);
 
@@ -95,6 +96,7 @@ impl From<usize> for PhysicalPageNumber {
 }
 
 /// 虚拟地址，usize恰好能表示虚拟地址
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtualAddress(pub usize);
 

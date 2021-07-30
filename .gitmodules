@@ -1,0 +1,3 @@
+[submodule "async-virtio-driver"]
+	path = async-virtio-driver
+	url = https://github.com/HUST-OS/async-virtio-driver
