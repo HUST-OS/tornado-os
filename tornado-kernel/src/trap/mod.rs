@@ -29,6 +29,11 @@ pub use handler::{trap_vector, TrapFrame};
 pub fn init() {
     handler::init();
     timer::init();
+    unsafe {
+        riscv::register::sstatus::set_sie();
+        riscv::register::sie::set_sext();
+    }
+    
     println!("mod interrupt initialized");
 }
 
@@ -215,7 +220,7 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
 use crate::memory::{SWAP_CONTEXT_VA, SWAP_FRAME_VA};
 
 /// 上升到用户态
-/// 目前让这个函数接收一个 SwapContext 参数和用户的页表，测试使用
+/// 目前让这个函数接收一个 SwapContext 参数和用户的页表
 #[no_mangle]
 pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
     use riscv::register::{

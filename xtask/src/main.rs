@@ -425,6 +425,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         -device loader,file={{kernel-bin}},addr=0x80200000 \
         -device loader,file={{shared-bin}},addr=0x86000000 \
         -device loader,file={{app-path}}{{app}}.bin,addr=0x87000000 \
+        -drive file=fs.img,if=none,format=raw,id=x0 \
+        -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
         -smp threads={{threads}} \ */
 
         let mut qemu = Command::new(&self.qemu);
@@ -444,8 +446,10 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
         ]);
+        qemu.args(&["-drive", "file=../../../fs.img,if=none,format=raw,id=x0"]);
+        qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
-
+        
         if let Ok(status) = qemu.status() {
             if status.success() {
                 Ok(())
@@ -557,6 +561,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         -device loader,file={{kernel-bin}},addr=0x80200000 \
         -device loader,file={{shared-bin}},addr=0x86000000 \
         -device loader,file={{app-path}}{{app}}.bin,addr=0x87000000 \
+        -drive file=fs.img,if=none,format=raw,id=x0 \
+        -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
         -smp threads={{threads}} \
         -gdb tcp::1234 -S \ */
 
@@ -575,6 +581,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
         ]);
+        qemu.args(&["-drive", "file=../../../fs.img,,if=none,format=raw,id=x0"]);
+        qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
         qemu.args(&["-gdb", "tcp::1234", "-S"]);
 

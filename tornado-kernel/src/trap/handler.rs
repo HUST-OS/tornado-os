@@ -1,12 +1,11 @@
+use alloc::sync::Arc;
+use riscv::register::{stvec, sstatus::{self, SPP, Sstatus}, sepc, scause::{self, Trap, Exception}, stval};
+use crate::task::KernelTaskRepr;
+use crate::{hart::KernelHartInfo, plic, println};
+use crate::syscall::{SyscallResult, syscall as do_syscall};
 use super::timer;
-use crate::syscall::{syscall as do_syscall, SyscallResult};
 use core::fmt;
-use riscv::register::{
-    scause::{self, Exception, Trap},
-    sepc,
-    sstatus::{self, Sstatus, SPP},
-    stval, stvec,
-};
+
 
 macro_rules! save_non_switch {
     () => {
@@ -233,8 +232,44 @@ pub fn supervisor_software() {
     panic!("Supervisor software: {:08x}", sepc::read());
 }
 
-pub fn supervisor_external() {
-    panic!("Supervisor external: {:08x}", sepc::read());
+#[naked]
+#[link_section = ".text"]
+pub unsafe extern "C" fn supervisor_external() {
+    asm!(
+        // define_load_store!(),
+        save_non_switch!(),
+        "mv     a0, sp",
+        "call   {supervisor_external}",
+        restore_non_switch!(),
+        "sret",
+        REGBYTES = const core::mem::size_of::<usize>(),
+        supervisor_external = sym rust_supervisor_external,    
+        options(noreturn)
+    )
+}
+
+pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
+    let irq = plic::plic_claim();
+    if irq == 1 {
+        // virtio 外部中断
+        println!("virtio external interrupt! irq: {}", irq);
+        // 获得数据传输完成的块号，后面需要通过这个去唤醒相应的任务
+        let intr_ret = crate::virtio::BLOCK_DEVICE.handle_interrupt().expect("virtio handle interrupt error!");
+        println!("virtio handle interrupt return: {}", intr_ret);
+        let t = crate::VIRTIO_TASK.lock();
+        let task: Arc<KernelTaskRepr> = Arc::from_raw(t[0] as *mut _);
+        crate::task::KernelTaskRepr::do_wake(&task);
+        // 不释放 task 的内存
+        core::mem::forget(task);
+        // 释放锁
+        drop(t);
+        // crate::SHOULD_WAKE = true;
+        // 通知 PLIC 外部中断已经处理完
+        crate::plic::plic_complete(irq);
+        trap_frame
+    } else {
+        panic!("unknown S mode external interrupt! irq: {}", irq);
+    }
 }
 
 #[naked]

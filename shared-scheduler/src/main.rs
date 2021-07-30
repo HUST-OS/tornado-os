@@ -46,6 +46,7 @@ pub fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     } else {
         syscall::sys_panic(None, 0, 0, err);
     }
+    // println!("[shared scheduler] panic: {:?}", panic_info);
     unreachable!()
 }
 

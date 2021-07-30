@@ -1,0 +1,16 @@
+[package]
+name = "async-sd"
+version = "0.1.0"
+authors = ["Chunchi Che <56007649+SKTT1Ryze@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+k210-pac = { git = "https://github.com/wyfcyx/k210-pac.git"}
+k210-hal = { git = "https://github.com/wyfcyx/k210-hal"}
+k210-soc = { git = "https://github.com/wyfcyx/k210-soc" }
+async-mutex = { path = "../async-mutex" }
+spin = "0.7"
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
+

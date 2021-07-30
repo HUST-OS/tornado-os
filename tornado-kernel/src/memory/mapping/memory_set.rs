@@ -1,7 +1,9 @@
-use crate::memory::{
-    config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
-    PhysicalPageNumber, KERNEL_MAP_OFFSET, SWAP_CONTEXT_VA,
-};
+use crate::memory::{KERNEL_MAP_OFFSET, PLIC_BASE, PhysicalPageNumber, SWAP_CONTEXT_VA, VIRTIO0, config::{
+        FREE_MEMORY_START,
+        MEMORY_END_ADDRESS,
+        PAGE_SIZE,
+        SWAP_FRAME_VA,
+    }};
 use crate::memory::{
     AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,
     VirtualAddress, VirtualPageNumber,
@@ -106,6 +108,8 @@ impl MemorySet {
             mapping.map_segment(segment, None)?;
         }
 
+        map_mmio(&mut mapping);
+
         // 映射共享载荷，目前地址是写死的
         let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
         let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
@@ -125,12 +129,12 @@ impl MemorySet {
             Some(swap_frame_ppn),
             Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
         )?;
+
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?;
         println!("Kernel new asid = {:?}", address_space_id);
 
         let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
         crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
-
         Some(MemorySet {
             mapping,
             segments,
@@ -262,4 +266,109 @@ impl MemorySet {
 
 fn range_vpn_from_range_va(src: &Range<VirtualAddress>) -> Range<VirtualPageNumber> {
     VirtualPageNumber::floor(src.start)..VirtualPageNumber::floor(src.end.into())
+}
+
+#[cfg(feature = "qemu")]
+fn map_mmio(mapping: &mut Mapping) {
+    // 映射 PLIC
+    let plic_va_start = VirtualAddress(PLIC_BASE);
+    let plic_va_end = VirtualAddress(PLIC_BASE + 0x400000);
+    mapping.map_defined(
+        &(plic_va_start..plic_va_end),
+        &(plic_va_start.physical_address_linear()..plic_va_end.physical_address_linear()),
+        Flags::READABLE | Flags::WRITABLE
+    );
+
+    // 映射 virtio disk mmio
+    let virtio_va = VirtualAddress(VIRTIO0);
+    let virtio_pa = VirtualAddress(VIRTIO0).physical_address_linear();
+    mapping.map_one(
+        VirtualPageNumber::floor(virtio_va),
+        Some(PhysicalPageNumber::floor(virtio_pa)),
+        Flags::WRITABLE | Flags::READABLE
+    );
+}
+
+#[cfg(feature = "k210")]
+fn map_mmio(mapping: &mut Mapping) {
+    // (0x3800_0000, 0x1000),      /* UARTHS    */
+    let va = VirtualAddress(0x3800_0000);
+    let pa = PhysicalAddress(0x3800_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
+
+    // (0x3800_1000, 0x1000),      /* GPIOHS    */
+    let va = VirtualAddress(0x3800_1000);
+    let pa = PhysicalAddress(0x3800_1000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
+
+    // (0x5020_0000, 0x1000),      /* GPIO      */
+    let va = VirtualAddress(0x5020_0000);
+    let pa = PhysicalAddress(0x5020_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
+
+    // (0x5024_0000, 0x1000),      /* SPI_SLAVE */
+    let va = VirtualAddress(0x5024_0000);
+    let pa = PhysicalAddress(0x5024_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
+
+    // (0x502B_0000, 0x1000),      /* FPIOA     */
+    let va = VirtualAddress(0x502B_0000);
+    let pa = PhysicalAddress(0x502B_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
+
+    // (0x5044_0000, 0x1000),      /* SYSCTL    */
+    let va = VirtualAddress(0x5044_0000);
+    let pa = PhysicalAddress(0x5044_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
+
+    // (0x5200_0000, 0x1000),      /* SPI0      */
+    let va = VirtualAddress(0x5200_0000);
+    let pa = PhysicalAddress(0x5200_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
+
+    // (0x5300_0000, 0x1000),      /* SPI1      */
+    let va = VirtualAddress(0x5300_0000);
+    let pa = PhysicalAddress(0x5300_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
+
+    // (0x5400_0000, 0x1000),      /* SPI2      */
+    let va = VirtualAddress(0x5400_0000);
+    let pa = PhysicalAddress(0x5400_0000);
+    mapping.map_one(
+        VirtualPageNumber::floor(va),
+        Some(PhysicalPageNumber::floor(pa)),
+        Flags::WRITABLE | Flags::READABLE,
+    );
 }
