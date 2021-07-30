@@ -155,6 +155,8 @@ fn main() -> Result {
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
     } else if let Some(_matches) = matches.subcommand_matches("mkfs") {
+        xtask.build_all_user_app()?;
+        xtask.all_user_app_binary()?;
         xtask.mkfs_fat()?;
     } else {
         todo!()
@@ -432,6 +434,13 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         } else {
             Err(XTaskError::CommandNotFound)
         }
+    }
+    /// 生成所有用户程序的二进制文件
+    fn all_user_app_binary(&self) -> Result {
+        for app in USER_APPS.iter() {
+            self.user_app_binary(*app)?;
+        }
+        Ok(())
     }
     /// 运行 qemu
     fn execute_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
