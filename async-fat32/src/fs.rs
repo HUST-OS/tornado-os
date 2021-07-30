@@ -40,12 +40,13 @@ impl FAT32 {
             bpb.clone(),
             Arc::clone(&async_block_cache),
         );
+        /*
         let fat_offset = fat1_offset_bytes(&*bpb);
         let root_offset = cluster_offset_bytes(&*bpb, 2);
-        // println!(
-        //     "fat offset: {:x}, root offset: {:x}",
-        //     fat_offset, root_offset
-        // );
+        println!(
+            "fat offset: {:x}, root offset: {:x}",
+            fat_offset, root_offset
+        );*/
         let mut tree = NTree::new(Box::new(root.clone()));
         let mut long_start = false;
         let mut long_entries = Vec::new();

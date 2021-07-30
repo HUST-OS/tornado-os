@@ -148,7 +148,8 @@ impl AsNode for File {
         self.name()
     }
     async fn content(&self) -> Self::Content {
-        self.data().await
+        let ret = self.data().await;
+        ret[..self.inner.entry.file_size as usize].to_vec()
     }
     async fn content_ref(&self) -> Self::ContentRef {
         self.inner
@@ -303,7 +304,7 @@ impl AsNode for LongFile {
         self.name()
     }
     async fn content(&self) -> Self::Content {
-        self.data().await
+        self.data().await[..self.inner.entry.file_size as usize].to_vec()
     }
     async fn content_ref(&self) -> Self::ContentRef {
         self.inner

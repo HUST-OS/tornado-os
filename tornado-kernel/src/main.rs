@@ -21,6 +21,7 @@ mod user;
 mod virtio;
 mod plic;
 mod sdcard;
+mod fs;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
