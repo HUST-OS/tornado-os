@@ -1,12 +1,24 @@
-use std::{env, ffi::OsStr, fs, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}, process::{Command, Stdio}};
+use std::{
+    env,
+    ffi::OsStr,
+    fs,
+    io::{Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
+    process::{Command, Stdio}
+};
 
 #[macro_use]
 extern crate clap;
 
 const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
 const SERIAL_PORT: &'static str = "COM4";
+const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x20_0000;
+const USER_APPS: [&'static str; 2] = [
+    "user_task.bin",
+    "alloc-test.bin"
+    ];
 
 type Result<T = ()> = core::result::Result<T, XTaskError>;
 
@@ -44,6 +56,7 @@ enum XTaskError {
     GDBError,
     AsmError,
     SizeError,
+    MkfsError
 }
 
 fn main() -> Result {
@@ -596,6 +609,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             Err(XTaskError::CommandNotFound)
         }
     }
+    /// 用 gdb 进行调试
     fn gdb(&self) -> Result {
         // @{{gdb}} --eval-command="file {{kernel-elf}}" --eval-command="target remote localhost:1234"
         let mut gdb = Command::new(&self.gdb);
@@ -613,4 +627,40 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             Err(XTaskError::CommandNotFound)
         }
     }
+    /// 打包文件镜像
+    fn mkfs_fat(&self) -> Result {
+        let f = |mut cmd: Command| {
+            let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
+            if !status.success() {
+                return Err(XTaskError::MkfsError)
+            } else { Ok(()) }
+        };
+        let s = |mut sudo: Command| {
+            sudo.stdin(Stdio::piped());
+            let mut child = sudo.spawn().expect("execute sudo command");
+            {
+                let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+                stdin.write_all("SKTT1Faker668".as_bytes()).expect("Failed to write to stdin");
+            }
+        };
+        let mut dd = Command::new(DD);
+        dd.args(&["if=/dev/zero", "of=fs.img", "bs=512k", "count=512"]);
+        f(dd)?;
+        let mut mkfs = Command::new("mkfs.vfat");
+        mkfs.args(&["-F", "32", "fs.img"]);
+        f(mkfs)?;
+        let mut sudo = Command::new("sudo");
+        sudo.args(&["mount", "fs.img", "/mnt"]);
+        s(sudo);
+        for app in USER_APPS.iter() {
+            let mut sudo = Command::new("sudo");
+            sudo.current_dir(self.target_dir()).arg("cp").arg(*app).arg("/mnt");
+            s(sudo);
+        }
+        let mut sudo = Command::new("sudo");
+        sudo.arg("umount");
+        s(sudo);
+        Ok(())
+    }
+
 }
