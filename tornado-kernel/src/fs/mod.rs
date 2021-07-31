@@ -1,10 +1,19 @@
 //! 文件系统
+use core::intrinsics::copy;
+
 use alloc::vec::Vec;
+use alloc::sync::Arc;
+use alloc::string::String;
 use async_fat32::FAT32;
 use super::virtio::VIRTIO_BLOCK;
 use super::sdcard::SD_CARD;
-use alloc::sync::Arc;
-use alloc::string::String;
+use super::memory::{
+    PhysicalAddress,
+    PhysicalPageNumber,
+    PAGE_SIZE,
+    KERNEL_MAP_OFFSET,
+    MemorySet
+};
 
 pub struct FS(pub FAT32);
 
@@ -21,20 +30,27 @@ impl FS {
         let fat32 = FAT32::init(device).await;
         Self(fat32)
     }
-
     pub fn list<S: Into<String>>(&self, dir: S) -> Vec<String> {
         self.0.list(dir)
     }
-
     pub async fn load_binary<S: Into<String>>(&self, file: S) -> Vec<u8> {
         self.0.load_binary(file).await.expect("load binary")
     }
-
-    pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) {
-        self.0.create(dir, file, size).await.expect("create file");
-    }
-
     pub async fn store_binary<S: Into<String>>(&mut self, file: S, src: &[u8]) {
         self.0.load_binary(file).await.expect("store binary");
+    }
+    pub async fn load_user<S: Into<String>>(&self, user: S, pa: PhysicalAddress) -> MemorySet {
+        let data = self.load_binary(user).await;
+        let pages = data.len() / PAGE_SIZE + (data.len() % PAGE_SIZE != 0) as usize;
+        unsafe {
+            let src = data.as_ptr();
+            let dst = (pa.0 + KERNEL_MAP_OFFSET) as *const () as *mut u8;
+            copy(src, dst, data.len());
+        }
+        let mm_set = MemorySet::new_bin(pa.0, pages).expect("create user memory set");
+        mm_set
+    }
+    pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) {
+        self.0.create(dir, file, size).await.expect("create file");
     }
 }

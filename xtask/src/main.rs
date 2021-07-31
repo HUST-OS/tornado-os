@@ -646,7 +646,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         let f = |mut cmd: Command| {
             let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
-                return Err(XTaskError::MkfsError)
+                Err(XTaskError::MkfsError)
             } else { Ok(()) }
         };
         let s = |mut sudo: Command| {
@@ -658,7 +658,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             }
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
-                return Err(XTaskError::MkfsError)
+                Err(XTaskError::MkfsError)
             } else { Ok(()) }
         };
         let mut dd = Command::new(DD);
