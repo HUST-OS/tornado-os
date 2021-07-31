@@ -4,6 +4,8 @@ use crate::task::Process;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use alloc::sync::Arc;
+use hashbrown::HashMap;
+use crate::trap::TrapFrame;
 
 /// 写一个指针到上下文指针
 #[inline]
@@ -30,6 +32,7 @@ pub struct KernelHartInfo {
     hart_max_asid: AddressSpaceId,
     asid_alloc: (LinkedList<usize>, usize), // 空余的编号回收池；目前已分配最大的编号
     satps: LinkedList<(AddressSpaceId, Satp)>, // 记录地址空间与 satp 寄存器的对应关系
+    contexts: HashMap<usize, Box<TrapFrame>>, // 记录当前已经保存的上下文
 }
 
 impl KernelHartInfo {
@@ -42,6 +45,7 @@ impl KernelHartInfo {
             hart_max_asid: crate::memory::max_asid(),
             asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
             satps: LinkedList::new(),
+            contexts: HashMap::new()
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
