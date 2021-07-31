@@ -1,0 +1,15 @@
+[package]
+name = "async-virtio-driver"
+version = "0.1.0"
+authors = ["Chunchi Che <56007649+SKTT1Ryze@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spin = "0.7"
+nb = "1.0.0"
+volatile = "0.2"
+bitflags = "1.2"
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
+event = { path = "../event" }
