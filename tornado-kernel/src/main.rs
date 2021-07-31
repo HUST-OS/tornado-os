@@ -64,7 +64,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     // 动态内存分配测试
     use alloc::boxed::Box;
-    use alloc::vec::Vec;
     let v = Box::new(5);
     assert_eq!(*v, 5);
     core::mem::drop(v);
@@ -155,12 +154,19 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    let task_5 = task::new_kernel(
+        fs::fs_init(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
 
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
     println!("task_3: {:?}", task_3);
     #[cfg(feature = "k210")]
     println!("task_4: {:?}", task_4);
+    println!("task_5: {:?}", task_5);
 
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
@@ -168,6 +174,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
         #[cfg(feature = "k210")]
         shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
     }
 
     #[cfg(feature = "qemu")]
@@ -188,7 +195,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
-    let fs: fs::FS = task::block_on(fs::FS::init());
+    // let fs: fs::FS = task::block_on(fs::FS::init());
+
     end(stack_handle.end.0 - 4)
 }
 

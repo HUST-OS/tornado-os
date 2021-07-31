@@ -9,11 +9,11 @@ use alloc::vec::Vec;
 #[async_trait]
 pub trait AsNode : Send + Sync {
     /// 标识类型，通过这个类型进行结点查找
-    type Ident: Debug;
+    type Ident: Debug + Send + Sync;
     /// 结点附带的数据内容
-    type Content;
+    type Content: Send + Sync;
     /// 结点附带的数据内容的引用
-    type ContentRef;
+    type ContentRef: Send + Sync;
     /// 对比标识，一致返回 `true`
     fn identify(&self, ident: &Self::Ident) -> bool;
     /// 返回结点的标识，`Clone` 语义
@@ -85,7 +85,12 @@ pub struct NTree<T, C, R> {
     root: Node<T, C, R>,
 }
 
-impl<T: Debug, C, R> NTree<T, C, R> {
+impl<T: Debug, C, R> NTree<T, C, R>
+where
+    T: Send + Sync,
+    C: Send + Sync,
+    R: Send + Sync
+{
     /// 根据根结点新建一棵 `N-Tree`
     pub fn new(root_inner: Box<dyn AsNode<Ident = T, Content = C, ContentRef = R> + Send + Sync>) -> Self {
         Self {
@@ -98,7 +103,8 @@ impl<T: Debug, C, R> NTree<T, C, R> {
         Self::traverse(root, &ident.into())
     }
     /// 遍历查找
-    pub fn traverse<'a>(root: &'a Node<T, C, R>, ident: &T) -> Option<&'a Node<T, C, R>> {
+    pub fn traverse<'a>(root: &'a Node<T, C, R>, ident: &T) -> Option<&'a Node<T, C, R>>
+    {
         let mut queue = Vec::new();
         queue.push(root);
         while let Some(node) = queue.pop() {

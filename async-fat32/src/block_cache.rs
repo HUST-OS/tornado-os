@@ -9,7 +9,7 @@ use core::mem::MaybeUninit;
 /// B: 一个块中的字节数
 /// N: 块缓冲层的块数
 pub struct AsyncBlockCache<
-    C: Cache<N, Key = usize, Value = [u8; B]>,
+    C: Cache<N, Key = usize, Value = [u8; B]> + Send + Sync,
     const B: usize,
     const N: usize,
 > {

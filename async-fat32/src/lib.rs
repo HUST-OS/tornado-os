@@ -42,6 +42,7 @@ pub type ABC = block_cache::AsyncBlockCache<
     BLOCK_SIZE,
     CACHE_SIZE,
 >;
+
 pub type Result<T = ()> = core::result::Result<T, FAT32Error>;
 
 #[derive(Debug)]

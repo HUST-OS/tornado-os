@@ -4,7 +4,10 @@ use core::intrinsics::copy;
 use alloc::vec::Vec;
 use alloc::sync::Arc;
 use alloc::string::String;
+use core::mem::MaybeUninit;
+use async_mutex::AsyncMutex;
 use async_fat32::FAT32;
+use lazy_static::lazy_static;
 use super::virtio::VIRTIO_BLOCK;
 use super::sdcard::SD_CARD;
 use super::memory::{
@@ -15,9 +18,13 @@ use super::memory::{
     MemorySet
 };
 
-pub struct FS(pub FAT32);
+lazy_static!(
+    pub static ref FS: Arc<AsyncMutex<MaybeUninit<Fs>>> = unsafe { Arc::new(AsyncMutex::new(MaybeUninit::uninit())) };
+);
 
-impl FS {
+pub struct Fs(pub FAT32);
+
+impl Fs {
     #[cfg(feature = "qemu")]
     pub async fn init() -> Self {
         let device = Arc::clone(&VIRTIO_BLOCK);
@@ -53,4 +60,14 @@ impl FS {
     pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) {
         self.0.create(dir, file, size).await.expect("create file");
     }
+}
+
+pub async fn fs_init() {
+    let fs = Fs::init().await;
+    let mut s = FS.lock().await;
+    let ptr = s.as_mut_ptr();
+    unsafe {
+        ptr.write(fs);
+    }
+    println!("fs init");
 }
