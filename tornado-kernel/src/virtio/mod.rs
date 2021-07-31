@@ -85,3 +85,15 @@ pub async fn async_virtio_blk_test() {
     }
     println!("async_virtio_blk_test pass");
 }
+
+pub async fn async_virtio_blk_test_event() {
+    let mut read_buf = [0u8; 512];
+    let mut write_buf = [0u8; 512];
+    for i in 0..512 {
+        write_buf.iter_mut().for_each(|byte| *byte = i as u8);
+        VIRTIO_BLOCK.write_block_event(i as usize, &write_buf).await;
+        VIRTIO_BLOCK.read_block_event(i as usize, &mut read_buf).await;
+        assert_eq!(read_buf, write_buf);
+    }
+    println!("async_virtio_blk_test pass");
+}

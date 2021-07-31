@@ -35,6 +35,14 @@ impl VirtIOAsyncBlock {
         self.0.async_write_block(block_id, buf).await.expect("failed to write block from async_virtio_block!");
     }
 
+    pub async fn read_block_event(&self, block_id: usize, buf: &mut [u8]) {
+        self.0.read_block_event(block_id, buf).await.expect("read block with event");
+    }
+
+    pub async fn write_block_event(&self, block_id: usize, buf: &[u8]) {
+        self.0.write_block_event(block_id, buf).await.expect("write block with event");
+    }
+
     pub unsafe fn handle_interrupt(&self) -> Option<u64> {
         let ret = self.0.handle_interrupt().expect("handle virtio interrupt error!");
         match ret {
@@ -56,9 +64,9 @@ impl VirtIOAsyncBlock {
 #[async_trait]
 impl AsyncBlockDevive for VirtIOAsyncBlock {
     async fn read(&self, block_id: usize, buf: &mut [u8]) {
-        self.read_block(block_id, buf).await
+        self.read_block_event(block_id, buf).await
     }
     async fn write(&self, block_id: usize, buf: &[u8]) {
-        self.write_block(block_id, buf).await
+        self.write_block_event(block_id, buf).await
     }
 }

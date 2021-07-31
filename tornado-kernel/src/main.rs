@@ -142,7 +142,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
     #[cfg(feature = "qemu")]
     let task_4 = task::new_kernel(
-        virtio::async_virtio_blk_test(),
+        virtio::async_virtio_blk_test_event(),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
