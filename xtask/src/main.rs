@@ -608,7 +608,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
         ]);
-        qemu.args(&["-drive", "file=../../../fs.img,,if=none,format=raw,id=x0"]);
+        qemu.args(&["-drive", "file=../../../fs.img,if=none,format=raw,id=x0"]);
         qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
         qemu.args(&["-gdb", "tcp::1234", "-S"]);
