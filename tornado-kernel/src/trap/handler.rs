@@ -264,7 +264,6 @@ pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) ->
         // core::mem::forget(task);
         // // 释放锁
         // drop(t);
-        // crate::SHOULD_WAKE = true;
         // 通知 PLIC 外部中断已经处理完
         crate::plic::plic_complete(irq);
         trap_frame

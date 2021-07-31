@@ -1,4 +1,5 @@
 //! 用于内核初始化
+// unused
 use {
     lazy_static::*,
     alloc::{

@@ -195,8 +195,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
-    // let fs: fs::FS = task::block_on(fs::FS::init());
-
     end(stack_handle.end.0 - 4)
 }
 
