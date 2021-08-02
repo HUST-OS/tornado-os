@@ -183,7 +183,7 @@ impl MemorySet {
             None,
         )?;
 
-        // 映射共享运行时段
+        // 映射共享负荷
         let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
         let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
         mapping.map_defined(

@@ -30,7 +30,7 @@ global_asm!(include_str!("entry.asm"));
 const SHAREDPAYLOAD_BASE: usize = 0x8600_0000;
 
 #[cfg(feature = "k210")]
-const SHAREDPAYLOAD_BASE: usize = 0x8020_0000;
+const SHAREDPAYLOAD_BASE: usize = 0x8040_0000;
 
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
@@ -161,19 +161,10 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_set_task_state,
     );
 
-    println!("task_1: {:?}", task_1);
-    println!("task_2: {:?}", task_2);
-    println!("task_3: {:?}", task_3);
-    #[cfg(feature = "k210")]
-    println!("task_4: {:?}", task_4);
-
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
-        #[cfg(feature = "k210")]
-        shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
-        #[cfg(feature = "qemu")]
         shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
     }
 

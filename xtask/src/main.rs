@@ -14,7 +14,7 @@ const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
 const SERIAL_PORT: &'static str = "COM4";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
-const SCHEDULER_OFFSET: u64 = 0x20_0000;
+const SCHEDULER_OFFSET: u64 = 0x40_0000;
 const USER_APPS: [&'static str; 2] = [
     "user_task",
     "alloc-test"
@@ -710,9 +710,6 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             sudo.current_dir(self.target_dir()).args(&["-S", "cp"]).arg(app).arg("/dev/sdb");
             s(sudo)?;
         }
-        let mut sudo = Command::new("sudo");
-        sudo.args(&["-S", "umount", "/dev/sdb"]);
-        s(sudo)?;
         Ok(())
     }
 }
