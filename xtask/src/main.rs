@@ -95,7 +95,7 @@ fn main() -> Result {
         )
         (@subcommand mkfs =>
             (about: "Make FAT32 file system image")
-            (@arg release: --sdcard "Make FAT32 file system on sdcard")
+            (@arg sdcard: --sdcard "Make FAT32 file system on sdcard")
         )
     )
     .get_matches();
@@ -689,12 +689,6 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
     }
     /// 打包文件镜像到 sdcard 中
     fn mkfs_fat_sdcard(&self) -> Result {
-        let f = |mut cmd: Command| {
-            let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
-            if !status.success() {
-                Err(XTaskError::MkfsError)
-            } else { Ok(()) }
-        };
         let s = |mut sudo: Command| {
             sudo.stdin(Stdio::piped());
             let mut child = sudo.spawn().expect("execute sudo command");
