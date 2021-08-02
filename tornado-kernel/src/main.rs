@@ -22,6 +22,7 @@ mod virtio;
 mod plic;
 mod sdcard;
 mod fs;
+mod cache;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -122,6 +123,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
     
+
     let task_1 = task::new_kernel(
         task_1(),
         process.clone(),

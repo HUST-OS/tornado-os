@@ -3,7 +3,7 @@ use super::entry::{Attribute, DirectoryEntry, LongDirectoryEntry};
 use super::fat::FAT;
 use super::tree::AsNode;
 use super::BLOCK_SIZE;
-use super::AsyncBlockDevice;
+use crate::cache::CACHE;
 use alloc::sync::Arc;
 use async_trait::async_trait;
 use core::iter::FromIterator;
@@ -21,8 +21,6 @@ struct Inner {
     bpb: Arc<[u8; BLOCK_SIZE]>,
     /// [`FAT`] 表
     fat: Arc<FAT>,
-    /// 异步块缓存
-    device: AsyncBlockDevice,
 }
 
 impl Inner {
@@ -30,20 +28,18 @@ impl Inner {
         entry: DirectoryEntry,
         fat: Arc<FAT>,
         bpb: Arc<[u8; BLOCK_SIZE]>,
-        device: AsyncBlockDevice,
     ) -> Self {
         Self {
             entry,
             bpb,
             fat,
-            device,
         }
     }
     pub fn name(&self) -> String {
         self.entry.name()
     }
     pub async fn data(&self) -> Vec<u8> {
-        self.entry.load(&self.device, &self.fat, &self.bpb).await
+        self.entry.load(&self.fat, &self.bpb).await
     }
 }
 
@@ -59,11 +55,10 @@ impl Directory {
         entry: DirectoryEntry,
         fat: Arc<FAT>,
         bpb: Arc<[u8; BLOCK_SIZE]>,
-        device: AsyncBlockDevice,
     ) -> Self {
         assert_eq!(entry.attribute, Attribute::ATTR_DIRECTORY);
         Self {
-            inner: Inner::new(entry, fat, bpb, device),
+            inner: Inner::new(entry, fat, bpb),
         }
     }
     /// 目录名
@@ -100,7 +95,7 @@ impl AsNode for Directory {
     async fn content_ref(&self) -> Self::ContentRef {
         self.inner
             .entry
-            .clusters(&self.inner.device, &self.inner.fat)
+            .clusters(&self.inner.fat)
             .await
     }
 }
@@ -116,10 +111,9 @@ impl File {
         entry: DirectoryEntry,
         fat: Arc<FAT>,
         bpb: Arc<[u8; BLOCK_SIZE]>,
-        device: AsyncBlockDevice,
     ) -> Self {
         Self {
-            inner: Inner::new(entry, fat, bpb, device),
+            inner: Inner::new(entry, fat, bpb),
         }
     }
     /// 文件名
@@ -154,7 +148,7 @@ impl AsNode for File {
     async fn content_ref(&self) -> Self::ContentRef {
         self.inner
             .entry
-            .clusters(&self.inner.device, &self.inner.fat)
+            .clusters(&self.inner.fat)
             .await
     }
 }
@@ -173,8 +167,6 @@ struct LongInner {
     bpb: Arc<[u8; BLOCK_SIZE]>,
     /// `[FAT]` 表
     fat: Arc<FAT>,
-    /// 异步块缓存
-    device: AsyncBlockDevice,
 }
 
 impl LongInner {
@@ -183,14 +175,12 @@ impl LongInner {
         long_entries: I,
         bpb: Arc<[u8; BLOCK_SIZE]>,
         fat: Arc<FAT>,
-        device: AsyncBlockDevice,
     ) -> Self {
         Self {
             entry,
             long_entries: Vec::from_iter(long_entries),
             bpb,
             fat,
-            device,
         }
     }
     pub fn name(&self) -> String {
@@ -201,7 +191,7 @@ impl LongInner {
         name
     }
     pub async fn data(&self) -> Vec<u8> {
-        self.entry.load(&self.device, &self.fat, &self.bpb).await
+        self.entry.load(&self.fat, &self.bpb).await
     }
 }
 
@@ -218,11 +208,10 @@ impl LongDirectory {
         long_entries: I,
         bpb: Arc<[u8; BLOCK_SIZE]>,
         fat: Arc<FAT>,
-        device: AsyncBlockDevice,
     ) -> Self {
         assert_eq!(entry.attribute, Attribute::ATTR_DIRECTORY);
         Self {
-            inner: LongInner::new(entry, long_entries, bpb, fat, device),
+            inner: LongInner::new(entry, long_entries, bpb, fat),
         }
     }
     /// 目录名
@@ -259,7 +248,7 @@ impl AsNode for LongDirectory {
     async fn content_ref(&self) -> Self::ContentRef {
         self.inner
             .entry
-            .clusters(&self.inner.device, &self.inner.fat)
+            .clusters(&self.inner.fat)
             .await
     }
 }
@@ -276,10 +265,9 @@ impl LongFile {
         long_entries: I,
         bpb: Arc<[u8; BLOCK_SIZE]>,
         fat: Arc<FAT>,
-        device: AsyncBlockDevice,
     ) -> Self {
         Self {
-            inner: LongInner::new(entry, long_entries, bpb, fat, device),
+            inner: LongInner::new(entry, long_entries, bpb, fat),
         }
     }
     /// 文件名
@@ -309,7 +297,7 @@ impl AsNode for LongFile {
     async fn content_ref(&self) -> Self::ContentRef {
         self.inner
             .entry
-            .clusters(&self.inner.device, &self.inner.fat)
+            .clusters(&self.inner.fat)
             .await
     }
 }
@@ -321,17 +309,14 @@ pub struct RootDirectory {
     bpb: Arc<[u8; BLOCK_SIZE]>,
     /// 占用的块号
     clusters: Vec<u32>,
-    /// 异步块缓存
-    device: AsyncBlockDevice,
 }
 
 impl RootDirectory {
-    pub fn new(clusters: Vec<u32>, bpb: Arc<[u8; BLOCK_SIZE]>, device: AsyncBlockDevice) -> Self {
+    pub fn new(clusters: Vec<u32>, bpb: Arc<[u8; BLOCK_SIZE]>) -> Self {
         Self {
             name: "/".to_string(),
             bpb,
             clusters,
-            device,
         }
     }
 }
@@ -351,8 +336,7 @@ impl AsNode for RootDirectory {
         let mut ret = Vec::new();
         for cluster in &self.clusters {
             let cluster = cluster_offset_sectors(&*self.bpb, *cluster);
-            let mut block = [0u8; BLOCK_SIZE];
-            self.device.read_block(cluster as usize, &mut block).await;
+            let block = CACHE.read_block(cluster as usize).await;
             block.iter().for_each(|b| ret.push(*b));
         }
         ret

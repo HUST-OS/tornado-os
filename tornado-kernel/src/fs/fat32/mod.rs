@@ -7,6 +7,7 @@ mod tree;
 
 use crate::virtio::async_blk::VirtIOAsyncBlock;
 use crate::sdcard::AsyncSDCard;
+use crate::cache::CACHE;
 use alloc::{
     vec::Vec,
     boxed::Box,
@@ -21,12 +22,6 @@ use tree::*;
 
 const BLOCK_SIZE: usize = 512;
 
-#[cfg(feature = "qemu")]
-type AsyncBlockDevice = Arc<VirtIOAsyncBlock>;
-
-#[cfg(feature = "k210")]
-type AsyncBlockDevice = Arc<AsyncSDCard>;
-
 type Result<T = ()> = core::result::Result<T, FAT32Error>;
 
 #[derive(Debug)]
@@ -40,23 +35,20 @@ pub struct FAT32 {
     bpb: [u8; BLOCK_SIZE],
     fat: Arc<FAT>,
     tree: NTree<String, Vec<u8>, Vec<u32>>,
-    device: AsyncBlockDevice,
 }
 
 impl FAT32 {
     /// 初始化文件系统
-    pub async fn init(device: AsyncBlockDevice) -> Self {
-        let mut bpb = [0; BLOCK_SIZE];
-        device.read_block(0usize, &mut bpb).await;
+    pub async fn init() -> Self {
+        let bpb = CACHE.read_block(0usize).await;
         // 根据第一个扇区获取 [`FAT`]
         let fat = Arc::new(fat1(&bpb));
         let bpb = Arc::new(bpb);
         // 获取根目录占用的块号集合
-        let root_clusters = fat.get_link(&device, 2).await;
+        let root_clusters = fat.get_link(2).await;
         let root = RootDirectory::new(
             root_clusters.clone(),
             bpb.clone(),
-            Arc::clone(&device),
         );
         /*
         let fat_offset = fat1_offset_bytes(&*bpb);
@@ -96,7 +88,6 @@ impl FAT32 {
                                 e,
                                 Arc::clone(&fat),
                                 Arc::clone(&bpb),
-                                Arc::clone(&device),
                             );
                             dirs.push(Box::new(dir.clone()));
                             node.insert(Box::new(dir));
@@ -113,7 +104,6 @@ impl FAT32 {
                                 v.into_iter(),
                                 Arc::clone(&bpb),
                                 Arc::clone(&fat),
-                                Arc::clone(&device),
                             );
                             dirs.push(Box::new(long_dir.clone()));
                             node.insert(Box::new(long_dir));
@@ -141,7 +131,6 @@ impl FAT32 {
                                 e,
                                 Arc::clone(&fat),
                                 Arc::clone(&bpb),
-                                Arc::clone(&device),
                             );
                             node.insert(Box::new(file));
                         } else {
@@ -156,7 +145,6 @@ impl FAT32 {
                                 v.into_iter(),
                                 Arc::clone(&bpb),
                                 Arc::clone(&fat),
-                                Arc::clone(&device),
                             );
                             node.insert(Box::new(long_file));
                         }
@@ -174,7 +162,6 @@ impl FAT32 {
             bpb: *bpb,
             fat,
             tree,
-            device
         }
     }
     /// 列出某个子目录下的所有文件和目录
@@ -224,22 +211,22 @@ impl FAT32 {
                     }
                     false => name[0..s.len()].copy_from_slice(s.as_bytes()),
                 }
-                if let Some(fst_cluster) = self.fat.first_blank(&self.device).await {
+                if let Some(fst_cluster) = self.fat.first_blank().await {
                     // 标记 `fat` 表为已占用
-                    self.fat.set(&self.device, fst_cluster, 0xfffffff).await;
+                    self.fat.set(fst_cluster, 0xfffffff).await;
                     let mut last = fst_cluster;
                     // 分配足够的 `FAT` 表项
                     for _ in 0..size - 1 {
                         let new_cluster = self
                             .fat
-                            .first_blank(&self.device)
+                            .first_blank()
                             .await
                             .map_or_else(|| panic!("no avaiable space!"), |x| x);
-                        self.fat.set(&self.device, last, new_cluster).await;
+                        self.fat.set(last, new_cluster).await;
                         last = new_cluster;
                     }
                     // 更新最后一项 `FAT` 表
-                    self.fat.set(&self.device, last, 0xfffffff).await;
+                    self.fat.set(last, 0xfffffff).await;
                     let entry = DirectoryEntry {
                         name,
                         ext_name,
@@ -258,8 +245,7 @@ impl FAT32 {
                     for cluster in &clusters {
                         // 获取块号对应的扇区偏移
                         let sector = cluster_offset_sectors(&self.bpb, *cluster);
-                        let mut block = [0u8; BLOCK_SIZE];
-                        self.device.read_block(sector as usize, &mut block).await;
+                        let block = CACHE.read_block(sector as usize).await;
                         for (idx, fat) in block.chunks(32).enumerate() {
                             if fat.iter().all(|b| *b == 0x0) {
                                 has_free = true;
@@ -273,8 +259,7 @@ impl FAT32 {
                     }
                     if has_free {
                         // 如果有空的 `FAT` 表项
-                        let mut block = [0u8; BLOCK_SIZE];
-                        self.device.read_block(free_entry.0 as usize, &mut block).await;
+                        let mut block = CACHE.read_block(free_entry.0 as usize).await;
                         for (idx, e) in block.chunks_mut(32).enumerate() {
                             if idx == free_entry.1 {
                                 let new_e: [u8; 32] = entry.clone().into();
@@ -283,24 +268,23 @@ impl FAT32 {
                             }
                         }
                         // 写回块设备
-                        self.device.write_block(free_entry.0 as usize, &block).await;
+                        CACHE.write_block(free_entry.0 as usize, block).await;
                     } else {
                         // 如果父节点占据的块里面所有目录项都被占用了，则需要申请新的块
-                        if let Some(new_cluster) = self.fat.first_blank(&self.device).await {
+                        if let Some(new_cluster) = self.fat.first_blank().await {
                             // 父节点最后的块号
                             let last = *clusters.last().unwrap();
                             // 更新 `FAT` 表
-                            self.fat.set(&self.device, last, new_cluster).await;
-                            self.fat.set(&self.device, new_cluster, 0xfffffff).await;
+                            self.fat.set(last, new_cluster).await;
+                            self.fat.set(new_cluster, 0xfffffff).await;
                             // 将新的块读取进内存
                             let sector = cluster_offset_sectors(&self.bpb, new_cluster);
-                            let mut block = [0u8; BLOCK_SIZE];
-                            self.device.read_block(sector as usize, &mut block).await;
+                            let mut block = CACHE.read_block(sector as usize).await;
                             // 设置第一项的值
                             let e: [u8; 32] = entry.clone().into();
                             block[0..32].copy_from_slice(&e);
                             // 写回块设备
-                            self.device.write_block(sector as usize, &block).await;
+                            CACHE.write_block(sector as usize, block).await;
                         } else {
                             panic!("no avaiable space in disk!")
                         }
@@ -309,7 +293,6 @@ impl FAT32 {
                         entry,
                         Arc::clone(&self.fat),
                         Arc::new(self.bpb.clone()),
-                        Arc::clone(&self.device),
                     );
                     // 更新目录树
                     node.insert(Box::new(file));
@@ -337,32 +320,30 @@ impl FAT32 {
                 for _ in 0..diff {
                     let new_cluster = self
                         .fat
-                        .first_blank(&self.device)
+                        .first_blank()
                         .await
                         .map_or_else(|| panic!("no avaiable space!"), |x| x);
-                    self.fat.set(&self.device, last, new_cluster).await;
+                    self.fat.set(last, new_cluster).await;
                     last = new_cluster;
                 }
-                self.fat.set(&self.device, last, 0xfffffff).await;
+                self.fat.set(last, 0xfffffff).await;
                 // 更新完 `FAT` 表重新获得文件占用的块数
                 clusters = node.inner().content_ref().await;
             }
             for b in src.chunks(BLOCK_SIZE) {
                 let cluster = clusters.remove(0);
                 let sector = cluster_offset_sectors(&self.bpb, cluster) as usize;
-                let mut block = [0u8; BLOCK_SIZE];
-                self.device.read_block(sector, &mut block).await;
+                let mut block = CACHE.read_block(sector).await;
                 block[0..b.len()].copy_from_slice(b);
                 block[b.len()..].fill(0);
-                self.device.write_block(sector, &block).await;
+                CACHE.write_block(sector, block).await;
             }
             // 清空剩余的块
             for cluster in clusters {
                 let sector = cluster_offset_sectors(&self.bpb, cluster) as usize;
-                let mut block  = [0u8; BLOCK_SIZE];
-                self.device.read_block(sector, &mut block).await;
+                let mut block  = CACHE.read_block(sector).await;
                 block.fill(0);
-                self.device.write_block(sector, &block).await;
+                CACHE.write_block(sector, block).await;
             }
             Ok(())
         } else {

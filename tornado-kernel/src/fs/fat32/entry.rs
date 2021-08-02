@@ -1,5 +1,6 @@
 use super::bs_bpb::cluster_offset_sectors;
-use super::{BLOCK_SIZE, fat::FAT, AsyncBlockDevice};
+use super::{BLOCK_SIZE, fat::FAT};
+use crate::cache::CACHE;
 use alloc::format;
 use alloc::sync::Arc;
 use bit_field::BitField;
@@ -188,24 +189,22 @@ impl DirectoryEntry {
     }
 
     /// 获取该目录项占据的块号
-    pub async fn clusters(&self, device: &AsyncBlockDevice, fat: &Arc<FAT>) -> Vec<u32> {
-        fat.get_link(device, self.fst_cluster).await
+    pub async fn clusters(&self, fat: &Arc<FAT>) -> Vec<u32> {
+        fat.get_link(self.fst_cluster).await
     }
 
     /// 读取该目录项占据的块设备数据
     pub async fn load(
         &self,
-        device: &AsyncBlockDevice,
         fat: &Arc<FAT>,
         bpb: &Arc<[u8; BLOCK_SIZE]>,
     ) -> Vec<u8> {
         let fst_cluster = self.fst_cluster;
-        let clusters_link = fat.get_link(device, fst_cluster).await;
+        let clusters_link = fat.get_link(fst_cluster).await;
         let mut ret = Vec::new();
         for cluster in clusters_link {
             let cluster = cluster_offset_sectors(&**bpb, cluster);
-            let mut block = [0u8; BLOCK_SIZE];
-            device.read_block(cluster as usize, &mut block).await;
+            let block = CACHE.read_block(cluster as usize).await;
             block.iter().for_each(|b| ret.push(*b));
         }
         ret
