@@ -256,14 +256,14 @@ pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) ->
         // 获得数据传输完成的块号，后面需要通过这个去唤醒相应的任务
         let intr_ret = crate::virtio::VIRTIO_BLOCK.handle_interrupt().expect("virtio handle interrupt error!");
         println!("virtio handle interrupt return: {}", intr_ret);
-        crate::virtio::VIRTIO_BLOCK.0.wake_ops.notify(1);
-        // let t = crate::VIRTIO_TASK.lock();
-        // let task: Arc<KernelTaskRepr> = Arc::from_raw(t[0] as *mut _);
-        // crate::task::KernelTaskRepr::do_wake(&task);
-        // // 不释放 task 的内存
-        // core::mem::forget(task);
-        // // 释放锁
-        // drop(t);
+        // crate::virtio::VIRTIO_BLOCK.0.wake_ops.notify(1);
+        let t = crate::VIRTIO_TASK.lock();
+        let task: Arc<KernelTaskRepr> = Arc::from_raw(t[0] as *mut _);
+        crate::task::KernelTaskRepr::do_wake(&task);
+        // 不释放 task 的内存
+        core::mem::forget(task);
+        // 释放锁
+        drop(t);
         // 通知 PLIC 外部中断已经处理完
         crate::plic::plic_complete(irq);
         trap_frame

@@ -64,9 +64,9 @@ impl VirtIOAsyncBlock {
 #[async_trait]
 impl AsyncBlockDevive for VirtIOAsyncBlock {
     async fn read(&self, block_id: usize, buf: &mut [u8]) {
-        self.read_block_event(block_id, buf).await
+        self.read_block(block_id, buf).await
     }
     async fn write(&self, block_id: usize, buf: &[u8]) {
-        self.write_block_event(block_id, buf).await
+        self.write_block(block_id, buf).await
     }
 }
