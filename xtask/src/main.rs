@@ -701,9 +701,6 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
                 Err(XTaskError::MkfsError)
             } else { Ok(()) }
         };
-        let mut sudo = Command::new("sudo");
-        sudo.args(&["-S", "mkfs.vfat", "-F", "32", "/dev/sdb"]);
-        s(sudo)?;
         for app in USER_APPS.iter() {
             let mut sudo = Command::new("sudo");
             let app = format!("{}.bin", *app);
