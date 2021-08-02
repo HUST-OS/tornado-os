@@ -1,8 +1,6 @@
 //! 异步 SD 卡驱动
 use lazy_static::lazy_static;
 use async_sd::SDCardWrapper;
-use async_trait::async_trait;
-use async_fat32::AsyncBlockDevive;
 use alloc::sync::Arc;
 use alloc::boxed::Box;
 
@@ -20,16 +18,6 @@ impl AsyncSDCard {
         self.0.read(block_id, buf).await
     }
     pub async fn sd_write(&self, block_id: usize, buf: &[u8]) {
-        self.0.write(block_id, buf).await
-    }
-}
-
-#[async_trait]
-impl AsyncBlockDevive for AsyncSDCard {
-    async fn read(&self, block_id: usize, buf: &mut [u8]) {
-        self.0.read(block_id, buf).await
-    }
-    async fn write(&self, block_id: usize, buf: &[u8]) {
         self.0.write(block_id, buf).await
     }
 }

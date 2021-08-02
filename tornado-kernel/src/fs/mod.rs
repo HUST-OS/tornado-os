@@ -1,12 +1,13 @@
 //! 文件系统
-use core::intrinsics::copy;
+mod fat32;
 
+use core::intrinsics::copy;
 use alloc::vec::Vec;
 use alloc::sync::Arc;
 use alloc::string::String;
 use core::mem::MaybeUninit;
 use async_mutex::AsyncMutex;
-use async_fat32::FAT32;
+use fat32::FAT32;
 use lazy_static::lazy_static;
 use super::virtio::VIRTIO_BLOCK;
 use super::sdcard::SD_CARD;
@@ -64,6 +65,12 @@ impl Fs {
 
 pub async fn fs_init() {
     let fs = Fs::init().await;
+    let children = fs.list("/");
+    print!("[/]: ");
+    for child in children {
+        print!("{} ", child);
+    }
+    println!("");
     let mut s = FS.lock().await;
     let ptr = s.as_mut_ptr();
     unsafe {

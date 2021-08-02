@@ -10,10 +10,7 @@ use async_blk::VirtIOAsyncBlock;
 use crate::memory::{FrameTracker, PhysicalAddress, PhysicalPageNumber, Satp, VirtualAddress, VirtualPageNumber, frame_alloc, VIRTIO0};
 
 
-mod async_blk;
-
-pub use async_blk::*;
-
+pub mod async_blk;
 
 lazy_static! {
     static ref QUEUE_FRAMES: Mutex<Vec<FrameTracker>> = Mutex::new(Vec::new());
