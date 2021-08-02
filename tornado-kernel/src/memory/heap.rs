@@ -6,7 +6,7 @@ static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
 /// 全局的堆分配器
 #[global_allocator]
-static HEAP: LockedHeap = LockedHeap::empty();
+static HEAP: LockedHeap<32> = LockedHeap::empty();
 
 #[cfg_attr(not(test), alloc_error_handler)]
 #[allow(unused)]
