@@ -1,5 +1,4 @@
 /// 异步虚拟块设备接口
-
 use async_virtio_driver::mmio::VirtIOHeader;
 use async_virtio_driver::block::*;
 use alloc::sync::Arc;
@@ -26,18 +25,12 @@ impl VirtIOAsyncBlock {
     }
 
     pub async fn read_block(&self, block_id: usize, buf: &mut [u8]) {
-        self.0.async_read_block(block_id, buf).await.expect("failed to read block from async_virtio_block!");
-    }
-
-    pub async fn write_block(&self, block_id: usize, buf: &[u8]) {
-        self.0.async_write_block(block_id, buf).await.expect("failed to write block from async_virtio_block!");
-    }
-
-    pub async fn read_block_event(&self, block_id: usize, buf: &mut [u8]) {
+        // self.0.async_read_block(block_id, buf).await.expect("failed to read block from async_virtio_block!");
         self.0.read_block_event(block_id, buf).await.expect("read block with event");
     }
 
-    pub async fn write_block_event(&self, block_id: usize, buf: &[u8]) {
+    pub async fn write_block(&self, block_id: usize, buf: &[u8]) {
+        // self.0.async_write_block(block_id, buf).await.expect("failed to write block from async_virtio_block!");
         self.0.write_block_event(block_id, buf).await.expect("write block with event");
     }
 
