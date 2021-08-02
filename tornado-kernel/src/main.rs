@@ -154,7 +154,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    #[cfg(feature = "qemu")]
     let task_5 = task::new_kernel(
         fs::fs_init(),
         process.clone(),

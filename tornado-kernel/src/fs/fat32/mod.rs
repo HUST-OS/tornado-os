@@ -6,6 +6,7 @@ mod dir_file;
 mod tree;
 
 use crate::virtio::async_blk::VirtIOAsyncBlock;
+use crate::sdcard::AsyncSDCard;
 use alloc::{
     vec::Vec,
     boxed::Box,
@@ -20,8 +21,11 @@ use tree::*;
 
 const BLOCK_SIZE: usize = 512;
 
-// #[cfg(feature = "qemu")]
+#[cfg(feature = "qemu")]
 type AsyncBlockDevice = Arc<VirtIOAsyncBlock>;
+
+#[cfg(feature = "k210")]
+type AsyncBlockDevice = Arc<AsyncSDCard>;
 
 type Result<T = ()> = core::result::Result<T, FAT32Error>;
 

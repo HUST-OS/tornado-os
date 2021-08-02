@@ -14,10 +14,10 @@ impl AsyncSDCard {
     pub fn new() -> Self {
         Self(SDCardWrapper::new())
     }
-    pub async fn sd_read(&self, block_id: usize, buf: &mut [u8]) {
+    pub async fn read_block(&self, block_id: usize, buf: &mut [u8]) {
         self.0.read(block_id, buf).await
     }
-    pub async fn sd_write(&self, block_id: usize, buf: &[u8]) {
+    pub async fn write_block(&self, block_id: usize, buf: &[u8]) {
         self.0.write(block_id, buf).await
     }
 }
@@ -28,8 +28,8 @@ pub async fn sdcard_test() {
     let mut write_buf = [0u8; 512];
     for i in 0..512 {
         write_buf.iter_mut().for_each(|byte| *byte = i as u8);
-        SD_CARD.sd_write(i as usize, &write_buf).await;
-        SD_CARD.sd_read(i as usize, &mut read_buf).await;
+        SD_CARD.write_block(i as usize, &write_buf).await;
+        SD_CARD.read_block(i as usize, &mut read_buf).await;
         assert_eq!(read_buf, write_buf);
     }
     println!("sdcard test pass");

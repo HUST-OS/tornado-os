@@ -95,6 +95,7 @@ fn main() -> Result {
         )
         (@subcommand mkfs =>
             (about: "Make FAT32 file system image")
+            (@arg release: --sdcard "Make FAT32 file system on sdcard")
         )
     )
     .get_matches();
@@ -154,10 +155,15 @@ fn main() -> Result {
         xtask.debug_qemu(app.vals[0].to_str().unwrap(), 1)?;
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
-    } else if let Some(_matches) = matches.subcommand_matches("mkfs") {
+    } else if let Some(matches) = matches.subcommand_matches("mkfs") {
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
-        xtask.mkfs_fat()?;
+        if matches.is_present("sdcard") {
+            xtask.mkfs_fat("/dev/sdb")?;    
+        } else {
+            xtask.mkfs_fat("/mnt")?;
+        }
+        
     } else {
         todo!()
     }
@@ -642,7 +648,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
     }
     /// 打包文件镜像
-    fn mkfs_fat(&self) -> Result {
+    fn mkfs_fat<M: AsRef<str>>(&self, mount_path: M) -> Result {
         let f = |mut cmd: Command| {
             let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
@@ -668,7 +674,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         mkfs.args(&["-F", "32", "fs.img"]);
         f(mkfs)?;
         let mut sudo = Command::new("sudo");
-        sudo.args(&["-S", "mount", "fs.img", "/mnt"]);
+        sudo.args(&["-S", "mount", "fs.img", mount_path.as_ref()]);
         s(sudo)?;
         for app in USER_APPS.iter() {
             let mut sudo = Command::new("sudo");
@@ -677,7 +683,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             s(sudo)?;
         }
         let mut sudo = Command::new("sudo");
-        sudo.args(&["-S", "umount", "/mnt"]);
+        sudo.args(&["-S", "umount", mount_path.as_ref()]);
         s(sudo)?;
         Ok(())
     }
