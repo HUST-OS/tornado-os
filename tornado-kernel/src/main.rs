@@ -68,7 +68,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     assert_eq!(*v, 5);
     core::mem::drop(v);
 
-    let mut vec = Vec::new();
+    let mut vec = alloc::vec::Vec::new();
     for i in 0..10000 {
         vec.push(i);
     }
@@ -174,19 +174,21 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
         #[cfg(feature = "k210")]
         shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
+        #[cfg(feature = "qemu")]
+        shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
     }
 
-    #[cfg(feature = "qemu")]
-    {
-        let mut t = VIRTIO_TASK.lock();
-        let task5_repr = unsafe { task_5.task_repr() };
-        t.push(task5_repr);
-        // 释放锁
-        drop(t);
-        unsafe {
-            shared_payload.add_task(hart_id, address_space_id, task5_repr);
-        }
-    }
+    // #[cfg(feature = "qemu")]
+    // {
+    //     let mut t = VIRTIO_TASK.lock();
+    //     let task4_repr = unsafe { task_4.task_repr() };
+    //     t.push(task4_repr);
+    //     // 释放锁
+    //     drop(t);
+    //     unsafe {
+    //         shared_payload.add_task(hart_id, address_space_id, task4_repr);
+    //     }
+    // }
 
     task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
@@ -258,9 +260,9 @@ impl Future for FibonacciFuture {
     }
 }
 
-use alloc::vec::Vec;
-use spin::Mutex;
-use lazy_static::lazy_static;
-lazy_static!(
-    pub static ref VIRTIO_TASK: Mutex<Vec<usize>> = Mutex::new(Vec::new());
-);
+// use alloc::vec::Vec;
+// use spin::Mutex;
+// use lazy_static::lazy_static;
+// lazy_static!(
+//     pub static ref VIRTIO_TASK: Mutex<Vec<usize>> = Mutex::new(Vec::new());
+// );
