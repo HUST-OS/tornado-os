@@ -26,16 +26,8 @@ lazy_static!(
 pub struct Fs(pub FAT32);
 
 impl Fs {
-    #[cfg(feature = "qemu")]
     pub async fn init() -> Self {
-        let device = Arc::clone(&VIRTIO_BLOCK);
-        let fat32 = FAT32::init(device).await;
-        Self(fat32)
-    }
-    #[cfg(feature = "k210")]
-    pub async fn init() -> Self {
-        let device = Arc::clone(&SD_CARD);
-        let fat32 = FAT32::init(device).await;
+        let fat32 = FAT32::init().await;
         Self(fat32)
     }
     pub fn list<S: Into<String>>(&self, dir: S) -> Vec<String> {

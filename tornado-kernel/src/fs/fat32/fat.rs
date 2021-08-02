@@ -1,5 +1,5 @@
-use super::AsyncBlockDevice;
 use super::BLOCK_SIZE;
+use crate::cache::CACHE;
 use core::convert::TryInto;
 use alloc::vec::Vec;
 use alloc::sync::Arc;
@@ -32,11 +32,11 @@ impl FAT {
     /// 找到第一个空的 `FAT` 表项，返回对应数据区的块号
     ///
     /// note: 这里假设一个块对应一个扇区
-    pub async fn first_blank(&self, device: &AsyncBlockDevice) -> Option<u32> {
+    pub async fn first_blank(&self) -> Option<u32> {
         for sector_id in 0..self.fat_size {
-            let mut block = [0u8; BLOCK_SIZE];
-            device
-                .read_block((self.base + sector_id) as usize, &mut block)
+            let block = 
+                CACHE
+                .read_block((self.base + sector_id) as usize)
                 .await;
             for (idx, fat) in block.chunks(4).enumerate() {
                 let value = u32::from_le_bytes(fat.try_into().unwrap());
@@ -51,29 +51,27 @@ impl FAT {
     /// 设置 `FAT` 表项的值
     ///
     /// 将块号为 `cluster` 在 `FAT` 表中的项的值设置为 `val`
-    pub async fn set(&self, device: &AsyncBlockDevice, cluster: u32, val: u32) {
+    pub async fn set(&self, cluster: u32, val: u32) {
         // 获得对应扇区号
         let fat_sector = self.fat_sector(cluster) as usize;
         // 获得扇区内偏移
         let offset = self.fat_sector_offset(cluster);
-        let mut block = [0u8; BLOCK_SIZE];
-        device.read_block(fat_sector, &mut block).await;
+        let mut block = CACHE.read_block(fat_sector).await;
         let value: [u8; 4] = val.to_le_bytes();
         block[offset..offset + 4].copy_from_slice(&value);
-        device.write_block(fat_sector, &block).await;
+        CACHE.write_block(fat_sector, block).await;
     }
 
     /// 获得 `FAT` 表项链
     ///
     /// `first` 是第一个 `FAT` 表项对应的块号
-    pub async fn get_link(&self, device: &AsyncBlockDevice, first: u32) -> Vec<u32> {
+    pub async fn get_link(&self, first: u32) -> Vec<u32> {
         let mut res = Vec::new();
         let mut fat_sector = self.fat_sector(first) as usize;
         let mut offset = self.fat_sector_offset(first);
         res.push(first);
         loop {
-            let mut block = [0u8; BLOCK_SIZE];
-            device.read_block(fat_sector, &mut block).await;
+            let block = CACHE.read_block(fat_sector).await;
             let value = u32::from_le_bytes(block[offset..offset + 4].try_into().unwrap());
             match value {
                 0x0 => {
