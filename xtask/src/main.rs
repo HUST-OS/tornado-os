@@ -159,9 +159,9 @@ fn main() -> Result {
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
         if matches.is_present("sdcard") {
-            xtask.mkfs_fat("/dev/sdb")?;    
+            xtask.mkfs_fat_sdcard()?;    
         } else {
-            xtask.mkfs_fat("/mnt")?;
+            xtask.mkfs_fat()?;
         }
         
     } else {
@@ -648,7 +648,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
     }
     /// 打包文件镜像
-    fn mkfs_fat<M: AsRef<str>>(&self, mount_path: M) -> Result {
+    fn mkfs_fat(&self) -> Result {
         let f = |mut cmd: Command| {
             let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
@@ -674,7 +674,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         mkfs.args(&["-F", "32", "fs.img"]);
         f(mkfs)?;
         let mut sudo = Command::new("sudo");
-        sudo.args(&["-S", "mount", "fs.img", mount_path.as_ref()]);
+        sudo.args(&["-S", "mount", "fs.img", "/mnt"]);
         s(sudo)?;
         for app in USER_APPS.iter() {
             let mut sudo = Command::new("sudo");
@@ -683,9 +683,42 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             s(sudo)?;
         }
         let mut sudo = Command::new("sudo");
-        sudo.args(&["-S", "umount", mount_path.as_ref()]);
+        sudo.args(&["-S", "umount", "/mnt"]);
         s(sudo)?;
         Ok(())
     }
-
+    /// 打包文件镜像到 sdcard 中
+    fn mkfs_fat_sdcard(&self) -> Result {
+        let f = |mut cmd: Command| {
+            let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
+            if !status.success() {
+                Err(XTaskError::MkfsError)
+            } else { Ok(()) }
+        };
+        let s = |mut sudo: Command| {
+            sudo.stdin(Stdio::piped());
+            let mut child = sudo.spawn().expect("execute sudo command");
+            {
+                let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+                stdin.write_all("xxx".as_bytes()).expect("Failed to write to stdin");
+            }
+            let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
+            if !status.success() {
+                Err(XTaskError::MkfsError)
+            } else { Ok(()) }
+        };
+        let mut sudo = Command::new("sudo");
+        sudo.args(&["-S", "mkfs.vfat", "-F", "32", "/dev/sdb"]);
+        s(sudo)?;
+        for app in USER_APPS.iter() {
+            let mut sudo = Command::new("sudo");
+            let app = format!("{}.bin", *app);
+            sudo.current_dir(self.target_dir()).args(&["-S", "cp"]).arg(app).arg("/dev/sdb");
+            s(sudo)?;
+        }
+        let mut sudo = Command::new("sudo");
+        sudo.args(&["-S", "umount", "/dev/sdb"]);
+        s(sudo)?;
+        Ok(())
+    }
 }
