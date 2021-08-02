@@ -4,9 +4,7 @@ use async_virtio_driver::mmio::VirtIOHeader;
 use async_virtio_driver::block::*;
 use alloc::sync::Arc;
 use crate::memory::VIRTIO0;
-use async_trait::async_trait;
 use alloc::boxed::Box;
-use async_fat32::AsyncBlockDevive;
 
 pub struct VirtIOAsyncBlock(pub VirtIOBlock<1>);
 
@@ -58,15 +56,5 @@ impl VirtIOAsyncBlock {
                 return None;
             }
         }
-    }
-}
-
-#[async_trait]
-impl AsyncBlockDevive for VirtIOAsyncBlock {
-    async fn read(&self, block_id: usize, buf: &mut [u8]) {
-        self.read_block(block_id, buf).await
-    }
-    async fn write(&self, block_id: usize, buf: &[u8]) {
-        self.write_block(block_id, buf).await
     }
 }

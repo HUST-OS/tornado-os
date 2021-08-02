@@ -154,6 +154,13 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[cfg(feature = "qemu")]
+    let task_5 = task::new_kernel(
+        fs::fs_init(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
 
     println!("task_1: {:?}", task_1);
     println!("task_2: {:?}", task_2);
@@ -172,12 +179,12 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     #[cfg(feature = "qemu")]
     {
         let mut t = VIRTIO_TASK.lock();
-        let task4_repr = unsafe { task_4.task_repr() };
-        t.push(task4_repr);
+        let task5_repr = unsafe { task_5.task_repr() };
+        t.push(task5_repr);
         // 释放锁
         drop(t);
         unsafe {
-            shared_payload.add_task(hart_id, address_space_id, task4_repr);
+            shared_payload.add_task(hart_id, address_space_id, task5_repr);
         }
     }
 
