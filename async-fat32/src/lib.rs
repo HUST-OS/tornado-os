@@ -19,6 +19,7 @@
 //! todo!()
 //! ```
 #![no_std]
+#![feature(llvm_asm)]
 mod block_cache;
 mod bs_bpb;
 mod cache;
@@ -28,6 +29,9 @@ mod entry;
 mod fat;
 mod fs;
 mod tree;
+mod sbi;
+#[macro_use]
+mod log;
 
 pub use fs::FAT32;
 
@@ -42,6 +46,7 @@ pub type ABC = block_cache::AsyncBlockCache<
     BLOCK_SIZE,
     CACHE_SIZE,
 >;
+
 pub type Result<T = ()> = core::result::Result<T, FAT32Error>;
 
 #[derive(Debug)]

@@ -608,7 +608,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
         ]);
-        qemu.args(&["-drive", "file=../../../fs.img,,if=none,format=raw,id=x0"]);
+        qemu.args(&["-drive", "file=../../../fs.img,if=none,format=raw,id=x0"]);
         qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
         qemu.args(&["-gdb", "tcp::1234", "-S"]);
@@ -646,7 +646,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         let f = |mut cmd: Command| {
             let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
-                return Err(XTaskError::MkfsError)
+                Err(XTaskError::MkfsError)
             } else { Ok(()) }
         };
         let s = |mut sudo: Command| {
@@ -658,7 +658,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             }
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
-                return Err(XTaskError::MkfsError)
+                Err(XTaskError::MkfsError)
             } else { Ok(()) }
         };
         let mut dd = Command::new(DD);

@@ -6,6 +6,11 @@
 //! ```
 //! ```
 #![no_std]
+#![feature(llvm_asm)]
+
+mod sbi;
+mod log;
+
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -147,7 +152,6 @@ impl Event {
     #[inline]
     pub fn notify(&self, n: usize) {
         full_fence();
-
         if let Some(inner) = self.try_inner() {
             if inner.notified.load(Ordering::Acquire) < n {
                 inner.lock().notify(n);

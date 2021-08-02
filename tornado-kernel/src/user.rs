@@ -5,7 +5,7 @@ use crate::trap;
 /// 第一次进入用户态
 pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     // 创建一个用户态映射
-    let user_memory = memory::MemorySet::new_bin(0x8700_0000).unwrap();
+    let user_memory = memory::MemorySet::new_bin(0x8700_0000, 200).unwrap();
 
     // 存放用户特权级切换上下文的虚拟地址
     let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);

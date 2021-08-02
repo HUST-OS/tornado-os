@@ -4,12 +4,11 @@ use crate::AsyncBlockDevive;
 use alloc::sync::Arc;
 use async_mutex::AsyncMutex;
 use core::mem::MaybeUninit;
-
 /// 异步块缓存层实现
 /// B: 一个块中的字节数
 /// N: 块缓冲层的块数
 pub struct AsyncBlockCache<
-    C: Cache<N, Key = usize, Value = [u8; B]>,
+    C: Cache<N, Key = usize, Value = [u8; B]> + Send + Sync,
     const B: usize,
     const N: usize,
 > {
@@ -29,6 +28,7 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
         }
         let nodes =
             unsafe { core::mem::transmute::<_, [Node<usize, [u8; BLOCK_SIZE]>; CACHE_SIZE]>(data) };
+        
         let lfu_cache = LFUCache::empty(nodes);
         Self {
             block_device: device,

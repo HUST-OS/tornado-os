@@ -51,7 +51,7 @@ impl FAT32 {
         let mut long_start = false;
         let mut long_entries = Vec::new();
         let mut dirs: Vec<
-            Box<dyn AsNode<Ident = String, Content = Vec<u8>, ContentRef = Vec<u32>>>,
+            Box<dyn AsNode<Ident = String, Content = Vec<u8>, ContentRef = Vec<u32>> + Send + Sync>,
         > = Vec::new();
         dirs.push(Box::new(root));
         // 利用栈 `dirs` 遍历 `FAT32` 文件系统中所有子目录
