@@ -108,7 +108,6 @@ impl SharedPayload {
         task_repr: usize,
     ) -> bool {
         let f = self.shared_add_task;
-        // println!("Add = {:x}, p1 = {:p}, p2 = {:x}, p3 = {:?}, p4 = {:x}", f as usize, self.shared_scheduler,
         // hart_id, address_space_id, task_repr);
         f(self.shared_scheduler, hart_id, address_space_id, task_repr)
     }
@@ -119,7 +118,6 @@ impl SharedPayload {
         should_yield: extern "C" fn(AddressSpaceId) -> bool,
     ) -> TaskResult {
         let f = self.shared_peek_task;
-        // println!("Peek = {:x}, p1 = {:p}, p2 = {:x}", f as usize, self.shared_scheduler, should_yield as usize);
         f(self.shared_scheduler, should_yield)
     }
 

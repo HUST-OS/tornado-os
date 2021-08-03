@@ -71,7 +71,7 @@ fn main() -> Result {
         )
         (@subcommand qemu =>
             (about: "Execute qemu")
-            (@arg user: +required "Select user binary to execute")
+            // (@arg user: +required "Select user binary to execute")
             (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand k210 =>
@@ -88,7 +88,7 @@ fn main() -> Result {
         )
         (@subcommand debug =>
             (about: "Debug with qemu and gdb stub")
-            (@arg user: +required "Select user binary to debug")
+            // (@arg user: +required "Select user binary to debug")
         )
         (@subcommand gdb =>
             (about: "Run gdb debugger")
@@ -110,17 +110,17 @@ fn main() -> Result {
         xtask.build_shared_scheduler(platform)?;
         xtask.build_all_user_app()?;
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
-        let app = matches.args.get("user").unwrap();
+        // let app = matches.args.get("user").unwrap();
         if matches.is_present("release") {
             xtask.set_release();
         }
         xtask.build_kernel("qemu")?;
         xtask.build_shared_scheduler("qemu")?;
-        xtask.build_user_app(app.vals[0].to_str().unwrap())?;
+        // xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
-        xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
-        xtask.execute_qemu(app.vals[0].to_str().unwrap(), 1)?;
+        // xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
+        xtask.execute_qemu(1)?;
     } else if let Some(matches) = matches.subcommand_matches("k210") {
         if matches.is_present("release") {
             xtask.set_release();
@@ -145,14 +145,14 @@ fn main() -> Result {
             app => xtask.user_app_size(app)?,
         };
     } else if let Some(matches) = matches.subcommand_matches("debug") {
-        let app = matches.args.get("user").unwrap();
+        // let app = matches.args.get("user").unwrap();
         xtask.build_kernel("qemu")?;
         xtask.build_shared_scheduler("qemu")?;
-        xtask.build_user_app(app.vals[0].to_str().unwrap())?;
+        // xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
-        xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
-        xtask.debug_qemu(app.vals[0].to_str().unwrap(), 1)?;
+        // xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
+        xtask.debug_qemu(1)?;
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
     } else if let Some(matches) = matches.subcommand_matches("mkfs") {
@@ -449,7 +449,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         Ok(())
     }
     /// 运行 qemu
-    fn execute_qemu<APP: AsRef<str>>(&self, _app: APP, threads: u32) -> Result {
+    // fn execute_qemu<APP: AsRef<str>>(&self, _app: APP, threads: u32) -> Result {
+    fn execute_qemu(&self, threads: u32) -> Result {
         /* @qemu-system-riscv64 \
         -machine virt \
         -nographic \
@@ -585,7 +586,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
     fn user_app_size<APP: AsRef<str>>(&self, app: APP) -> Result {
         self.size(app)
     }
-    fn debug_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
+    fn debug_qemu(&self, threads: u32) -> Result {
+    // fn debug_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
         /* @qemu-system-riscv64 \
         -machine virt \
         -nographic \
@@ -610,10 +612,10 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             "loader,file=shared-scheduler.bin,addr=0x86000000",
         ]); // todo: 这里的地址需要可配置
-        qemu.args(&[
-            "-device",
-            format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
-        ]);
+        // qemu.args(&[
+        //     "-device",
+        //     format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
+        // ]);
         qemu.args(&["-drive", "file=../../../fs.img,if=none,format=raw,id=x0"]);
         qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);

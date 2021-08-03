@@ -190,7 +190,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
     }
 
-    task::run_until_idle(
+    task::run_one(
+        |task_repr| unsafe { shared_payload.add_task(0, address_space_id, task_repr)},
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },

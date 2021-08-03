@@ -11,11 +11,17 @@ use crate::memory::{
 };
 
 pub async fn load_user<S: Into<String>>(user: S, asid: AddressSpaceId) -> MemorySet {
-    let fs = FS.lock().await;
-    let fs = unsafe { fs.assume_init_ref() };
-    let binary = fs.load_binary(user).await;
-    let mut s = USER_SPACE.lock().await;
-    let (base, pages) = s.alloc(binary.len(), asid).expect("alloc physical space for user binary");
+    
+    let binary = {
+        let fs = FS.lock().await;
+        let fs = unsafe { fs.assume_init_ref() };
+        fs.load_binary(user).await
+    };
+    let (base, pages) = {
+        let mut s = USER_SPACE.lock().await;
+        s.alloc(binary.len(), asid).expect("alloc physical space for user binary")
+    };
+    
     let base = base.start_address();
     let base_va = base.virtual_address_linear();
     let dst = base_va.0 as *const () as *mut u8;
