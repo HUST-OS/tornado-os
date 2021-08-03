@@ -449,7 +449,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         Ok(())
     }
     /// 运行 qemu
-    fn execute_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
+    fn execute_qemu<APP: AsRef<str>>(&self, _app: APP, threads: u32) -> Result {
         /* @qemu-system-riscv64 \
         -machine virt \
         -nographic \

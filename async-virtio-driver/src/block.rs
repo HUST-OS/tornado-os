@@ -450,7 +450,6 @@ impl<const N: usize> VirtIOBlock<N> {
     pub async fn read_block_event(&self, block_id: usize, buf: &mut [u8]) -> Result<()> {
         // 块大小 = 一个块中的扇区数 * 扇区大小
         let block_size = self.sector_size as usize * N;
-        println!("sector_size: {}, N: {}", self.sector_size, N);
         if buf.len() != block_size {
             panic!(
                 "[virtio] buffer size {} not equal to block size - {}!",

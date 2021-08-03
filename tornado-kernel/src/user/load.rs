@@ -25,5 +25,5 @@ pub async fn load_user<S: Into<String>>(user: S, asid: AddressSpaceId) -> Memory
     unsafe {
         copy(src, dst, binary.len());
     }
-    MemorySet::new_bin(base.0, pages).expect("create user memory set")
+    MemorySet::new_bin(base.0, pages + 100).expect("create user memory set")
 }
