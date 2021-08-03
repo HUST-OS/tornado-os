@@ -1,19 +1,14 @@
 //! 用于内核初始化
 // unused
 use {
-    lazy_static::*,
-    alloc::{
-        boxed::Box,
-        vec::Vec,
-        collections::vec_deque::VecDeque,
-        sync::Arc,
-    },
+    alloc::{boxed::Box, collections::vec_deque::VecDeque, sync::Arc, vec::Vec},
     core::{
         future::Future,
         pin::Pin,
         task::{Context, Poll},
         usize,
     },
+    lazy_static::*,
     spin::Mutex,
     woke::{waker_ref, Woke},
 };

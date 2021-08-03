@@ -11,19 +11,19 @@ extern crate alloc;
 #[macro_use]
 mod console;
 mod algorithm;
+mod cache;
+mod fs;
 mod hart;
 mod memory;
 mod panic;
+mod plic;
 mod sbi;
+mod sdcard;
 mod syscall;
 mod task;
 mod trap;
 mod user;
 mod virtio;
-mod plic;
-mod sdcard;
-mod fs;
-mod cache;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -113,9 +113,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // todo: 这里要有个地方往tp里写东西，否则目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
-    
+
     #[cfg(feature = "qemu")]
-    unsafe { plic::xv6_plic_init(); }
+    unsafe {
+        plic::xv6_plic_init();
+    }
 
     let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
 
@@ -123,7 +125,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let hart_id = crate::hart::KernelHartInfo::hart_id();
     let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
-    
 
     let task_1 = task::new_kernel(
         task_1(),
@@ -186,19 +187,19 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
             shared_payload.shared_scheduler,
             shared_payload.shared_set_task_state,
         );
-        
+
         unsafe {
             shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
         }
 
         task::run_one(
-            |task_repr| unsafe { shared_payload.add_task(0, address_space_id, task_repr)},
+            |task_repr| unsafe { shared_payload.add_task(0, address_space_id, task_repr) },
             || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
             |task_repr| unsafe { shared_payload.delete_task(task_repr) },
             |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
         );
     }
-    
+
     end()
 }
 

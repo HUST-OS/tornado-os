@@ -73,7 +73,6 @@ impl Process {
             .memory_set
             .alloc_page_range(STACK_SIZE, flags)
     }
-
 }
 
 /// 进程的编号

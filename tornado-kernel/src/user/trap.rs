@@ -1,18 +1,18 @@
-use alloc::string::String;
+use super::load::load_user;
 use crate::memory::{
-    MemorySet,
-    VirtualAddress,
-    VirtualPageNumber,
-    KERNEL_MAP_OFFSET,
+    AddressSpaceId, MemorySet, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET,
     SWAP_CONTEXT_VA,
-    AddressSpaceId
 };
 use crate::task;
 use crate::trap;
-use super::load::load_user;
+use alloc::string::String;
 
 /// 第一次进入用户态
-pub async fn first_enter_user<S: Into<String>>(user: S, asid: AddressSpaceId, kernel_stack_top: usize) {
+pub async fn first_enter_user<S: Into<String>>(
+    user: S,
+    asid: AddressSpaceId,
+    kernel_stack_top: usize,
+) {
     // 创建一个用户态映射
     let user_memory = load_user(user, asid).await;
     // 存放用户特权级切换上下文的虚拟地址

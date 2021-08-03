@@ -5,8 +5,8 @@
 //! 照着文档写的: https://d1.amobbs.com/bbs_upload782111/files_7/armok01151038.pdf
 //! (写完才发现有中文文档)
 use super::fat::FAT;
-use core::convert::TryInto;
 use alloc::string::String;
+use core::convert::TryInto;
 
 /// Boot Sector 各字段的偏移
 enum BootSectorOffset {

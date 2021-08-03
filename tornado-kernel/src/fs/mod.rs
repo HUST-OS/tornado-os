@@ -1,27 +1,22 @@
 //! 文件系统
 mod fat32;
 
-use core::intrinsics::copy;
-use alloc::vec::Vec;
-use alloc::sync::Arc;
+use super::memory::{MemorySet, PhysicalAddress, PhysicalPageNumber, KERNEL_MAP_OFFSET, PAGE_SIZE};
+use super::sdcard::SD_CARD;
+use super::virtio::VIRTIO_BLOCK;
 use alloc::string::String;
-use core::mem::MaybeUninit;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use async_mutex::AsyncMutex;
+use core::intrinsics::copy;
+use core::mem::MaybeUninit;
 use fat32::FAT32;
 use lazy_static::lazy_static;
-use super::virtio::VIRTIO_BLOCK;
-use super::sdcard::SD_CARD;
-use super::memory::{
-    PhysicalAddress,
-    PhysicalPageNumber,
-    PAGE_SIZE,
-    KERNEL_MAP_OFFSET,
-    MemorySet
-};
 
-lazy_static!(
-    pub static ref FS: Arc<AsyncMutex<MaybeUninit<Fs>>> = unsafe { Arc::new(AsyncMutex::new(MaybeUninit::uninit())) };
-);
+lazy_static! {
+    pub static ref FS: Arc<AsyncMutex<MaybeUninit<Fs>>> =
+        unsafe { Arc::new(AsyncMutex::new(MaybeUninit::uninit())) };
+};
 
 pub struct Fs(pub FAT32);
 

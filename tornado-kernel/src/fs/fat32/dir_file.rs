@@ -4,12 +4,12 @@ use super::fat::FAT;
 use super::tree::AsNode;
 use super::BLOCK_SIZE;
 use crate::cache::CACHE;
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use async_trait::async_trait;
 use core::iter::FromIterator;
-use alloc::vec::Vec;
-use alloc::string::{String, ToString};
-use alloc::boxed::Box;
 
 #[derive(Clone)]
 struct Inner {
@@ -24,16 +24,8 @@ struct Inner {
 }
 
 impl Inner {
-    pub fn new(
-        entry: DirectoryEntry,
-        fat: Arc<FAT>,
-        bpb: Arc<[u8; BLOCK_SIZE]>,
-    ) -> Self {
-        Self {
-            entry,
-            bpb,
-            fat,
-        }
+    pub fn new(entry: DirectoryEntry, fat: Arc<FAT>, bpb: Arc<[u8; BLOCK_SIZE]>) -> Self {
+        Self { entry, bpb, fat }
     }
     pub fn name(&self) -> String {
         self.entry.name()
@@ -51,11 +43,7 @@ pub struct Directory {
 
 impl Directory {
     /// 新建
-    pub fn new(
-        entry: DirectoryEntry,
-        fat: Arc<FAT>,
-        bpb: Arc<[u8; BLOCK_SIZE]>,
-    ) -> Self {
+    pub fn new(entry: DirectoryEntry, fat: Arc<FAT>, bpb: Arc<[u8; BLOCK_SIZE]>) -> Self {
         assert_eq!(entry.attribute, Attribute::ATTR_DIRECTORY);
         Self {
             inner: Inner::new(entry, fat, bpb),
@@ -93,10 +81,7 @@ impl AsNode for Directory {
         self.inner.data().await
     }
     async fn content_ref(&self) -> Self::ContentRef {
-        self.inner
-            .entry
-            .clusters(&self.inner.fat)
-            .await
+        self.inner.entry.clusters(&self.inner.fat).await
     }
 }
 
@@ -107,11 +92,7 @@ pub struct File {
 
 impl File {
     /// 新建
-    pub fn new(
-        entry: DirectoryEntry,
-        fat: Arc<FAT>,
-        bpb: Arc<[u8; BLOCK_SIZE]>,
-    ) -> Self {
+    pub fn new(entry: DirectoryEntry, fat: Arc<FAT>, bpb: Arc<[u8; BLOCK_SIZE]>) -> Self {
         Self {
             inner: Inner::new(entry, fat, bpb),
         }
@@ -146,10 +127,7 @@ impl AsNode for File {
         ret[..self.inner.entry.file_size as usize].to_vec()
     }
     async fn content_ref(&self) -> Self::ContentRef {
-        self.inner
-            .entry
-            .clusters(&self.inner.fat)
-            .await
+        self.inner.entry.clusters(&self.inner.fat).await
     }
 }
 
@@ -246,10 +224,7 @@ impl AsNode for LongDirectory {
         self.inner.data().await
     }
     async fn content_ref(&self) -> Self::ContentRef {
-        self.inner
-            .entry
-            .clusters(&self.inner.fat)
-            .await
+        self.inner.entry.clusters(&self.inner.fat).await
     }
 }
 
@@ -295,10 +270,7 @@ impl AsNode for LongFile {
         self.data().await[..self.inner.entry.file_size as usize].to_vec()
     }
     async fn content_ref(&self) -> Self::ContentRef {
-        self.inner
-            .entry
-            .clusters(&self.inner.fat)
-            .await
+        self.inner.entry.clusters(&self.inner.fat).await
     }
 }
 

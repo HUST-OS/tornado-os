@@ -1,14 +1,16 @@
 //! qemu virtio 前端驱动
 
-use core::{ops::Add};
+use crate::memory::{
+    frame_alloc, FrameTracker, PhysicalAddress, PhysicalPageNumber, Satp, VirtualAddress,
+    VirtualPageNumber, VIRTIO0,
+};
+use alloc::{sync::Arc, vec::Vec};
+use async_blk::VirtIOAsyncBlock;
 use bit_field::BitField;
+use core::ops::Add;
+use lazy_static::*;
 use riscv::register::satp;
 use spin::Mutex;
-use alloc::{sync::Arc, vec::Vec};
-use lazy_static::*;
-use async_blk::VirtIOAsyncBlock;
-use crate::memory::{FrameTracker, PhysicalAddress, PhysicalPageNumber, Satp, VirtualAddress, VirtualPageNumber, frame_alloc, VIRTIO0};
-
 
 pub mod async_blk;
 
@@ -27,7 +29,7 @@ pub extern "C" fn virtio_dma_alloc(pages: usize) -> PhysicalAddress {
         }
         let frame_ppn: usize = frame.page_number().into();
         assert_eq!(frame_ppn, ppn_base + i);
-        QUEUE_FRAMES.lock().push(frame);        
+        QUEUE_FRAMES.lock().push(frame);
     }
     PhysicalPageNumber::from(ppn_base).start_address()
 }
@@ -57,7 +59,7 @@ pub extern "C" fn virtio_dma_dealloc(pa: PhysicalAddress, pages: usize) -> i32 {
 
 // 这里可以直接使用线性映射的关系
 #[no_mangle]
-pub extern "C"  fn virtio_phys_to_virt(paddr: PhysicalAddress) -> VirtualAddress {
+pub extern "C" fn virtio_phys_to_virt(paddr: PhysicalAddress) -> VirtualAddress {
     paddr.virtual_address_linear()
 }
 
@@ -67,7 +69,9 @@ pub extern "C" fn virtio_virt_to_phys(vaddr: VirtualAddress) -> PhysicalAddress 
     let offset = vaddr.0.get_bits(0..12); // Sv39 低 12 位是页内偏移
     let satp = Satp::new(satp::read().bits());
     let vpn = VirtualPageNumber::floor(vaddr);
-    let ppn = satp.translate(vpn).expect("virtio virtual address not map!");
+    let ppn = satp
+        .translate(vpn)
+        .expect("virtio virtual address not map!");
     ppn.start_address().add(offset)
 }
 

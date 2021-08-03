@@ -86,8 +86,9 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
                 code: 0,
                 extra: buf_len,
             }
-        },
-        FUNC_TEST_READ_LINE => { // 读入len个字符，如果遇到换行符，或者缓冲区满，就停止
+        }
+        FUNC_TEST_READ_LINE => {
+            // 读入len个字符，如果遇到换行符，或者缓冲区满，就停止
             let (_iface, buf_ptr, buf_len) = (param[0], param[1], param[2]); // 调试接口编号，输出缓冲区指针，输出缓冲区长度
             let user_satp = crate::memory::Satp::new(user_satp);
             let slice = unsafe { get_user_buf_mut(user_satp, buf_ptr, buf_len) };
@@ -95,7 +96,7 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
                 let input = crate::sbi::console_getchar();
                 let byte = input as u8; // 假定SBI输入都是u8类型
                 if byte == b'\n' {
-                    break
+                    break;
                 }
                 slice[i] = byte;
             }

@@ -1,11 +1,15 @@
-use alloc::sync::Arc;
-use riscv::register::{stvec, sstatus::{self, SPP, Sstatus}, sepc, scause::{self, Trap, Exception}, stval};
+use super::timer;
+use crate::syscall::{syscall as do_syscall, SyscallResult};
 use crate::task::KernelTaskRepr;
 use crate::{hart::KernelHartInfo, plic, println};
-use crate::syscall::{SyscallResult, syscall as do_syscall};
-use super::timer;
+use alloc::sync::Arc;
 use core::fmt;
-
+use riscv::register::{
+    scause::{self, Exception, Trap},
+    sepc,
+    sstatus::{self, Sstatus, SPP},
+    stval, stvec,
+};
 
 macro_rules! save_non_switch {
     () => {
@@ -243,7 +247,7 @@ pub unsafe extern "C" fn supervisor_external() {
         restore_non_switch!(),
         "sret",
         REGBYTES = const core::mem::size_of::<usize>(),
-        supervisor_external = sym rust_supervisor_external,    
+        supervisor_external = sym rust_supervisor_external,
         options(noreturn)
     )
 }
@@ -254,8 +258,10 @@ pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) ->
         // virtio 外部中断
         println!("virtio external interrupt! irq: {}", irq);
         // 获得数据传输完成的块号，后面需要通过这个去唤醒相应的任务
-        let intr_ret = crate::virtio::VIRTIO_BLOCK.handle_interrupt().expect("virtio handle interrupt error!");
-        println!("virtio handle interrupt return: {}", intr_ret);
+        let intr_ret = crate::virtio::VIRTIO_BLOCK
+            .handle_interrupt()
+            .expect("virtio handle interrupt error!");
+        println!("virtio handle interrupt return: {:x}", intr_ret);
         crate::virtio::VIRTIO_BLOCK.0.wake_ops.notify(1);
         // 通知 PLIC 外部中断已经处理完
         crate::plic::plic_complete(irq);

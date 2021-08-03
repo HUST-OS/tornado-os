@@ -33,7 +33,7 @@ pub fn init() {
         riscv::register::sstatus::set_sie();
         riscv::register::sie::set_sext();
     }
-    
+
     println!("mod interrupt initialized");
 }
 

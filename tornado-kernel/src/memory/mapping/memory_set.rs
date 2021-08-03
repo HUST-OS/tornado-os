@@ -1,9 +1,7 @@
-use crate::memory::{KERNEL_MAP_OFFSET, PLIC_BASE, PhysicalPageNumber, SWAP_CONTEXT_VA, VIRTIO0, config::{
-        FREE_MEMORY_START,
-        MEMORY_END_ADDRESS,
-        PAGE_SIZE,
-        SWAP_FRAME_VA,
-    }};
+use crate::memory::{
+    config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
+    PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, SWAP_CONTEXT_VA, VIRTIO0,
+};
 use crate::memory::{
     AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,
     VirtualAddress, VirtualPageNumber,
@@ -111,8 +109,10 @@ impl MemorySet {
         map_mmio(&mut mapping);
 
         // 映射共享载荷，目前地址是写死的
-        let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
-        let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
+        let va_range =
+            VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
+        let pa_range =
+            PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
         mapping.map_defined(
             &va_range,
             &pa_range,
@@ -182,8 +182,10 @@ impl MemorySet {
         )?;
 
         // 映射共享负荷
-        let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
-        let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
+        let va_range =
+            VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
+        let pa_range =
+            PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
         mapping.map_defined(
             &va_range,
             &pa_range,
@@ -274,7 +276,7 @@ fn map_mmio(mapping: &mut Mapping) {
     mapping.map_defined(
         &(plic_va_start..plic_va_end),
         &(plic_va_start.physical_address_linear()..plic_va_end.physical_address_linear()),
-        Flags::READABLE | Flags::WRITABLE
+        Flags::READABLE | Flags::WRITABLE,
     );
 
     // 映射 virtio disk mmio
@@ -283,7 +285,7 @@ fn map_mmio(mapping: &mut Mapping) {
     mapping.map_one(
         VirtualPageNumber::floor(virtio_va),
         Some(PhysicalPageNumber::floor(virtio_pa)),
-        Flags::WRITABLE | Flags::READABLE
+        Flags::WRITABLE | Flags::READABLE,
     );
 }
 
