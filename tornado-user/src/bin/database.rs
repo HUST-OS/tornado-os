@@ -32,6 +32,66 @@ insert into 表格 (字段1, 字段2) values (值1, 值2);
 delete from 表格 where 字段1 = 值1;
 */
 
+/*
+控制台语法：
+
+inputs = { SOI ~ input* ~ EOI }
+input = _{ command ~ blank ~ ";" ~ blank }
+command = _{ select | insert | show }
+select = { "select" ~ " " ~ column_selector ~ " " ~ 
+    "from" ~ " " ~ table ~ blank ~
+    (where_clause)? }
+insert = { "insert" ~ " " ~ "into" ~ " " ~ table ~ blank ~ insert_content }
+show = { "show tables" }
+
+where_clause = { "where" ~ " " ~ equation }
+equation = {  left_value ~ blank~"="~blank~right_value }
+left_value = { ident }
+right_value = { ident }
+
+insert_content = { "(" ~columns ~ ")"~blank~
+	"values"~blank~"("~columns~")" }
+   
+column_selector = { "*" | columns }
+columns = { column ~ (comma ~ column)+ }
+column = { ident } 
+table = { ident }
+
+comma = _{ blank ~ "," ~ blank }
+
+alpha = _{ 'a'..'z' | 'A'..'Z' }
+digit = _{ '0'..'9' }
+
+ident = _{ (alpha | digit | "_" )+ }
+
+blank = _{ (" " | "\r" | "\n")* }
+
+解析结果，以普通语句为例：
+
+select * from table where a = 1;
+insert into table (a, b) values (1, 2);
+show tables;
+
+- inputs
+  - select
+    - column_selector: "*"
+    - table: "table"
+    - where_clause > equation
+      - left_value: "a"
+      - right_value: "1"
+  - insert
+    - table: "table"
+    - insert_content
+      - columns
+        - column: "a"
+        - column: "b"
+      - columns
+        - column: "1"
+        - column: "2"
+  - show: "show tables"
+  - EOI: ""
+*/
+
 async fn async_main() -> i32 {
     let stdin = tornado_user::stdin();
     let mut buf = alloc::string::String::new();
