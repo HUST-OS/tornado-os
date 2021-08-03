@@ -144,7 +144,7 @@ fn main() -> Result {
             "shared_scheduler" => xtask.shared_scheduler_size()?,
             app => xtask.user_app_size(app)?,
         };
-    } else if let Some(matches) = matches.subcommand_matches("debug") {
+    } else if let Some(_matches) = matches.subcommand_matches("debug") {
         // let app = matches.args.get("user").unwrap();
         xtask.build_kernel("qemu")?;
         xtask.build_shared_scheduler("qemu")?;
@@ -342,6 +342,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
     }
     /// 编译用户程序
+    #[allow(unused)]
     fn build_user_app<APP: AsRef<str>>(&self, app: APP) -> Result {
         let mut cargo = Command::new(&self.cargo);
         cargo.current_dir(self.root.join("tornado-user"));
