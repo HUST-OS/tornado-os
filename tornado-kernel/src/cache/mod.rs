@@ -13,17 +13,28 @@ use core::mem::MaybeUninit;
 use async_mutex::AsyncMutex;
 use lfu::LFUCache;
 use lazy_static::lazy_static;
-use crate::virtio::{VIRTIO_BLOCK};
-use crate::sdcard::{SD_CARD};
+use crate::virtio::{VIRTIO_BLOCK, async_blk::VirtIOAsyncBlock};
+use crate::sdcard::{SD_CARD, AsyncSDCard};
 
 const BLOCK_SIZE: usize = 512;
 const CACHE_SIZE: usize = 4;
 
 pub type BlockCache = AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, CACHE_SIZE>;
 
+#[cfg(feature = "qemu")]
+type AsyncBlockDevice = Arc<VirtIOAsyncBlock>;
 
+#[cfg(feature = "k210")]
+type AsyncBlockDevice = Arc<AsyncSDCard>;
+
+#[cfg(feature = "qemu")]
 lazy_static!(
-    pub static ref CACHE: BlockCache = BlockCache::init();
+    pub static ref CACHE: BlockCache = BlockCache::init(Arc::clone(&VIRTIO_BLOCK));
+);
+
+#[cfg(feature = "k210")]
+lazy_static!(
+    pub static ref CACHE: BlockCache = BlockCache::init(Arc::clone(&SD_CARD));
 );
 
 /// 各种缓存替换算法需要实现的 trait
@@ -53,11 +64,13 @@ pub struct AsyncBlockCache<
 > {
     /// 可以是采用各种替换算法的缓存具体实现
     cache: AsyncMutex<C>,
+    /// 异步块设备驱动
+    device: AsyncBlockDevice
 }
 
 impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, CACHE_SIZE> {
     /// 初始化异步块缓存
-    pub fn init() -> Self {
+    pub fn init(device: AsyncBlockDevice) -> Self {
         let mut data: [MaybeUninit<Node<usize, [u8; BLOCK_SIZE]>>; CACHE_SIZE] =
             unsafe { MaybeUninit::uninit().assume_init() };
         for elem in &mut data[..] {
@@ -69,6 +82,7 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
         let lfu_cache = LFUCache::empty(nodes);
         Self {
             cache: AsyncMutex::new(lfu_cache),
+            device
         }
     }
 
@@ -84,14 +98,14 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
         } // 释放锁
           // 如果要读取的块不在缓冲层中，则需要从块设备读取
         let mut data = [0; BLOCK_SIZE];
-        read_block(block_id, &mut data).await;
+        self.device.read_block(block_id, &mut data).await;
         // 将读取到的块写入到缓冲层
         let mut s = self.cache.lock().await; // 申请锁
         let write_back = s.put(&block_id, data.clone());
         drop(s); // 释放锁
         if let Some((id, mut block)) = write_back {
             // 如果有需要写回到块设备的数据，这里写回
-            write_block(id, &mut block).await;
+            self.device.write_block(id, &mut block).await;
         }
         data
     }
@@ -102,21 +116,21 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
         let write_back = s.put(&block_id, buf);
         drop(s); // 释放锁
         if let Some((id, mut block)) = write_back {
-            write_block(id, &mut block).await;
+            self.device.write_block(id, &mut block).await;
         }
     }
 
     /// 异步，写穿方式往缓冲区中写入一个块
     pub async fn write_sync(&self, block_id: usize, buf: [u8; BLOCK_SIZE]) {
         self.write_block(block_id, buf.clone()).await;
-        write_block(block_id, &buf).await
+        self.device.write_block(block_id, &buf).await
     }
 
     /// 将缓冲层中的所有数据写回到块设备
     pub async fn sync(&self) {
         let mut s = self.cache.lock().await;
         for (id, block) in s.all() {
-            write_block(id, &block).await;
+            self.device.write_block(id, &block).await;
         }
     }
 
@@ -166,24 +180,4 @@ impl<K: Eq + PartialEq + Copy, V: Clone> PartialOrd for Node<K, V> {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
-}
-
-#[cfg(feature = "qemu")]
-async fn read_block(block_id: usize, buf: &mut [u8]) {
-    VIRTIO_BLOCK.read_block(block_id, buf).await
-}
-
-#[cfg(feature = "k210")]
-async fn read_block(block_id: usize, buf: &mut [u8]) {
-    SD_CARD.read_block(block_id, buf).await
-}
-
-#[cfg(feature = "qemu")]
-async fn write_block(block_id: usize, buf: &[u8]) {
-    VIRTIO_BLOCK.write_block(block_id, buf).await
-}
-
-#[cfg(feature = "k210")]
-async fn write_block(block_id: usize, buf: &[u8]) {
-    SD_CARD.write_block(block_id, buf).await
 }

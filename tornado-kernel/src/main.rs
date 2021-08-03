@@ -4,6 +4,7 @@
 #![feature(drain_filter)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(naked_functions)]
+#![feature(maybe_uninit_ref)]
 #[macro_use]
 extern crate alloc;
 
