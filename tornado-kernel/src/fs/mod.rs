@@ -57,16 +57,16 @@ impl Fs {
 
 pub async fn fs_init() {
     let fs = Fs::init().await;
-    let children = fs.list("/");
-    print!("[/]: ");
-    for child in children {
-        print!("{} ", child);
-    }
-    println!("");
     let mut s = FS.lock().await;
     let ptr = s.as_mut_ptr();
     unsafe {
         ptr.write(fs);
     }
     println!("fs init");
+    let children = unsafe { s.assume_init_ref().list("/") };
+    print!("[/]: ");
+    for child in children {
+        print!("{} ", child);
+    }
+    println!("");
 }

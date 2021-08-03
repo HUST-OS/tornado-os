@@ -5,7 +5,7 @@ mod process;
 mod shared;
 mod blocking;
 
-pub use executor::run_until_idle;
+pub use executor::{run_until_idle, run_one};
 pub use kernel_task::{KernelTask, TaskId};
 pub use lock::{Lock, LockGuard};
 pub use process::{Process, ProcessId};

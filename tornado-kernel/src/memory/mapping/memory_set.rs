@@ -144,8 +144,6 @@ impl MemorySet {
     }
 
     /// 通过一个 bin 文件创建用户态映射
-    ///
-    /// 目前该用户 bin 文件在 qemu 中的位置写死为 0x87000000
     pub fn new_bin(base: usize, pages: usize) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();

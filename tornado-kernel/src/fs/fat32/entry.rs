@@ -1,6 +1,7 @@
 use super::bs_bpb::cluster_offset_sectors;
 use super::{BLOCK_SIZE, fat::FAT};
 use crate::cache::CACHE;
+use crate::fs::fat32::bs_bpb::cluster_offset_bytes;
 use alloc::format;
 use alloc::sync::Arc;
 use bit_field::BitField;
