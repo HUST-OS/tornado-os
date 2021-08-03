@@ -144,17 +144,15 @@ impl MemorySet {
     }
 
     /// 通过一个 bin 文件创建用户态映射
-    ///
-    /// 目前该用户 bin 文件在 qemu 中的位置写死为 0x87000000
-    pub fn new_bin(base: usize) -> Option<MemorySet> {
+    pub fn new_bin(base: usize, pages: usize) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
         }
         let mut mapping = Mapping::new_alloc()?;
         let allocated_pairs = Vec::new();
 
-        let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE * 200);
-        let pa_range = PhysicalAddress(base)..PhysicalAddress(base + PAGE_SIZE * 200);
+        let va_range = VirtualAddress(0)..VirtualAddress(PAGE_SIZE * pages);
+        let pa_range = PhysicalAddress(base)..PhysicalAddress(base + PAGE_SIZE * pages);
         mapping.map_defined(
             &va_range,
             &pa_range,
@@ -183,7 +181,7 @@ impl MemorySet {
             None,
         )?;
 
-        // 映射共享运行时段
+        // 映射共享负荷
         let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
         let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
         mapping.map_defined(

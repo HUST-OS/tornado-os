@@ -9,4 +9,4 @@ edition = "2018"
 [dependencies]
 async-fat32 = { path = ".." }
 async-std = {version = "1.9.0", features = ["attributes"]}
-async-trait = "0.1.50"
+async-trait = { git = "https://github.com.cnpmjs.org/HUST-OS/async-trait.git", rev = "c612a647aa" }

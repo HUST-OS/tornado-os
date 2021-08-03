@@ -1,12 +1,9 @@
 /// 异步虚拟块设备接口
-
 use async_virtio_driver::mmio::VirtIOHeader;
 use async_virtio_driver::block::*;
 use alloc::sync::Arc;
 use crate::memory::VIRTIO0;
-use async_trait::async_trait;
 use alloc::boxed::Box;
-use async_fat32::AsyncBlockDevive;
 
 pub struct VirtIOAsyncBlock(pub VirtIOBlock<1>);
 
@@ -28,11 +25,13 @@ impl VirtIOAsyncBlock {
     }
 
     pub async fn read_block(&self, block_id: usize, buf: &mut [u8]) {
-        self.0.async_read_block(block_id, buf).await.expect("failed to read block from async_virtio_block!");
+        // self.0.async_read_block(block_id, buf).await.expect("failed to read block from async_virtio_block!");
+        self.0.read_block_event(block_id, buf).await.expect("read block with event");
     }
 
     pub async fn write_block(&self, block_id: usize, buf: &[u8]) {
-        self.0.async_write_block(block_id, buf).await.expect("failed to write block from async_virtio_block!");
+        // self.0.async_write_block(block_id, buf).await.expect("failed to write block from async_virtio_block!");
+        self.0.write_block_event(block_id, buf).await.expect("write block with event");
     }
 
     pub unsafe fn handle_interrupt(&self) -> Option<u64> {
@@ -50,15 +49,5 @@ impl VirtIOAsyncBlock {
                 return None;
             }
         }
-    }
-}
-
-#[async_trait]
-impl AsyncBlockDevive for VirtIOAsyncBlock {
-    async fn read(&self, block_id: usize, buf: &mut [u8]) {
-        self.read_block(block_id, buf).await
-    }
-    async fn write(&self, block_id: usize, buf: &[u8]) {
-        self.write_block(block_id, buf).await
     }
 }

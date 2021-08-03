@@ -1,10 +1,15 @@
 use crate::task::{KernelTaskRepr, TaskResult, TaskState};
-use alloc::sync::Arc;
+use alloc::{
+    sync::Arc,
+    boxed::Box
+};
 use core::{
     mem,
     task::{Context, Poll},
 };
 use woke::waker_ref;
+
+use super::{KernelTask, Process};
 
 /*
 如果是当前上下文，就解释运行，如果不是，就切换上下文
@@ -48,6 +53,52 @@ pub fn run_until_idle(
         }
     }
 }
+
+/// 用于内核第一次升到用户态
+///
+/// note: 需要确保共享调度器中只有一个任务
+pub fn run_one(
+    add_task: impl Fn(usize) -> bool,
+    peek_task: impl Fn() -> TaskResult,
+    delete_task: impl Fn(usize) -> bool,
+    set_task_state: impl Fn(usize, TaskState),
+) {
+    loop {
+        unsafe { riscv::register::sie::clear_sext(); }
+        let task = peek_task();
+        unsafe { riscv::register::sie::set_sext(); }
+        println!(">>> run one: next task = {:x?}", task);
+        match task {
+            TaskResult::Task(task_repr) => {
+                unsafe { riscv::register::sie::clear_sext(); }
+                set_task_state(task_repr, TaskState::Sleeping);
+                unsafe { riscv::register::sie::set_sext(); }
+                let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
+                // 注册 waker
+                let waker = waker_ref(&task);
+                let mut context = Context::from_waker(&*waker);
+                // poll 操作之前在共享调度器中删除这个任务
+                unsafe { riscv::register::sie::clear_sext(); }
+                delete_task(task_repr);
+                unsafe { riscv::register::sie::set_sext(); }
+                let ret = task.task().future.lock().as_mut().poll(&mut context);
+                if let Poll::Pending = ret {
+                    mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
+                    unsafe { riscv::register::sie::clear_sext(); }
+                    add_task(task_repr); // 重新把这个任务放进共享调度器
+                    unsafe { riscv::register::sie::set_sext(); }
+                } else { // 否则，释放task的内存
+                    unreachable!() // 该任务不可能返回 Ready(T)
+                }
+            }
+            TaskResult::NoWakeTask => {
+                // todo!()
+            },
+            _ => unreachable!()
+        }
+    }
+}
+
 
 impl woke::Woke for KernelTaskRepr {
     fn wake_by_ref(task: &Arc<Self>) {

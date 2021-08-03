@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.50"
+async-trait = { git = "https://github.com.cnpmjs.org/HUST-OS/async-trait.git", rev = "c612a647aa" }
 spin = "0.7"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 bit_field = "0.10"

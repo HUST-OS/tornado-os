@@ -187,7 +187,8 @@ pub unsafe extern "C" fn shared_set_task_state(
     let mut count = 0;
     loop {
         if count >= len {
-            panic!("task not found!")
+            // panic!("task not found!")
+            break;
         }
         let next_handle = scheduler.peek_next_task();
         match next_handle {
@@ -210,7 +211,8 @@ pub unsafe extern "C" fn shared_set_task_state(
                     // 进入下一次循环
                 }
             }
-            None => panic!("task not found!"),
+            // None => panic!("task not found!"),
+            None => break,
         }
     }
 }

@@ -6,6 +6,11 @@
 //! ```
 //! ```
 #![no_std]
+#![feature(llvm_asm)]
+
+mod sbi;
+mod log;
+
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -19,7 +24,7 @@ use core::ptr::{self, NonNull};
 use core::sync::atomic::{self, AtomicPtr, AtomicUsize, Ordering};
 use core::task::{Context, Poll, Waker};
 use core::usize;
-use spin::{Mutex, MutexGuard};
+use rv_lock::{Lock, LockGuard};
 
 /// [`Event`] 的内部数据
 struct Inner {
@@ -29,7 +34,7 @@ struct Inner {
     /// 如果没有条目，该值被设为 `usize::MAX`
     notified: AtomicUsize,
     /// 保存注册的监听者的链表
-    list: Mutex<List>,
+    list: Lock<List>,
     /// 链表的单缓冲条目（用于算法优化）
     cache: UnsafeCell<Entry>,
 }
@@ -147,7 +152,6 @@ impl Event {
     #[inline]
     pub fn notify(&self, n: usize) {
         full_fence();
-
         if let Some(inner) = self.try_inner() {
             if inner.notified.load(Ordering::Acquire) < n {
                 inner.lock().notify(n);
@@ -288,7 +292,7 @@ impl Event {
         if inner.is_null() {
             let new = Arc::new(Inner {
                 notified: AtomicUsize::new(usize::MAX),
-                list: Mutex::new(List {
+                list: Lock::new(List {
                     head: None,
                     tail: None,
                     start: None,
@@ -419,7 +423,7 @@ struct ListGuard<'a> {
     /// [`Event`] 的 `inner` 的引用
     inner: &'a Inner,
     /// The actual guard that acquired the linked list.
-    guard: MutexGuard<'a, List>,
+    guard: LockGuard<'a, List>,
 }
 
 impl Drop for ListGuard<'_> {
@@ -573,7 +577,6 @@ impl List {
             return;
         }
         n -= self.notified;
-
         while n > 0 {
             n -= 1;
 

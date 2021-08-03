@@ -4,6 +4,7 @@
 #![feature(drain_filter)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(naked_functions)]
+#![feature(maybe_uninit_ref)]
 #[macro_use]
 extern crate alloc;
 
@@ -22,6 +23,7 @@ mod virtio;
 mod plic;
 mod sdcard;
 mod fs;
+mod cache;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -30,7 +32,7 @@ global_asm!(include_str!("entry.asm"));
 const SHAREDPAYLOAD_BASE: usize = 0x8600_0000;
 
 #[cfg(feature = "k210")]
-const SHAREDPAYLOAD_BASE: usize = 0x8020_0000;
+const SHAREDPAYLOAD_BASE: usize = 0x8040_0000;
 
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
@@ -64,12 +66,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     // 动态内存分配测试
     use alloc::boxed::Box;
-    // use alloc::vec::Vec;
     let v = Box::new(5);
     assert_eq!(*v, 5);
     core::mem::drop(v);
 
-    let mut vec = Vec::new();
+    let mut vec = alloc::vec::Vec::new();
     for i in 0..10000 {
         vec.push(i);
     }
@@ -123,6 +124,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
     
+
     let task_1 = task::new_kernel(
         task_1(),
         process.clone(),
@@ -155,45 +157,50 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-
-    println!("task_1: {:?}", task_1);
-    println!("task_2: {:?}", task_2);
-    println!("task_3: {:?}", task_3);
-    #[cfg(feature = "k210")]
-    println!("task_4: {:?}", task_4);
+    let task_5 = task::new_kernel(
+        fs::fs_init(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
 
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
-        #[cfg(feature = "k210")]
-        shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
     }
-
-    // #[cfg(feature = "qemu")]
-    // {
-    //     let mut t = VIRTIO_TASK.lock();
-    //     let task4_repr = unsafe { task_4.task_repr() };
-    //     t.push(task4_repr);
-    //     // 释放锁
-    //     drop(t);
-    //     unsafe {
-    //         shared_payload.add_task(hart_id, address_space_id, task4_repr);
-    //     }
-    // }
 
     task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
-    end(stack_handle.end.0 - 4)
+
+    let user_asid = unsafe { memory::AddressSpaceId::from_raw(1) };
+    // 通过一个异步任务进入用户态
+    let task_6 = task::new_kernel(
+        user::first_enter_user("user_task.bin", user_asid, stack_handle.end.0 - 4),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+    
+    unsafe {
+        shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
+    }
+
+    task::run_one(
+        |task_repr| unsafe { shared_payload.add_task(0, address_space_id, task_repr)},
+        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
+    );
+
+    unreachable!()
+    // end(stack_handle.end.0 - 4)
 }
 
-#[cfg(feature = "qemu")]
-fn end(stack_end: usize) -> ! {
-    user::first_enter_user(stack_end)
-}
 #[cfg(feature = "k210")]
 fn end(_stack_end: usize) -> ! {
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
@@ -251,9 +258,9 @@ impl Future for FibonacciFuture {
     }
 }
 
-use alloc::vec::Vec;
-use spin::Mutex;
-use lazy_static::lazy_static;
-lazy_static!(
-    pub static ref VIRTIO_TASK: Mutex<Vec<usize>> = Mutex::new(Vec::new());
-);
+// use alloc::vec::Vec;
+// use spin::Mutex;
+// use lazy_static::lazy_static;
+// lazy_static!(
+//     pub static ref VIRTIO_TASK: Mutex<Vec<usize>> = Mutex::new(Vec::new());
+// );

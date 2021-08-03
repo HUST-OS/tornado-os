@@ -87,7 +87,7 @@ impl<K: Eq + PartialEq + Copy, V: Clone, const N: usize> LFUCache<K, V, N> {
             time: 0,
         }
     }
-    // todo: 用 `maybuninit`
+
     pub fn empty(data: [Node<K, V>; N]) -> Self {
         Self {
             data,

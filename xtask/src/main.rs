@@ -14,7 +14,7 @@ const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
 const SERIAL_PORT: &'static str = "COM4";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
-const SCHEDULER_OFFSET: u64 = 0x20_0000;
+const SCHEDULER_OFFSET: u64 = 0x40_0000;
 const USER_APPS: [&'static str; 2] = [
     "user_task",
     "alloc-test"
@@ -71,7 +71,7 @@ fn main() -> Result {
         )
         (@subcommand qemu =>
             (about: "Execute qemu")
-            (@arg user: +required "Select user binary to execute")
+            // (@arg user: +required "Select user binary to execute")
             (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand k210 =>
@@ -88,13 +88,14 @@ fn main() -> Result {
         )
         (@subcommand debug =>
             (about: "Debug with qemu and gdb stub")
-            (@arg user: +required "Select user binary to debug")
+            // (@arg user: +required "Select user binary to debug")
         )
         (@subcommand gdb =>
             (about: "Run gdb debugger")
         )
         (@subcommand mkfs =>
             (about: "Make FAT32 file system image")
+            (@arg sdcard: --sdcard "Make FAT32 file system on sdcard")
         )
     )
     .get_matches();
@@ -109,17 +110,17 @@ fn main() -> Result {
         xtask.build_shared_scheduler(platform)?;
         xtask.build_all_user_app()?;
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
-        let app = matches.args.get("user").unwrap();
+        // let app = matches.args.get("user").unwrap();
         if matches.is_present("release") {
             xtask.set_release();
         }
         xtask.build_kernel("qemu")?;
         xtask.build_shared_scheduler("qemu")?;
-        xtask.build_user_app(app.vals[0].to_str().unwrap())?;
+        // xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
-        xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
-        xtask.execute_qemu(app.vals[0].to_str().unwrap(), 1)?;
+        // xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
+        xtask.execute_qemu(1)?;
     } else if let Some(matches) = matches.subcommand_matches("k210") {
         if matches.is_present("release") {
             xtask.set_release();
@@ -144,20 +145,25 @@ fn main() -> Result {
             app => xtask.user_app_size(app)?,
         };
     } else if let Some(matches) = matches.subcommand_matches("debug") {
-        let app = matches.args.get("user").unwrap();
+        // let app = matches.args.get("user").unwrap();
         xtask.build_kernel("qemu")?;
         xtask.build_shared_scheduler("qemu")?;
-        xtask.build_user_app(app.vals[0].to_str().unwrap())?;
+        // xtask.build_user_app(app.vals[0].to_str().unwrap())?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
-        xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
-        xtask.debug_qemu(app.vals[0].to_str().unwrap(), 1)?;
+        // xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
+        xtask.debug_qemu(1)?;
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
-    } else if let Some(_matches) = matches.subcommand_matches("mkfs") {
+    } else if let Some(matches) = matches.subcommand_matches("mkfs") {
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
-        xtask.mkfs_fat()?;
+        if matches.is_present("sdcard") {
+            xtask.mkfs_fat_sdcard()?;    
+        } else {
+            xtask.mkfs_fat()?;
+        }
+        
     } else {
         todo!()
     }
@@ -443,7 +449,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         Ok(())
     }
     /// 运行 qemu
-    fn execute_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
+    // fn execute_qemu<APP: AsRef<str>>(&self, _app: APP, threads: u32) -> Result {
+    fn execute_qemu(&self, threads: u32) -> Result {
         /* @qemu-system-riscv64 \
         -machine virt \
         -nographic \
@@ -469,10 +476,10 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             "loader,file=shared-scheduler.bin,addr=0x86000000",
         ]); // todo: 这里的地址需要可配置
-        qemu.args(&[
-            "-device",
-            format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
-        ]);
+        // qemu.args(&[
+        //     "-device",
+        //     format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
+        // ]);
         qemu.args(&["-drive", "file=../../../fs.img,if=none,format=raw,id=x0"]);
         qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
@@ -579,7 +586,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
     fn user_app_size<APP: AsRef<str>>(&self, app: APP) -> Result {
         self.size(app)
     }
-    fn debug_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
+    fn debug_qemu(&self, threads: u32) -> Result {
+    // fn debug_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
         /* @qemu-system-riscv64 \
         -machine virt \
         -nographic \
@@ -604,11 +612,11 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             "loader,file=shared-scheduler.bin,addr=0x86000000",
         ]); // todo: 这里的地址需要可配置
-        qemu.args(&[
-            "-device",
-            format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
-        ]);
-        qemu.args(&["-drive", "file=../../../fs.img,,if=none,format=raw,id=x0"]);
+        // qemu.args(&[
+        //     "-device",
+        //     format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
+        // ]);
+        qemu.args(&["-drive", "file=../../../fs.img,if=none,format=raw,id=x0"]);
         qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
         qemu.args(&["-gdb", "tcp::1234", "-S"]);
@@ -646,7 +654,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         let f = |mut cmd: Command| {
             let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
-                return Err(XTaskError::MkfsError)
+                Err(XTaskError::MkfsError)
             } else { Ok(()) }
         };
         let s = |mut sudo: Command| {
@@ -658,7 +666,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             }
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
-                return Err(XTaskError::MkfsError)
+                Err(XTaskError::MkfsError)
             } else { Ok(()) }
         };
         let mut dd = Command::new(DD);
@@ -681,5 +689,26 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         s(sudo)?;
         Ok(())
     }
-
+    /// 打包文件镜像到 sdcard 中
+    fn mkfs_fat_sdcard(&self) -> Result {
+        let s = |mut sudo: Command| {
+            sudo.stdin(Stdio::piped());
+            let mut child = sudo.spawn().expect("execute sudo command");
+            {
+                let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+                stdin.write_all("xxx".as_bytes()).expect("Failed to write to stdin");
+            }
+            let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
+            if !status.success() {
+                Err(XTaskError::MkfsError)
+            } else { Ok(()) }
+        };
+        for app in USER_APPS.iter() {
+            let mut sudo = Command::new("sudo");
+            let app = format!("{}.bin", *app);
+            sudo.current_dir(self.target_dir()).args(&["-S", "cp"]).arg(app).arg("/dev/sdb");
+            s(sudo)?;
+        }
+        Ok(())
+    }
 }

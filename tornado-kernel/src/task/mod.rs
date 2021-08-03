@@ -3,13 +3,14 @@ mod kernel_task;
 mod lock;
 mod process;
 mod shared;
+mod blocking;
 
-pub use executor::run_until_idle;
+pub use executor::{run_until_idle, run_one};
 pub use kernel_task::{KernelTask, TaskId};
-pub use lock::Lock;
+pub use lock::{Lock, LockGuard};
 pub use process::{Process, ProcessId};
 pub use shared::{kernel_should_switch, SharedPayload, TaskState};
-
+pub use blocking::block_on;
 /// 共享调度器返回的结果
 #[derive(Debug)]
 #[repr(C)]
