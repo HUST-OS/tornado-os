@@ -64,7 +64,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     // 动态内存分配测试
     use alloc::boxed::Box;
-    use alloc::vec::Vec;
+    // use alloc::vec::Vec;
     let v = Box::new(5);
     assert_eq!(*v, 5);
     core::mem::drop(v);
@@ -141,13 +141,13 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    #[cfg(feature = "qemu")]
-    let task_4 = task::new_kernel(
-        virtio::async_virtio_blk_test(),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
+    // #[cfg(feature = "qemu")]
+    // let task_4 = task::new_kernel(
+    //     virtio::async_virtio_blk_test(),
+    //     process.clone(),
+    //     shared_payload.shared_scheduler,
+    //     shared_payload.shared_set_task_state,
+    // ); // todo: 自检太久了，测试完关掉
     #[cfg(feature = "k210")]
     let task_4 = task::new_kernel(
         sdcard::sdcard_test(),
@@ -170,17 +170,17 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.add_task(hart_id, address_space_id, task_4.task_repr());
     }
 
-    #[cfg(feature = "qemu")]
-    {
-        let mut t = VIRTIO_TASK.lock();
-        let task4_repr = unsafe { task_4.task_repr() };
-        t.push(task4_repr);
-        // 释放锁
-        drop(t);
-        unsafe {
-            shared_payload.add_task(hart_id, address_space_id, task4_repr);
-        }
-    }
+    // #[cfg(feature = "qemu")]
+    // {
+    //     let mut t = VIRTIO_TASK.lock();
+    //     let task4_repr = unsafe { task_4.task_repr() };
+    //     t.push(task4_repr);
+    //     // 释放锁
+    //     drop(t);
+    //     unsafe {
+    //         shared_payload.add_task(hart_id, address_space_id, task4_repr);
+    //     }
+    // }
 
     task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },

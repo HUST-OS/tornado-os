@@ -86,6 +86,23 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
                 code: 0,
                 extra: buf_len,
             }
+        },
+        FUNC_TEST_READ_LINE => { // 读入len个字符，如果遇到换行符，或者缓冲区满，就停止
+            let (_iface, buf_ptr, buf_len) = (param[0], param[1], param[2]); // 调试接口编号，输出缓冲区指针，输出缓冲区长度
+            let user_satp = crate::memory::Satp::new(user_satp);
+            let slice = unsafe { get_user_buf_mut(user_satp, buf_ptr, buf_len) };
+            for i in 0..buf_len {
+                let input = crate::sbi::console_getchar();
+                let byte = input as u8; // 假定SBI输入都是u8类型
+                if byte == b'\n' {
+                    break
+                }
+                slice[i] = byte;
+            }
+            SyscallResult::Procceed {
+                code: 0,
+                extra: buf_len,
+            }
         }
         _ => panic!("Unknown syscall test, func: {}, param: {:?}", func, param),
     }
@@ -96,6 +113,10 @@ fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
 }
 
 unsafe fn get_user_buf<'a>(user_satp: Satp, buf_ptr: usize, buf_len: usize) -> &'a [u8] {
+    get_user_buf_mut(user_satp, buf_ptr, buf_len)
+}
+
+unsafe fn get_user_buf_mut<'a>(user_satp: Satp, buf_ptr: usize, buf_len: usize) -> &'a mut [u8] {
     let offset = buf_ptr.get_bits(0..12); // Sv39 里面虚拟地址偏移量为低 12 位
     let vpn = VirtualPageNumber::floor(VirtualAddress(buf_ptr));
     let ppn = user_satp.translate(vpn).expect("no page fault");
@@ -105,5 +126,5 @@ unsafe fn get_user_buf<'a>(user_satp: Satp, buf_ptr: usize, buf_len: usize) -> &
         .0
         .wrapping_add(offset);
     let ptr = (va as *const u8).as_ref().expect("non-null pointer");
-    core::slice::from_raw_parts(ptr, buf_len)
+    core::slice::from_raw_parts_mut(ptr as *const _ as *mut _, buf_len)
 }
