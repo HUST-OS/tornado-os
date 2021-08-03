@@ -53,7 +53,7 @@ impl Stdin {
         };
         let syscall_ans = crate::syscall::sys_test_read_line(buf_input);
         let bytes_read = syscall_ans.extra;
-        buf.shrink_to(bytes_read);
+        // buf.shrink_to(bytes_read); // 与API风格有关，不用缩缓冲区
         bytes_read
     }
 }
