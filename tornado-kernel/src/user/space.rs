@@ -4,10 +4,10 @@ use alloc::boxed::Box;
 use lazy_static::lazy_static;
 use async_mutex::AsyncMutex;
 
-const BASE: usize = 0x8600_0000;
+const BASE: usize = 0x8700_0000;
 
 lazy_static!(
-    pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<10, BASE>> = AsyncMutex::new(UserSpaceManager::new());
+    pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<20, BASE>> = AsyncMutex::new(UserSpaceManager::new());
 );
 
 /// 用户内存管理器
@@ -50,7 +50,7 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     /// 分配成功返回起始物理页号和页数
     pub fn alloc(&mut self, size: usize, asid: AddressSpaceId) -> Option<(PhysicalPageNumber, usize)> {
         assert!(PAGE_SIZE % 2 == 0);
-        let num = size + PAGE_SIZE - 1 / PAGE_SIZE; // 需要的页数
+        let num = (size + PAGE_SIZE - 1) / PAGE_SIZE; // 需要的页数
         if num > N - self.len {
             None
         } else {

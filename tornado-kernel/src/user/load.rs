@@ -21,6 +21,7 @@ pub async fn load_user<S: Into<String>>(user: S, asid: AddressSpaceId) -> Memory
     let dst = base_va.0 as *const () as *mut u8;
     let src = binary.as_ptr();
     // 加载用户二进制程序到
+    println!("src: {:x?}, dst: {:x?}, len: {}, base: {:x?}, pages: {}", src, dst, binary.len(), base, pages);
     unsafe {
         copy(src, dst, binary.len());
     }

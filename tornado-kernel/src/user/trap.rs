@@ -1,15 +1,24 @@
-use crate::memory;
+use alloc::string::String;
+use crate::memory::{
+    MemorySet,
+    VirtualAddress,
+    VirtualPageNumber,
+    KERNEL_MAP_OFFSET,
+    SWAP_CONTEXT_VA,
+    AddressSpaceId
+};
 use crate::task;
 use crate::trap;
+use super::load::load_user;
 
 /// 第一次进入用户态
-pub fn first_enter_user(kernel_stack_top: usize) -> ! {
+pub async fn first_enter_user<S: Into<String>>(user: S, asid: AddressSpaceId, kernel_stack_top: usize) {
     // 创建一个用户态映射
-    let user_memory = memory::MemorySet::new_bin(0x8700_0000, 200).unwrap();
+    let user_memory = load_user(user, asid).await;
     // 存放用户特权级切换上下文的虚拟地址
-    let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
+    let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
     // 存放用户特权级切换上下文的虚拟页号
-    let swap_cx_vpn = memory::VirtualPageNumber::floor(swap_cx_va);
+    let swap_cx_vpn = VirtualPageNumber::floor(swap_cx_va);
     // 获取存放用户特权级切换上下文的物理页号
     let swap_cx_ppn = user_memory
         .mapping
@@ -21,7 +30,7 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
         (swap_cx_ppn
             .start_address()
             .0
-            .wrapping_add(memory::KERNEL_MAP_OFFSET) as *mut trap::SwapContext)
+            .wrapping_add(KERNEL_MAP_OFFSET) as *mut trap::SwapContext)
             .as_mut()
             .unwrap()
     };
@@ -58,5 +67,5 @@ pub fn first_enter_user(kernel_stack_top: usize) -> ! {
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
     swap_cx.set_gp(crate::SHAREDPAYLOAD_BASE);
     swap_cx.set_tp(user_asid);
-    trap::switch_to_user(swap_cx, user_satp)
+    trap::switch_to_user(swap_cx, user_satp);
 }
