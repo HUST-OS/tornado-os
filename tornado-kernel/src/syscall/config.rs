@@ -6,3 +6,4 @@ pub const FUNC_PROCESS_EXIT: usize = 0x1919810;
 pub const FUNC_PROCESS_PANIC: usize = 0x11451419;
 
 pub const FUNC_TEST_WRITE: usize = 0x666233;
+pub const FUNC_TEST_READ_LINE: usize = 0x11117777;

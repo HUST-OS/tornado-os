@@ -11,10 +11,12 @@ extern crate alloc;
 pub mod console;
 pub mod task;
 
+pub use console::{stdin, Stdin};
+
 use buddy_system_allocator::LockedHeap;
 use core::future::Future;
 
-const USER_HEAP_SIZE: usize = 64 * 1024;
+const USER_HEAP_SIZE: usize = 1024 * 1024; // 1M
 
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 
@@ -143,6 +145,7 @@ mod syscall {
     const FUNC_PROCESS_PANIC: usize = 0x11451419;
 
     const FUNC_TEST_WRITE: usize = 0x666233;
+    const FUNC_TEST_READ_LINE: usize = 0x11117777;
     pub struct SyscallResult {
         pub code: usize,
         pub extra: usize,
@@ -294,6 +297,14 @@ mod syscall {
         syscall_3(
             MODULE_TEST_INTERFACE,
             FUNC_TEST_WRITE,
+            [0, buf.as_ptr() as usize, buf.len()],
+        )
+    }
+
+    pub fn sys_test_read_line(buf: &mut [u8]) -> SyscallResult {
+        syscall_3(
+            MODULE_TEST_INTERFACE,
+            FUNC_TEST_READ_LINE,
             [0, buf.as_ptr() as usize, buf.len()],
         )
     }

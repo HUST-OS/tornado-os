@@ -143,13 +143,13 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    #[cfg(feature = "qemu")]
-    let task_4 = task::new_kernel(
-        virtio::async_virtio_blk_test(),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
+    // #[cfg(feature = "qemu")]
+    // let task_4 = task::new_kernel(
+    //     virtio::async_virtio_blk_test(),
+    //     process.clone(),
+    //     shared_payload.shared_scheduler,
+    //     shared_payload.shared_set_task_state,
+    // ); // todo: 自检太久了，测试完关掉
     #[cfg(feature = "k210")]
     let task_4 = task::new_kernel(
         sdcard::sdcard_test(),
