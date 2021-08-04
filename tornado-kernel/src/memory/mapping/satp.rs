@@ -1,5 +1,5 @@
-use crate::memory::{PhysicalPageNumber, VirtualPageNumber};
 use super::{page_table::PageTable, page_table_entry::PageTableEntry};
+use crate::memory::{PhysicalPageNumber, VirtualPageNumber};
 use bit_field::BitField;
 use riscv::register::satp::Mode;
 

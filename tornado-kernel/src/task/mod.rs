@@ -5,8 +5,8 @@ mod shared;
 
 pub use executor::{run_one, run_until_idle};
 pub use kernel_task::{KernelTask, TaskId};
-pub use rv_lock::{Lock, LockGuard};
 pub use process::{Process, ProcessId};
+pub use rv_lock::{Lock, LockGuard};
 pub use shared::{kernel_should_switch, SharedPayload, TaskState};
 /// 共享调度器返回的结果
 #[derive(Debug)]

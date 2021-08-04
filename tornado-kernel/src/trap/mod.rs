@@ -217,8 +217,8 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
     )
 }
 
-use crate::memory::{swap_contex_va, SWAP_FRAME_VA, AddressSpaceId};
 use crate::hart::KernelHartInfo;
+use crate::memory::{swap_contex_va, AddressSpaceId, SWAP_FRAME_VA};
 
 /// 上升到用户态
 /// 让这个函数接收一个 SwapContext 参数和用户的页表

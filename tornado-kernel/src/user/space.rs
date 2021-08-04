@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 
 const BASE: usize = 0x8700_0000;
 
-
 lazy_static! {
     pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<1000, BASE>> =
         AsyncMutex::new(UserSpaceManager::new());
@@ -47,11 +46,7 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     /// 分配一个空间，需要物理页的数量为 `pages`
     ///
     /// 分配成功返回起始物理页号
-    pub fn alloc(
-        &mut self,
-        pages: usize,
-        asid: AddressSpaceId,
-    ) -> Option<PhysicalPageNumber> {
+    pub fn alloc(&mut self, pages: usize, asid: AddressSpaceId) -> Option<PhysicalPageNumber> {
         assert!(PAGE_SIZE % 2 == 0);
         if pages > N - self.len {
             None

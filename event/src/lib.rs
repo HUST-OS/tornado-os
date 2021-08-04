@@ -8,8 +8,8 @@
 #![no_std]
 #![feature(llvm_asm)]
 
-mod sbi;
 mod log;
+mod sbi;
 
 extern crate alloc;
 use alloc::boxed::Box;

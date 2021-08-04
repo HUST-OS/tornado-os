@@ -1,6 +1,6 @@
 use crate::memory::{
     config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
-    PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, swap_contex_va, VIRTIO0,
+    swap_contex_va, PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, VIRTIO0,
 };
 use crate::memory::{
     AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,

@@ -1,11 +1,11 @@
 use super::bs_bpb::cluster_offset_sectors;
 use crate::{config::BLOCK_SIZE, fat::FAT, ABC};
 use alloc::format;
+use alloc::string::String;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use bit_field::BitField;
 use core::convert::TryInto;
-use alloc::vec::Vec;
-use alloc::string::String;
 
 /// 短文件名目录项
 #[derive(Clone, Default)]

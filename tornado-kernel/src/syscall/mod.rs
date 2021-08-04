@@ -3,12 +3,12 @@
 mod config;
 mod user_syscall;
 
-pub use user_syscall::user_trap_handler;
-pub use user_syscall::get_swap_cx;
-use crate::memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber};
 use crate::hart::KernelHartInfo;
+use crate::memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber};
 use bit_field::BitField;
 use config::*;
+pub use user_syscall::get_swap_cx;
+pub use user_syscall::user_trap_handler;
 
 pub enum SyscallResult {
     Procceed { code: usize, extra: usize },
@@ -36,10 +36,9 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
 fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
     match func {
         FUNC_SWITCH_TASK => switch_next_task(param[0]),
-        _ => unimplemented!()
+        _ => unimplemented!(),
     }
 }
-
 
 /// 用户态轮询任务的时候，发现下一个任务在不同地址空间，则产生该系统调用
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
@@ -50,7 +49,10 @@ fn switch_next_task(next_asid: usize) -> SyscallResult {
         SyscallResult::KernelTask
     } else {
         let satp = KernelHartInfo::user_satp(next_asid).expect("get satp register with asid");
-        SyscallResult::NextASID { asid: next_asid, satp }
+        SyscallResult::NextASID {
+            asid: next_asid,
+            satp,
+        }
     }
 }
 
