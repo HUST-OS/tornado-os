@@ -16,13 +16,12 @@ pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
         let fs = unsafe { fs.assume_init_ref() };
         fs.load_binary(user).await
     };
-    let (base, _pages) = {
+    let base = {
         let mut s = USER_SPACE.lock().await;
-        s.alloc(binary.len(), asid)
+        s.alloc(300, asid)
             .expect("alloc physical space for user binary")
     };
     let base = base.start_address();
-    let base = PhysicalAddress(0x8300_0000 + asid.clone().into_inner() * 0x100_0000);
     println!("asid {:?} user base: {:x?}", asid, base);
     let base_va = base.virtual_address_linear();
     let dst = base_va.0 as *const () as *mut u8;
