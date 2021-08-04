@@ -50,7 +50,8 @@ pub fn run_until_ready(
                 }
             }
             TaskResult::ShouldYield(next_asid) => {
-                // 让出操作
+                // 不释放这个任务的内存，执行切换地址空间的系统调用
+                mem::forget(task);
                 do_yield(next_asid);
             }
             TaskResult::NoWakeTask => {}

@@ -125,6 +125,16 @@ pub fn spawn(future: impl Future<Output = ()> + Send + Sync + 'static) {
     }
 }
 
+/// 运行异步任务
+pub fn execute_async() {
+    let shared_payload = unsafe { task::shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
+    task::shared::run_until_ready(
+        || unsafe { shared_payload.peek_task(task::shared::user_should_switch) },
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
+    );
+}
+
 use syscall::*;
 
 pub fn exit(exit_code: i32) -> SyscallResult {
