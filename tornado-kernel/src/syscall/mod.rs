@@ -28,16 +28,23 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
     match module {
         MODULE_PROCESS => do_process(param, user_satp, func),
         MODULE_TEST_INTERFACE => do_test_interface(param, user_satp, func),
-        MODULE_SWITCH_TASK => switch_next_task(param, func),
+        MODULE_SWITCH_TASK => do_task(param, func),
         _ => panic!("Unknown module {:x}", module),
     }
 }
 
+fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
+    match func {
+        FUNC_SWITCH_TASK => switch_next_task(param[0]),
+        _ => unimplemented!()
+    }
+}
+
+
 /// 用户态轮询任务的时候，发现下一个任务在不同地址空间，则产生该系统调用
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
-fn switch_next_task(param: [usize; 6], func: usize) -> SyscallResult {
-    let next_asid = param[0]; // a0
+fn switch_next_task(next_asid: usize) -> SyscallResult {
     println!("next asid: {}", next_asid);
     if next_asid == 0 {
         // 如果是内核任务

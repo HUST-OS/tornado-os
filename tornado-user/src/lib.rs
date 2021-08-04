@@ -146,6 +146,8 @@ mod syscall {
 
     const FUNC_TEST_WRITE: usize = 0x666233;
     const FUNC_TEST_READ_LINE: usize = 0x11117777;
+
+    const FUNC_SWITCH_TASK: usize = 0x666666;
     pub struct SyscallResult {
         pub code: usize,
         pub extra: usize,
@@ -290,7 +292,7 @@ mod syscall {
     }
 
     pub fn sys_yield(next_asid: usize) -> SyscallResult {
-        todo!()
+        syscall_1(MODULE_TASK, FUNC_SWITCH_TASK, next_asid)
     }
 
     pub fn sys_test_write(buf: &[u8]) -> SyscallResult {
