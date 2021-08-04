@@ -179,10 +179,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
     #[cfg(feature = "qemu")]
     {
-        let user_asid = unsafe { memory::AddressSpaceId::from_raw(1) };
         // 通过一个异步任务进入用户态
         let task_6 = task::new_kernel(
-            user::first_enter_user("user_task.bin", user_asid, stack_handle.end.0 - 4),
+            user::first_enter_user("user_task.bin", stack_handle.end.0 - 4),
             process.clone(),
             shared_payload.shared_scheduler,
             shared_payload.shared_set_task_state,

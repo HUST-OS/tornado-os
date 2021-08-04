@@ -3,10 +3,13 @@
 use super::space::USER_SPACE;
 use crate::fs::FS;
 use crate::memory::{AddressSpaceId, MemorySet, PhysicalPageNumber};
+use crate::hart::KernelHartInfo;
 use alloc::string::String;
 use core::ptr::copy;
 
-pub async fn load_user<S: Into<String>>(user: S, asid: AddressSpaceId) -> MemorySet {
+pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
+    // 获取一个新的地址空间编号
+    let asid = KernelHartInfo::alloc_address_space_id().expect("alloc address space id");
     let binary = {
         let fs = FS.lock().await;
         let fs = unsafe { fs.assume_init_ref() };
@@ -26,5 +29,5 @@ pub async fn load_user<S: Into<String>>(user: S, asid: AddressSpaceId) -> Memory
     unsafe {
         copy(src, dst, binary.len());
     }
-    MemorySet::new_bin(base.0, pages + 100).expect("create user memory set")
+    MemorySet::new_bin(base.0, pages + 100, asid).expect("create user memory set")
 }

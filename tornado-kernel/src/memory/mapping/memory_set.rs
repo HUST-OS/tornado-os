@@ -142,7 +142,7 @@ impl MemorySet {
     }
 
     /// 通过一个 bin 文件创建用户态映射
-    pub fn new_bin(base: usize, pages: usize) -> Option<MemorySet> {
+    pub fn new_bin(base: usize, pages: usize, asid: AddressSpaceId) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
         }
@@ -190,14 +190,11 @@ impl MemorySet {
             Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER,
         );
 
-        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
-        println!("New user asid = {:?}", address_space_id);
-
         Some(MemorySet {
             mapping,
             segments: Vec::new(),
             allocated_pairs,
-            address_space_id,
+            address_space_id: asid,
         })
     }
     /// 检测一段内存区域和已有的是否存在重叠区域

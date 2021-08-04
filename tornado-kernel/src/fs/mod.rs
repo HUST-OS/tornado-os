@@ -34,17 +34,6 @@ impl Fs {
     pub async fn store_binary<S: Into<String>>(&mut self, file: S, src: &[u8]) {
         self.0.load_binary(file).await.expect("store binary");
     }
-    pub async fn load_user<S: Into<String>>(&self, user: S, pa: PhysicalAddress) -> MemorySet {
-        let data = self.load_binary(user).await;
-        let pages = data.len() / PAGE_SIZE + (data.len() % PAGE_SIZE != 0) as usize;
-        unsafe {
-            let src = data.as_ptr();
-            let dst = (pa.0 + KERNEL_MAP_OFFSET) as *const () as *mut u8;
-            copy(src, dst, data.len());
-        }
-        let mm_set = MemorySet::new_bin(pa.0, pages).expect("create user memory set");
-        mm_set
-    }
     pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) {
         self.0.create(dir, file, size).await.expect("create file");
     }

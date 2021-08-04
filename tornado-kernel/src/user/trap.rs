@@ -10,11 +10,10 @@ use alloc::string::String;
 /// 第一次进入用户态
 pub async fn first_enter_user<S: Into<String>>(
     user: S,
-    asid: AddressSpaceId,
     kernel_stack_top: usize,
 ) {
     // 创建一个用户态映射
-    let user_memory = load_user(user, asid).await;
+    let user_memory = load_user(user).await;
     // 存放用户特权级切换上下文的虚拟地址
     let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
     // 存放用户特权级切换上下文的虚拟页号
