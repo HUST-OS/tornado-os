@@ -133,8 +133,6 @@ impl MemorySet {
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?;
         println!("Kernel new asid = {:?}", address_space_id);
 
-        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
-        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
         Some(MemorySet {
             mapping,
             segments,
@@ -194,9 +192,6 @@ impl MemorySet {
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
         println!("New user asid = {:?}", address_space_id);
-
-        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
-        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
 
         Some(MemorySet {
             mapping,
