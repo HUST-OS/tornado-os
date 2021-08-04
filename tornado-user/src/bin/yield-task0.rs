@@ -7,7 +7,7 @@ extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
 
-use tornado_user::do_yield;
+use tornado_user::{do_yield, execute_async};
 async fn async_main() {
     println!("yield test task 0");
 }
@@ -20,6 +20,6 @@ fn main() -> i32 {
     // 切换地址空间
     do_yield(2);
     println!("yield back");
-    tornado_user::execute_async();
+    execute_async();
     0
 }

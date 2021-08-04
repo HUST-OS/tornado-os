@@ -178,33 +178,32 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
-    #[cfg(feature = "qemu")]
-    {
-        let task_6 = task::new_kernel(
-            user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
-            process.clone(),
-            shared_payload.shared_scheduler,
-            shared_payload.shared_set_task_state,
-        );
+    
+    // 准备两个用户态任务
+    let task_6 = task::new_kernel(
+        user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
 
-        let task_7 = task::new_kernel(
-            user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
-            process.clone(),
-            shared_payload.shared_scheduler,
-            shared_payload.shared_set_task_state,
-        );
-        
-        unsafe {
-            shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
-            shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
-        }
-
-        task::run_until_idle(
-            || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
-            |task_repr| unsafe { shared_payload.delete_task(task_repr) },
-            |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
-        );
+    let task_7 = task::new_kernel(
+        user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+    
+    unsafe {
+        shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
     }
+
+    task::run_until_idle(
+        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
+    );
     user::enter_user(1)
     // end()
 }

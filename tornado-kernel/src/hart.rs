@@ -104,7 +104,20 @@ impl KernelHartInfo {
 
     #[cfg(feature = "k210")]
     pub fn alloc_address_space_id() -> Option<AddressSpaceId> {
-        unsafe { Some(AddressSpaceId::from_raw(0)) }
+        // k210 平台上最大地址空间编号为 `0`，这里假设可以存在大于 0 的地址空间编号
+        use_tp_box(|b| {
+            let (free, max) = &mut b.asid_alloc;
+            if let Some(_) = free.front() {
+                // 如果链表有内容，返回内容
+                return free
+                    .pop_front()
+                    .map(|idx| unsafe { AddressSpaceId::from_raw(idx) });
+            }
+            // 如果链表是空的
+            let ans = *max;
+            *max += 1;
+            Some(unsafe { AddressSpaceId::from_raw(ans) })
+        })
     }
 
     /// 释放地址空间编号
