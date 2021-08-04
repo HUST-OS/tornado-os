@@ -259,7 +259,7 @@ impl MemorySet {
 
     /// 获得当前映射的 [`Satp`]
     pub fn satp(&self) -> Satp {
-        Satp::new(self.mapping.get_satp(self.address_space_id))
+        Satp(self.mapping.get_satp(self.address_space_id))
     }
 }
 

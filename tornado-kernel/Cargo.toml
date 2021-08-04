@@ -22,6 +22,7 @@ async-virtio-driver = { path = "../async-virtio-driver" }
 event = { path = "../event" }
 async-mutex = { path = "../async-mutex" }
 async-sd = { path = "../async-sd" }
+rv-lock = { path  = "../rv-lock" }
 # async-fat32 = { path = "../async-fat32" }
 
 [features]

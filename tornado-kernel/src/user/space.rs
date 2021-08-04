@@ -44,11 +44,9 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
         Self { used, free, len: 0 }
     }
 
-    /// 分配一个空间，需要字节大小为 `size`
+    /// 分配一个空间，需要物理页的数量为 `pages`
     ///
-    /// 分配的空间对齐为 [`PAGE_SIZE`]
-    ///
-    /// 分配成功返回起始物理页号和页数
+    /// 分配成功返回起始物理页号
     pub fn alloc(
         &mut self,
         pages: usize,

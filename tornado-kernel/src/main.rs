@@ -159,6 +159,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    // 初始化文件系统任务
     let task_5 = task::new_kernel(
         fs::fs_init(),
         process.clone(),
@@ -186,7 +187,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-
     let task_7 = task::new_kernel(
         user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
         process.clone(),
@@ -204,6 +204,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
+    
+    // 进入地址空间编号为 1 的用户态空间
     user::enter_user(1)
     // end()
 }

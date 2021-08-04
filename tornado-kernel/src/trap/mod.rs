@@ -221,7 +221,7 @@ use crate::memory::{swap_contex_va, SWAP_FRAME_VA, AddressSpaceId};
 use crate::hart::KernelHartInfo;
 
 /// 上升到用户态
-/// 目前让这个函数接收一个 SwapContext 参数和用户的页表
+/// 让这个函数接收一个 SwapContext 参数和用户的页表
 #[no_mangle]
 pub fn switch_to_user(context: &SwapContext, user_satp: usize, user_asid: usize) -> ! {
     use riscv::register::{

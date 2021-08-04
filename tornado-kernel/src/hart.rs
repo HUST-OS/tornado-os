@@ -26,9 +26,9 @@ pub fn read_tp() -> usize {
 // 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，以及已经分配的地址空间
 pub struct KernelHartInfo {
     hart_id: usize,
-    current_address_space_id: AddressSpaceId,
-    current_process: Option<Arc<Process>>,
-    hart_max_asid: AddressSpaceId,
+    current_address_space_id: AddressSpaceId, // unused
+    current_process: Option<Arc<Process>>, // unused
+    hart_max_asid: AddressSpaceId, // note: different between qemu and k210 platform
     asid_alloc: (LinkedList<usize>, usize), // (空余的编号回收池，目前已分配最大的编号)
     user_mm_sets: (LinkedList<MemorySet>, usize) // (注册的用户地址空间映射，上一次进入的用户地址空间编号)
 }
@@ -72,10 +72,12 @@ impl KernelHartInfo {
         use_tp_box(|b| b.current_address_space_id)
     }
 
+    // unused
     pub unsafe fn load_process(process: Arc<Process>) {
         use_tp_box(|b| b.current_process = Some(process.clone()));
     }
 
+    // unused
     pub fn current_process() -> Option<Arc<Process>> {
         use_tp_box(|b| b.current_process.clone())
     }

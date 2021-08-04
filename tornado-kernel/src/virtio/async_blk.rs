@@ -8,6 +8,7 @@ use async_virtio_driver::mmio::VirtIOHeader;
 pub struct VirtIOAsyncBlock(pub VirtIOBlock<1>);
 
 impl VirtIOAsyncBlock {
+    // unused
     pub async fn async_new() -> VirtIOAsyncBlock {
         let header = unsafe { &mut *(VIRTIO0 as *mut VirtIOHeader) };
         let async_blk = VirtIOBlock::async_new(header).await.unwrap();

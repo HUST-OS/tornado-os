@@ -67,7 +67,7 @@ pub extern "C" fn virtio_phys_to_virt(paddr: PhysicalAddress) -> VirtualAddress 
 #[no_mangle]
 pub extern "C" fn virtio_virt_to_phys(vaddr: VirtualAddress) -> PhysicalAddress {
     let offset = vaddr.0.get_bits(0..12); // Sv39 低 12 位是页内偏移
-    let satp = Satp::new(satp::read().bits());
+    let satp = Satp(satp::read().bits());
     let vpn = VirtualPageNumber::floor(vaddr);
     let ppn = satp
         .translate(vpn)
