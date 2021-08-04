@@ -31,12 +31,12 @@ type AsyncBlockDevice = Arc<AsyncSDCard>;
 #[cfg(feature = "qemu")]
 lazy_static! {
     pub static ref CACHE: BlockCache = BlockCache::init(Arc::clone(&VIRTIO_BLOCK));
-};
+}
 
 #[cfg(feature = "k210")]
 lazy_static! {
     pub static ref CACHE: BlockCache = BlockCache::init(Arc::clone(&SD_CARD));
-};
+}
 
 /// 各种缓存替换算法需要实现的 trait
 ///

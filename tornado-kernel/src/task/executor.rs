@@ -18,10 +18,9 @@ pub fn run_until_idle(
     set_task_state: impl Fn(usize, TaskState),
 ) {
     loop {
-        unsafe {
-            riscv::register::sie::clear_sext();
-        }
+        ext_intr_off();
         let task = peek_task();
+        ext_intr_on();
         unsafe {
             riscv::register::sie::set_sext();
         }
@@ -29,13 +28,9 @@ pub fn run_until_idle(
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的（内核）地址空间里面
-                unsafe {
-                    riscv::register::sie::clear_sext();
-                }
+                ext_intr_off();
                 set_task_state(task_repr, TaskState::Sleeping);
-                unsafe {
-                    riscv::register::sie::set_sext();
-                }
+                ext_intr_on();
                 let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
                 // 注册 waker
                 let waker = waker_ref(&task);
@@ -45,13 +40,9 @@ pub fn run_until_idle(
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 } else {
                     // 否则，释放task的内存
-                    unsafe {
-                        riscv::register::sie::clear_sext();
-                    }
+                    ext_intr_off();
                     delete_task(task_repr);
-                    unsafe {
-                        riscv::register::sie::set_sext();
-                    }
+                    ext_intr_on();
                 } // 隐含一个drop(task)
             }
             TaskResult::ShouldYield(next_asid) => {
@@ -75,45 +66,29 @@ pub fn run_one(
     set_task_state: impl Fn(usize, TaskState),
 ) {
     loop {
-        unsafe {
-            riscv::register::sie::clear_sext();
-        }
+        ext_intr_off();
         let task = peek_task();
-        unsafe {
-            riscv::register::sie::set_sext();
-        }
+        ext_intr_on();
         println!(">>> run one: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
-                unsafe {
-                    riscv::register::sie::clear_sext();
-                }
+                ext_intr_off();
                 set_task_state(task_repr, TaskState::Sleeping);
-                unsafe {
-                    riscv::register::sie::set_sext();
-                }
+                ext_intr_on();
                 let task: Arc<KernelTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
                 // 注册 waker
                 let waker = waker_ref(&task);
                 let mut context = Context::from_waker(&*waker);
                 // poll 操作之前在共享调度器中删除这个任务
-                unsafe {
-                    riscv::register::sie::clear_sext();
-                }
+                ext_intr_off();
                 delete_task(task_repr);
-                unsafe {
-                    riscv::register::sie::set_sext();
-                }
+                ext_intr_on();
                 let ret = task.task().future.lock().as_mut().poll(&mut context);
                 if let Poll::Pending = ret {
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
-                    unsafe {
-                        riscv::register::sie::clear_sext();
-                    }
+                    ext_intr_off();
                     add_task(task_repr); // 重新把这个任务放进共享调度器
-                    unsafe {
-                        riscv::register::sie::set_sext();
-                    }
+                    ext_intr_on();
                 } else {
                     // 否则，释放task的内存
                     unreachable!() // 该任务不可能返回 Ready(T)
@@ -130,5 +105,17 @@ pub fn run_one(
 impl woke::Woke for KernelTaskRepr {
     fn wake_by_ref(task: &Arc<Self>) {
         unsafe { task.do_wake() }
+    }
+}
+
+fn ext_intr_on() {
+    unsafe {
+        riscv::register::sie::set_sext();
+    }
+}
+
+fn ext_intr_off() {
+    unsafe {
+        riscv::register::sie::clear_sext();
     }
 }

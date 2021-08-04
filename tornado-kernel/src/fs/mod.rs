@@ -16,7 +16,7 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref FS: Arc<AsyncMutex<MaybeUninit<Fs>>> =
         unsafe { Arc::new(AsyncMutex::new(MaybeUninit::uninit())) };
-};
+}
 
 pub struct Fs(pub FAT32);
 

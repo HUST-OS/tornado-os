@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref SD_CARD: Arc<AsyncSDCard> = Arc::new(AsyncSDCard::new());
-};
+}
 
 pub struct AsyncSDCard(pub SDCardWrapper);
 
