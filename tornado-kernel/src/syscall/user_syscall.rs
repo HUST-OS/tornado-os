@@ -40,11 +40,13 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.x[9] = code;
                     swap_cx.x[10] = extra;
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
-                    trap::switch_to_user(swap_cx, user_satp)
+                    // todo: 这里需要得到用户的地址空间编号，目前先写死为 1
+                    trap::switch_to_user(swap_cx, user_satp, 1)
                 }
                 SyscallResult::Retry => {
                     // 不跳过指令，继续运行
-                    trap::switch_to_user(swap_cx, user_satp)
+                    // todo: 这里需要得到用户的地址空间编号，目前先写死为 1
+                    trap::switch_to_user(swap_cx, user_satp, 1)
                 }
                 SyscallResult::NextASID { satp } => {
                     // 需要转到目标地址空间去运行
@@ -66,9 +68,10 @@ pub extern "C" fn user_trap_handler() {
     }
 }
 
-// 给定 satp 寄存器，获取 SwapContext 的裸指针
+// 给定 satp 寄存器，获取 [`SwapContext`] 的裸指针
+// todo: 需要根据地址空间编号来得到 [`SwapContext`]
 unsafe fn get_swap_cx<'cx>(satp: &'cx Satp) -> &'cx mut SwapContext {
-    let swap_cx_va = memory::VirtualAddress(memory::SWAP_CONTEXT_VA);
+    let swap_cx_va = memory::VirtualAddress(memory::swap_contex_va(1)); // 这里先暂时写死为 0
     let swap_cx_vpn = memory::VirtualPageNumber::floor(swap_cx_va);
     let swap_cx_ppn = satp.translate(swap_cx_vpn).unwrap();
     // 将物理页号转换成裸指针

@@ -1,21 +1,20 @@
 use super::load::load_user;
 use crate::memory::{
-    AddressSpaceId, MemorySet, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET,
-    SWAP_CONTEXT_VA,
+    AddressSpaceId, Flags, MemorySet, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET,
+    STACK_SIZE, swap_contex_va,
 };
 use crate::task;
 use crate::trap;
 use alloc::string::String;
 
 /// 第一次进入用户态
-pub async fn first_enter_user<S: Into<String>>(
-    user: S,
-    kernel_stack_top: usize,
-) {
+pub async fn first_enter_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
     // 创建一个用户态映射
-    let user_memory = load_user(user).await;
+    let mut user_memory = load_user(user).await;
+    // 获取用户地址空间编号
+    let user_asid = user_memory.address_space_id.into_inner();
     // 存放用户特权级切换上下文的虚拟地址
-    let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
+    let swap_cx_va = VirtualAddress(swap_contex_va(user_asid));
     // 存放用户特权级切换上下文的虚拟页号
     let swap_cx_vpn = VirtualPageNumber::floor(swap_cx_va);
     // 获取存放用户特权级切换上下文的物理页号
@@ -36,15 +35,14 @@ pub async fn first_enter_user<S: Into<String>>(
 
     // 获取用户的 satp 寄存器
     let user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
-    let process = task::Process::new_user(user_memory).unwrap();
 
     // 用户态栈
-    let user_stack_handle = process.alloc_stack().expect("alloc user stack");
+    let user_stack_handle = user_memory
+        .alloc_page_range(STACK_SIZE, Flags::READABLE | Flags::WRITABLE | Flags::USER)
+        .expect("alloc user stack");
     // 这里减 4 是因为映射的时候虚拟地址的右半边是不包含的
     let user_stack_top = user_stack_handle.end.0 - 4;
-
-    // 获取用户地址空间编号
-    let user_asid = process.address_space_id().into_inner();
+    
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 
@@ -66,5 +64,5 @@ pub async fn first_enter_user<S: Into<String>>(
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
     swap_cx.set_gp(crate::SHAREDPAYLOAD_BASE);
     swap_cx.set_tp(user_asid);
-    trap::switch_to_user(swap_cx, user_satp);
+    trap::switch_to_user(swap_cx, user_satp, user_asid);
 }

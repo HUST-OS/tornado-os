@@ -217,12 +217,12 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
     )
 }
 
-use crate::memory::{SWAP_CONTEXT_VA, SWAP_FRAME_VA};
+use crate::memory::{swap_contex_va, SWAP_FRAME_VA, AddressSpaceId};
 
 /// 上升到用户态
 /// 目前让这个函数接收一个 SwapContext 参数和用户的页表
 #[no_mangle]
-pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
+pub fn switch_to_user(context: &SwapContext, user_satp: usize, user_asid: usize) -> ! {
     use riscv::register::{
         sstatus::{self, SPP},
         stvec::{self, TrapMode},
@@ -259,7 +259,7 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
 
     unsafe {
         llvm_asm!("fence.i" :::: "volatile");
-        llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(SWAP_CONTEXT_VA), "{a1}"(user_satp) :: "volatile");
+        llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(swap_contex_va(user_asid)), "{a1}"(user_satp) :: "volatile");
     }
     unreachable!()
 }

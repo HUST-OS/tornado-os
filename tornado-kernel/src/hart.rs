@@ -116,7 +116,6 @@ impl KernelHartInfo {
             }
         });
     }
-
 }
 
 #[inline]

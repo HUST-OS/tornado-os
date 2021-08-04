@@ -1,6 +1,6 @@
 use crate::memory::{
     config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
-    PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, SWAP_CONTEXT_VA, VIRTIO0,
+    PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, swap_contex_va, VIRTIO0,
 };
 use crate::memory::{
     AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,
@@ -169,7 +169,7 @@ impl MemorySet {
         );
 
         // 映射 SwapContext
-        let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
+        let swap_cx_va = VirtualAddress(swap_contex_va(asid.into_inner()));
         mapping.map_segment(
             &Segment {
                 map_type: MapType::Framed,
