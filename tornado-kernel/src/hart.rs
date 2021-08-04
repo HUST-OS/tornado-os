@@ -1,9 +1,10 @@
 //! 和处理核相关的函数
-use crate::memory::{AddressSpaceId, Satp};
+use crate::memory::{AddressSpaceId, Satp, MemorySet};
 use crate::task::Process;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use alloc::sync::Arc;
+use core::ptr::NonNull;
 
 /// 写一个指针到上下文指针
 #[inline]
@@ -28,7 +29,8 @@ pub struct KernelHartInfo {
     current_address_space_id: AddressSpaceId,
     current_process: Option<Arc<Process>>,
     hart_max_asid: AddressSpaceId,
-    asid_alloc: (LinkedList<usize>, usize), // 空余的编号回收池；目前已分配最大的编号
+    asid_alloc: (LinkedList<usize>, usize), // (空余的编号回收池，目前已分配最大的编号)
+    user_mm_sets: (LinkedList<MemorySet>, usize) // (注册的用户地址空间映射，上一次进入的用户地址空间编号)
 }
 
 impl KernelHartInfo {
@@ -42,7 +44,8 @@ impl KernelHartInfo {
             current_address_space_id: AddressSpaceId::from_raw(0),
             current_process: None,
             hart_max_asid: crate::memory::max_asid(),
-            asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
+            asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用,
+            user_mm_sets: (LinkedList::new(), 0)
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
@@ -116,10 +119,54 @@ impl KernelHartInfo {
             }
         });
     }
+
+    /// 添加用户地址空间映射
+    pub fn load_user_mm_set(mm_set: MemorySet) {
+        use_tp_box_move(|b| {
+            let (link, _prev) = &mut b.user_mm_sets;
+            link.push_back(mm_set);
+        });
+    }
+
+    /// 根据地址空间编号找到相应的 [`Satp`] 结构
+    pub fn user_mm_set(asid: usize) -> Option<Satp> {
+        use_tp_box(|b| {
+            let (link, _prev) = &b.user_mm_sets;
+            for set in link.iter() {
+                if set.address_space_id.into_inner() == asid {
+                    return Some(set.satp());
+                }
+            }
+            None
+        })
+    }
+
+    /// 设置上一次进入的用户地址空间编号
+    ///
+    /// 用于即将进入用户态
+    pub fn set_prev_asid(asid: usize) {
+        use_tp_box(|b| b.user_mm_sets.1 = asid)
+    }
+
+    /// 获取上一次进入的用户态地址空间编号
+    ///
+    /// 用于用户陷入内核的时候
+    pub fn get_prev_asid() -> usize {
+        use_tp_box(|b| b.user_mm_sets.1)
+    }
 }
 
 #[inline]
 fn use_tp_box<F: Fn(&mut Box<KernelHartInfo>) -> T, T>(f: F) -> T {
+    let addr = read_tp();
+    let mut bx: Box<KernelHartInfo> = unsafe { Box::from_raw(addr as *mut _) };
+    let ans = f(&mut bx);
+    drop(Box::into_raw(bx)); // 防止Box指向的空间被释放
+    ans
+}
+
+#[inline]
+fn use_tp_box_move<F: FnOnce(&mut Box<KernelHartInfo>) -> T, T>(f: F) -> T {
     let addr = read_tp();
     let mut bx: Box<KernelHartInfo> = unsafe { Box::from_raw(addr as *mut _) };
     let ans = f(&mut bx);

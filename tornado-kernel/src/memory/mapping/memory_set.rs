@@ -10,6 +10,8 @@ use crate::SHAREDPAYLOAD_BASE;
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
 
+use super::Satp;
+
 /// 一个地址空间中，所有与内存空间有关的信息
 #[derive(Debug)]
 pub struct MemorySet {
@@ -253,6 +255,11 @@ impl MemorySet {
     pub fn activate(&self) {
         println!("Activating memory set in asid {:?}", self.address_space_id);
         self.mapping.activate_on(self.address_space_id)
+    }
+
+    /// 获得当前映射的 [`Satp`]
+    pub fn satp(&self) -> Satp {
+        Satp::new(self.mapping.get_satp(self.address_space_id))
     }
 }
 
