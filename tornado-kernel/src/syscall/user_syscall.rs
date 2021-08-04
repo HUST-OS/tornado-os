@@ -1,12 +1,12 @@
 //! 从用户过来的系统调用在这里处理
 use super::{syscall, SyscallResult};
-use crate::memory::{VirtualAddress, VirtualPageNumber};
+use crate::hart::KernelHartInfo;
+use crate::memory::{VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET};
 use crate::trap;
 use crate::{
     memory::{self, Satp},
     trap::SwapContext,
 };
-use crate::hart::KernelHartInfo;
 use riscv::register::scause::{self, Interrupt, Trap};
 use riscv::register::{sepc, stval};
 
@@ -76,14 +76,14 @@ pub extern "C" fn user_trap_handler() {
 // 给定 satp 寄存器，获取 [`SwapContext`] 的裸指针
 // todo: 需要根据地址空间编号来得到 [`SwapContext`]
 pub unsafe fn get_swap_cx<'cx>(satp: &'cx Satp, asid: usize) -> &'cx mut SwapContext {
-    let swap_cx_va = memory::VirtualAddress(memory::swap_contex_va(asid));
-    let swap_cx_vpn = memory::VirtualPageNumber::floor(swap_cx_va);
+    let swap_cx_va = VirtualAddress(memory::swap_contex_va(asid));
+    let swap_cx_vpn = VirtualPageNumber::floor(swap_cx_va);
     let swap_cx_ppn = satp.translate(swap_cx_vpn).unwrap();
     // 将物理页号转换成裸指针
     (swap_cx_ppn
         .start_address()
         .0
-        .wrapping_add(memory::KERNEL_MAP_OFFSET) as *mut trap::SwapContext)
+        .wrapping_add(KERNEL_MAP_OFFSET) as *mut SwapContext)
         .as_mut()
         .unwrap()
 }

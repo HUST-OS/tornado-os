@@ -28,7 +28,7 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
         }
         let nodes =
             unsafe { core::mem::transmute::<_, [Node<usize, [u8; BLOCK_SIZE]>; CACHE_SIZE]>(data) };
-        
+
         let lfu_cache = LFUCache::empty(nodes);
         Self {
             block_device: device,

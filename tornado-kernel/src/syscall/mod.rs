@@ -3,12 +3,12 @@
 mod config;
 mod user_syscall;
 
-pub use user_syscall::user_trap_handler;
-pub use user_syscall::get_swap_cx;
-use crate::memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber};
 use crate::hart::KernelHartInfo;
+use crate::memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber};
 use bit_field::BitField;
 use config::*;
+pub use user_syscall::get_swap_cx;
+pub use user_syscall::user_trap_handler;
 
 pub enum SyscallResult {
     Procceed { code: usize, extra: usize },
@@ -36,10 +36,9 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
 fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
     match func {
         FUNC_SWITCH_TASK => switch_next_task(param[0]),
-        _ => unimplemented!()
+        _ => unimplemented!(),
     }
 }
-
 
 /// 用户态轮询任务的时候，发现下一个任务在不同地址空间，则产生该系统调用
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
@@ -50,7 +49,10 @@ fn switch_next_task(next_asid: usize) -> SyscallResult {
         SyscallResult::KernelTask
     } else {
         let satp = KernelHartInfo::user_satp(next_asid).expect("get satp register with asid");
-        SyscallResult::NextASID { asid: next_asid, satp }
+        SyscallResult::NextASID {
+            asid: next_asid,
+            satp,
+        }
     }
 }
 
@@ -60,7 +62,7 @@ fn do_process(param: [usize; 6], user_satp: usize, func: usize) -> SyscallResult
         FUNC_PROCESS_PANIC => {
             //[line as usize, col as usize, f_buf, f_len, m_buf, m_len]
             let [line, col, f_buf, f_len, m_buf, m_len] = param;
-            let user_satp = crate::memory::Satp::new(user_satp);
+            let user_satp = Satp(user_satp);
             let file_name = if f_buf == 0 {
                 None
             } else {
@@ -92,7 +94,7 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
     match func {
         FUNC_TEST_WRITE => {
             let (_iface, buf_ptr, buf_len) = (param[0], param[1], param[2]); // 调试接口编号，缓冲区指针，缓冲区长度
-            let user_satp = crate::memory::Satp::new(user_satp);
+            let user_satp = Satp(user_satp);
             let slice = unsafe { get_user_buf(user_satp, buf_ptr, buf_len) };
             for &byte in slice {
                 crate::sbi::console_putchar(byte as usize);
@@ -105,7 +107,7 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
         FUNC_TEST_READ_LINE => {
             // 读入len个字符，如果遇到换行符，或者缓冲区满，就停止
             let (_iface, buf_ptr, buf_len) = (param[0], param[1], param[2]); // 调试接口编号，输出缓冲区指针，输出缓冲区长度
-            let user_satp = crate::memory::Satp::new(user_satp);
+            let user_satp = Satp(user_satp);
             let slice = unsafe { get_user_buf_mut(user_satp, buf_ptr, buf_len) };
             for i in 0..buf_len {
                 let input = crate::sbi::console_getchar();

@@ -1,5 +1,5 @@
 //! 和处理核相关的函数
-use crate::memory::{AddressSpaceId, Satp, MemorySet};
+use crate::memory::{AddressSpaceId, MemorySet, Satp};
 use crate::task::Process;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
@@ -26,11 +26,11 @@ pub fn read_tp() -> usize {
 // 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，以及已经分配的地址空间
 pub struct KernelHartInfo {
     hart_id: usize,
-    current_address_space_id: AddressSpaceId,
-    current_process: Option<Arc<Process>>,
-    hart_max_asid: AddressSpaceId,
-    asid_alloc: (LinkedList<usize>, usize), // (空余的编号回收池，目前已分配最大的编号)
-    user_mm_sets: (LinkedList<MemorySet>, usize) // (注册的用户地址空间映射，上一次进入的用户地址空间编号)
+    current_address_space_id: AddressSpaceId,     // unused
+    current_process: Option<Arc<Process>>,        // unused
+    hart_max_asid: AddressSpaceId,                // note: different between qemu and k210 platform
+    asid_alloc: (LinkedList<usize>, usize),       // (空余的编号回收池，目前已分配最大的编号)
+    user_mm_sets: (LinkedList<MemorySet>, usize), // (注册的用户地址空间映射，上一次进入的用户地址空间编号)
 }
 
 impl KernelHartInfo {
@@ -45,7 +45,7 @@ impl KernelHartInfo {
             current_process: None,
             hart_max_asid: crate::memory::max_asid(),
             asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用,
-            user_mm_sets: (LinkedList::new(), 0)
+            user_mm_sets: (LinkedList::new(), 0),
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
@@ -72,10 +72,12 @@ impl KernelHartInfo {
         use_tp_box(|b| b.current_address_space_id)
     }
 
+    // unused
     pub unsafe fn load_process(process: Arc<Process>) {
         use_tp_box(|b| b.current_process = Some(process.clone()));
     }
 
+    // unused
     pub fn current_process() -> Option<Arc<Process>> {
         use_tp_box(|b| b.current_process.clone())
     }
@@ -169,7 +171,7 @@ impl KernelHartInfo {
             }
         })
     }
-    
+
     /// 根据地址空间编号找到相应的 [`Satp`] 结构
     pub fn user_satp(asid: usize) -> Option<Satp> {
         use_tp_box(|b| {

@@ -53,4 +53,3 @@ impl<'a, T> core::ops::DerefMut for LockGuard<'a, T> {
         self.guard.as_mut().unwrap().deref_mut()
     }
 }
-
