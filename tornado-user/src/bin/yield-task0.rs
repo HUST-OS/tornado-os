@@ -20,5 +20,6 @@ fn main() -> i32 {
     // 切换地址空间
     do_yield(2);
     println!("yield back");
+    tornado_user::execute_async();
     0
 }
