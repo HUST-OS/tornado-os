@@ -9,7 +9,7 @@ const BASE: usize = 0x8700_0000;
 lazy_static! {
     pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<20, BASE>> =
         AsyncMutex::new(UserSpaceManager::new());
-};
+}
 
 /// 用户内存管理器
 ///
