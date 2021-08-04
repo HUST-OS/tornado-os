@@ -1,11 +1,9 @@
 use super::load::load_user;
-use crate::memory::{
-    AddressSpaceId, Flags, MemorySet, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET,
-    STACK_SIZE, swap_contex_va,
-};
+use crate::memory::{AddressSpaceId, Flags, KERNEL_MAP_OFFSET, MemorySet, STACK_SIZE, Satp, VirtualAddress, VirtualPageNumber, swap_contex_va};
 use crate::task;
 use crate::trap;
 use crate::hart::{self, KernelHartInfo};
+use crate::syscall::get_swap_cx;
 use alloc::string::String;
 use riscv::register::satp;
 
@@ -102,7 +100,7 @@ pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
 
     // 获取用户的 satp 寄存器
     let user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
-
+    
     // 用户态栈
     let user_stack_handle = user_memory
         .alloc_page_range(STACK_SIZE, Flags::READABLE | Flags::WRITABLE | Flags::USER)
@@ -134,4 +132,10 @@ pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
     // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
     swap_cx.set_gp(crate::SHAREDPAYLOAD_BASE);
     swap_cx.set_tp(user_asid);
+}
+
+pub fn enter_user(asid: usize) -> ! {
+    let satp = KernelHartInfo::user_satp(asid).expect("get satp with asid");
+    let swap_context = unsafe { get_swap_cx(&satp, asid) };
+    trap::switch_to_user(swap_context, satp.inner(), asid)
 }

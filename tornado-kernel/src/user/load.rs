@@ -3,7 +3,7 @@
 use super::space::USER_SPACE;
 use crate::fs::FS;
 use crate::hart::KernelHartInfo;
-use crate::memory::{AddressSpaceId, MemorySet, PhysicalPageNumber};
+use crate::memory::{AddressSpaceId, MemorySet, PhysicalAddress, PhysicalPageNumber};
 use alloc::string::String;
 use core::ptr::copy;
 
@@ -16,13 +16,14 @@ pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
         let fs = unsafe { fs.assume_init_ref() };
         fs.load_binary(user).await
     };
-    let (base, pages) = {
+    let (base, _pages) = {
         let mut s = USER_SPACE.lock().await;
         s.alloc(binary.len(), asid)
             .expect("alloc physical space for user binary")
     };
-
     let base = base.start_address();
+    let base = PhysicalAddress(0x8300_0000 + asid.clone().into_inner() * 0x100_0000);
+    println!("asid {:?} user base: {:x?}", asid, base);
     let base_va = base.virtual_address_linear();
     let dst = base_va.0 as *const () as *mut u8;
     let src = binary.as_ptr();
@@ -30,5 +31,5 @@ pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
     unsafe {
         copy(src, dst, binary.len());
     }
-    MemorySet::new_bin(base.0, pages + 100, asid).expect("create user memory set")
+    MemorySet::new_bin(base.0, 400, asid).expect("create user memory set")
 }

@@ -43,11 +43,11 @@ impl VirtIOAsyncBlock {
             .expect("handle virtio interrupt error!");
         match ret {
             InterruptRet::Read(sector) => {
-                println!("virtio read block {:#x} succeed", sector);
+                // println!("virtio read block {:#x} succeed", sector);
                 return Some(sector);
             }
             InterruptRet::Write(sector) => {
-                println!("virtio write block {:#x} succeed", sector);
+                // println!("virtio write block {:#x} succeed", sector);
                 return Some(sector);
             }
             _other => {

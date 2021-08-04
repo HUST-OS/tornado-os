@@ -180,27 +180,33 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
     #[cfg(feature = "qemu")]
     {
-        // 通过一个异步任务进入用户态
         let task_6 = task::new_kernel(
-            user::first_enter_user("user_task.bin", stack_handle.end.0 - 4),
+            user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
             process.clone(),
             shared_payload.shared_scheduler,
             shared_payload.shared_set_task_state,
         );
 
+        let task_7 = task::new_kernel(
+            user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
+            process.clone(),
+            shared_payload.shared_scheduler,
+            shared_payload.shared_set_task_state,
+        );
+        
         unsafe {
             shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
+            shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
         }
 
-        task::run_one(
-            |task_repr| unsafe { shared_payload.add_task(0, address_space_id, task_repr) },
+        task::run_until_idle(
             || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
             |task_repr| unsafe { shared_payload.delete_task(task_repr) },
             |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
         );
     }
-
-    end()
+    user::enter_user(1)
+    // end()
 }
 
 fn end() -> ! {

@@ -4,7 +4,7 @@ mod config;
 mod user_syscall;
 
 pub use user_syscall::user_trap_handler;
-
+pub use user_syscall::get_swap_cx;
 use crate::memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber};
 use crate::hart::KernelHartInfo;
 use bit_field::BitField;
@@ -45,7 +45,6 @@ fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
 fn switch_next_task(next_asid: usize) -> SyscallResult {
-    println!("next asid: {}", next_asid);
     if next_asid == 0 {
         // 如果是内核任务
         SyscallResult::KernelTask
