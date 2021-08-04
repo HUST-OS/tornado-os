@@ -5,18 +5,17 @@ use crate::{
     memory::{self, Satp},
     trap::SwapContext,
 };
+use crate::hart::KernelHartInfo;
 use riscv::register::scause::{self, Interrupt, Trap};
 use riscv::register::{sepc, stval};
 
 /// 测试用的中断处理函数，用户态发生中断会陷入到这里
 pub extern "C" fn user_trap_handler() {
-    // 用户地址空间的 satp 寄存器通过 t2 传给内核
-    let user_satp: usize;
-    unsafe {
-        asm!("mv {}, t2", out(reg) user_satp, options(nomem, nostack));
-    }
-    let user_satp_2 = Satp::new(user_satp);
-    let swap_cx = unsafe { get_swap_cx(&user_satp_2) };
+    // 从 [`KernelHartInfo`] 中获取用户地址空间的 [`Satp`] 结构
+    let user_satp = KernelHartInfo::prev_satp().expect("get prev user satp");
+    // 从 [`KernelHartInfo`] 中获取用户地址空间编号
+    let asid = KernelHartInfo::get_prev_asid();
+    let swap_cx = unsafe { get_swap_cx(&user_satp, asid) };
     // 从 SwapContext 中读东西
     let mut param = [0usize; 6];
     for (idx, x) in swap_cx.x[9..15].iter().enumerate() {
@@ -35,21 +34,23 @@ pub extern "C" fn user_trap_handler() {
             crate::sbi::shutdown();
         }
         Trap::Exception(scause::Exception::UserEnvCall) => {
-            match syscall(param, user_satp, a6, a7) {
+            match syscall(param, user_satp.inner(), a6, a7) {
                 SyscallResult::Procceed { code, extra } => {
                     swap_cx.x[9] = code;
                     swap_cx.x[10] = extra;
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
-                    // todo: 这里需要得到用户的地址空间编号，目前先写死为 1
-                    trap::switch_to_user(swap_cx, user_satp, 1)
+                    trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
                 SyscallResult::Retry => {
                     // 不跳过指令，继续运行
-                    // todo: 这里需要得到用户的地址空间编号，目前先写死为 1
-                    trap::switch_to_user(swap_cx, user_satp, 1)
+                    trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::NextASID { satp } => {
+                SyscallResult::NextASID { asid, satp } => {
                     // 需要转到目标地址空间去运行
+                    let next_swap_contex = unsafe { get_swap_cx(&satp, asid) };
+                    trap::switch_to_user(next_swap_contex, satp.inner(), asid)
+                }
+                SyscallResult::KernelTask => {
                     todo!()
                 }
                 SyscallResult::Terminate(exit_code) => {
@@ -70,8 +71,8 @@ pub extern "C" fn user_trap_handler() {
 
 // 给定 satp 寄存器，获取 [`SwapContext`] 的裸指针
 // todo: 需要根据地址空间编号来得到 [`SwapContext`]
-unsafe fn get_swap_cx<'cx>(satp: &'cx Satp) -> &'cx mut SwapContext {
-    let swap_cx_va = memory::VirtualAddress(memory::swap_contex_va(1)); // 这里先暂时写死为 0
+unsafe fn get_swap_cx<'cx>(satp: &'cx Satp, asid: usize) -> &'cx mut SwapContext {
+    let swap_cx_va = memory::VirtualAddress(memory::swap_contex_va(asid)); // 这里先暂时写死为 0
     let swap_cx_vpn = memory::VirtualPageNumber::floor(swap_cx_va);
     let swap_cx_ppn = satp.translate(swap_cx_vpn).unwrap();
     // 将物理页号转换成裸指针

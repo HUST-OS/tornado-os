@@ -5,6 +5,7 @@
 #![feature(maybe_uninit_uninit_array)]
 #![feature(naked_functions)]
 #![feature(maybe_uninit_ref)]
+#![feature(linked_list_remove)]
 #[macro_use]
 extern crate alloc;
 

@@ -6,13 +6,15 @@ mod user_syscall;
 pub use user_syscall::user_trap_handler;
 
 use crate::memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber};
+use crate::hart::KernelHartInfo;
 use bit_field::BitField;
 use config::*;
 
 pub enum SyscallResult {
     Procceed { code: usize, extra: usize },
     Retry,
-    NextASID { satp: Satp },
+    NextASID { asid: usize, satp: Satp },
+    KernelTask,
     Terminate(i32),
 }
 
@@ -26,7 +28,7 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
     match module {
         MODULE_PROCESS => do_process(param, user_satp, func),
         MODULE_TEST_INTERFACE => do_test_interface(param, user_satp, func),
-        MODULE_TASK => do_task(param, func),
+        MODULE_SWITCH_TASK => switch_next_task(param, func),
         _ => panic!("Unknown module {:x}", module),
     }
 }
@@ -35,8 +37,15 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
 fn switch_next_task(param: [usize; 6], func: usize) -> SyscallResult {
-    let next_asid = unsafe { AddressSpaceId::from_raw(param[0]) }; // a0
-    todo!()
+    let next_asid = param[0]; // a0
+    println!("next asid: {}", next_asid);
+    if next_asid == 0 {
+        // 如果是内核任务
+        SyscallResult::KernelTask
+    } else {
+        let satp = KernelHartInfo::user_satp(next_asid).expect("get satp register with asid");
+        SyscallResult::NextASID { asid: next_asid, satp }
+    }
 }
 
 fn do_process(param: [usize; 6], user_satp: usize, func: usize) -> SyscallResult {
@@ -107,10 +116,6 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
         }
         _ => panic!("Unknown syscall test, func: {}, param: {:?}", func, param),
     }
-}
-
-fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
-    todo!()
 }
 
 unsafe fn get_user_buf<'a>(user_satp: Satp, buf_ptr: usize, buf_len: usize) -> &'a [u8] {

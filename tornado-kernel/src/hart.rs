@@ -121,15 +121,44 @@ impl KernelHartInfo {
     }
 
     /// 添加用户地址空间映射
-    pub fn load_user_mm_set(mm_set: MemorySet) {
+    pub fn load_user_mm_set(mm_set: MemorySet) -> bool {
         use_tp_box_move(|b| {
+            // 检查链表当前是否有相同地址空间的 [`MemorySet`]
             let (link, _prev) = &mut b.user_mm_sets;
+            for set in link.iter() {
+                if set.address_space_id == mm_set.address_space_id {
+                    return false;
+                }
+            }
             link.push_back(mm_set);
-        });
+            true
+        })
     }
 
+    /// 删除某个用户地址空间映射
+    ///
+    /// note: feature `linked_list_remove` is not stable
+    pub unsafe fn unload_user_mm_set(asid: usize) -> Option<MemorySet> {
+        use_tp_box(|b| {
+            let (link, _prev) = &mut b.user_mm_sets;
+            let mut index = 0;
+            for set in link.iter() {
+                if set.address_space_id.into_inner() == asid {
+                    break;
+                }
+                index += 1;
+            }
+            if index < link.len() {
+                let mm_set = link.remove(index);
+                Some(mm_set)
+            } else {
+                None
+            }
+        })
+    }
+    
     /// 根据地址空间编号找到相应的 [`Satp`] 结构
-    pub fn user_mm_set(asid: usize) -> Option<Satp> {
+    pub fn user_satp(asid: usize) -> Option<Satp> {
         use_tp_box(|b| {
             let (link, _prev) = &b.user_mm_sets;
             for set in link.iter() {
@@ -139,6 +168,12 @@ impl KernelHartInfo {
             }
             None
         })
+    }
+
+    /// 获取上一个进入的用户的 [`Satp`] 结构
+    pub fn prev_satp() -> Option<Satp> {
+        let asid = use_tp_box(|b| b.user_mm_sets.1);
+        Self::user_satp(asid)
     }
 
     /// 设置上一次进入的用户地址空间编号

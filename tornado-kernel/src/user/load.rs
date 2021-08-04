@@ -10,6 +10,7 @@ use core::ptr::copy;
 pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
     // 获取一个新的地址空间编号
     let asid = KernelHartInfo::alloc_address_space_id().expect("alloc address space id");
+    println!("new asid: {:?}", asid);
     let binary = {
         let fs = FS.lock().await;
         let fs = unsafe { fs.assume_init_ref() };

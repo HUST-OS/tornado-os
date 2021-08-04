@@ -5,6 +5,7 @@ use crate::memory::{
 };
 use crate::task;
 use crate::trap;
+use crate::hart::KernelHartInfo;
 use alloc::string::String;
 
 /// 第一次进入用户态
@@ -43,6 +44,12 @@ pub async fn first_enter_user<S: Into<String>>(user: S, kernel_stack_top: usize)
     // 这里减 4 是因为映射的时候虚拟地址的右半边是不包含的
     let user_stack_top = user_stack_handle.end.0 - 4;
     
+    // 将用户地址空间映射注册到 [`KernelHartInfo`]
+    assert!(
+        KernelHartInfo::load_user_mm_set(user_memory),
+        "try load memory set with exited"
+    );
+
     // 获取内核的satp寄存器
     let kernel_satp = riscv::register::satp::read().bits();
 
