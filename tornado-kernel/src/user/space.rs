@@ -6,8 +6,9 @@ use lazy_static::lazy_static;
 
 const BASE: usize = 0x8700_0000;
 
+
 lazy_static! {
-    pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<20, BASE>> =
+    pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<1000, BASE>> =
         AsyncMutex::new(UserSpaceManager::new());
 }
 
@@ -50,26 +51,25 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     /// 分配成功返回起始物理页号和页数
     pub fn alloc(
         &mut self,
-        size: usize,
+        pages: usize,
         asid: AddressSpaceId,
-    ) -> Option<(PhysicalPageNumber, usize)> {
+    ) -> Option<PhysicalPageNumber> {
         assert!(PAGE_SIZE % 2 == 0);
-        let num = (size + PAGE_SIZE - 1) / PAGE_SIZE; // 需要的页数
-        if num > N - self.len {
+        if pages > N - self.len {
             None
         } else {
             let base = self.free.next.as_ref().unwrap().id * PAGE_SIZE + B;
             let base = PhysicalPageNumber::floor(PhysicalAddress(base));
             // 更新链表
-            for _ in 0..num {
+            for _ in 0..pages {
                 let mut node = self.free.next.take().unwrap();
                 self.free.next = node.next.take();
                 let prev = self.used.next.take();
                 node.next = prev;
                 self.used.next = Some(node);
             }
-            self.len += num;
-            Some((base, num))
+            self.len += pages;
+            Some(base)
         }
     }
 

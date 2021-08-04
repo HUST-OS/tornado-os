@@ -24,7 +24,7 @@ pub fn run_until_idle(
         unsafe {
             riscv::register::sie::set_sext();
         }
-        println!(">>> kernel executor: next task = {:x?}", task);
+        // println!(">>> kernel executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的（内核）地址空间里面
@@ -69,7 +69,7 @@ pub fn run_one(
         ext_intr_off();
         let task = peek_task();
         ext_intr_on();
-        println!(">>> run one: next task = {:x?}", task);
+        // println!(">>> run one: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 ext_intr_off();

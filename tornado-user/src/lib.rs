@@ -125,6 +125,16 @@ pub fn spawn(future: impl Future<Output = ()> + Send + Sync + 'static) {
     }
 }
 
+/// 运行异步任务
+pub fn execute_async() {
+    let shared_payload = unsafe { task::shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
+    task::shared::run_until_ready(
+        || unsafe { shared_payload.peek_task(task::shared::user_should_switch) },
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
+    );
+}
+
 use syscall::*;
 
 pub fn exit(exit_code: i32) -> SyscallResult {
@@ -146,6 +156,8 @@ mod syscall {
 
     const FUNC_TEST_WRITE: usize = 0x666233;
     const FUNC_TEST_READ_LINE: usize = 0x11117777;
+
+    const FUNC_SWITCH_TASK: usize = 0x666666;
     pub struct SyscallResult {
         pub code: usize,
         pub extra: usize,
@@ -290,7 +302,7 @@ mod syscall {
     }
 
     pub fn sys_yield(next_asid: usize) -> SyscallResult {
-        todo!()
+        syscall_1(MODULE_TASK, FUNC_SWITCH_TASK, next_asid)
     }
 
     pub fn sys_test_write(buf: &[u8]) -> SyscallResult {

@@ -1,6 +1,6 @@
 use crate::memory::{
     config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
-    PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, SWAP_CONTEXT_VA, VIRTIO0,
+    PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, swap_contex_va, VIRTIO0,
 };
 use crate::memory::{
     AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,
@@ -9,6 +9,8 @@ use crate::memory::{
 use crate::SHAREDPAYLOAD_BASE;
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
+
+use super::Satp;
 
 /// 一个地址空间中，所有与内存空间有关的信息
 #[derive(Debug)]
@@ -133,8 +135,6 @@ impl MemorySet {
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?;
         println!("Kernel new asid = {:?}", address_space_id);
 
-        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
-        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
         Some(MemorySet {
             mapping,
             segments,
@@ -144,7 +144,7 @@ impl MemorySet {
     }
 
     /// 通过一个 bin 文件创建用户态映射
-    pub fn new_bin(base: usize, pages: usize) -> Option<MemorySet> {
+    pub fn new_bin(base: usize, pages: usize, asid: AddressSpaceId) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
         }
@@ -171,7 +171,7 @@ impl MemorySet {
         );
 
         // 映射 SwapContext
-        let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
+        let swap_cx_va = VirtualAddress(swap_contex_va(asid.into_inner()));
         mapping.map_segment(
             &Segment {
                 map_type: MapType::Framed,
@@ -192,17 +192,11 @@ impl MemorySet {
             Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER,
         );
 
-        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
-        println!("New user asid = {:?}", address_space_id);
-
-        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
-        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
-
         Some(MemorySet {
             mapping,
             segments: Vec::new(),
             allocated_pairs,
-            address_space_id,
+            address_space_id: asid,
         })
     }
     /// 检测一段内存区域和已有的是否存在重叠区域
@@ -261,6 +255,11 @@ impl MemorySet {
     pub fn activate(&self) {
         println!("Activating memory set in asid {:?}", self.address_space_id);
         self.mapping.activate_on(self.address_space_id)
+    }
+
+    /// 获得当前映射的 [`Satp`]
+    pub fn satp(&self) -> Satp {
+        Satp::new(self.mapping.get_satp(self.address_space_id))
     }
 }
 

@@ -256,12 +256,12 @@ pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) ->
     let irq = plic::plic_claim();
     if irq == 1 {
         // virtio 外部中断
-        println!("virtio external interrupt! irq: {}", irq);
+        // println!("virtio external interrupt! irq: {}", irq);
         // 获得数据传输完成的块号，后面需要通过这个去唤醒相应的任务
         let intr_ret = crate::virtio::VIRTIO_BLOCK
             .handle_interrupt()
             .expect("virtio handle interrupt error!");
-        println!("virtio handle interrupt return: {:x}", intr_ret);
+        // println!("virtio handle interrupt return: {:x}", intr_ret);
         crate::virtio::VIRTIO_BLOCK.0.wake_ops.notify(1);
         // 通知 PLIC 外部中断已经处理完
         crate::plic::plic_complete(irq);

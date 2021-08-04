@@ -15,9 +15,12 @@ const SERIAL_PORT: &'static str = "COM4";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
-const USER_APPS: [&'static str; 2] = [
+const USER_APPS: [&'static str; 5] = [
     "user_task",
-    "alloc-test"
+    "alloc-test",
+    "yield-task0",
+    "yield-task1",
+    "database"
     ];
 
 type Result<T = ()> = core::result::Result<T, XTaskError>;

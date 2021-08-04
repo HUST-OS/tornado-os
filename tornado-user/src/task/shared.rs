@@ -1,7 +1,7 @@
 use crate::do_yield;
 use crate::println;
 use crate::task::UserTaskRepr;
-
+use crate::ADDRESS_SPACE_ID;
 //！ 尝试在用户态给共享调度器添加任务
 use super::TaskResult;
 use alloc::sync::Arc;
@@ -23,8 +23,8 @@ impl AddressSpaceId {
     }
 }
 
-pub extern "C" fn user_should_switch(_asid: AddressSpaceId) -> bool {
-    false // todo
+pub extern "C" fn user_should_switch(asid: AddressSpaceId) -> bool {
+    asid.0 != unsafe { ADDRESS_SPACE_ID as u16 }
 }
 
 pub fn run_until_ready(
@@ -50,7 +50,8 @@ pub fn run_until_ready(
                 }
             }
             TaskResult::ShouldYield(next_asid) => {
-                // 让出操作
+                // 不释放这个任务的内存，执行切换地址空间的系统调用
+                mem::forget(task);
                 do_yield(next_asid);
             }
             TaskResult::NoWakeTask => {}

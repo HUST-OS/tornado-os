@@ -147,8 +147,8 @@ pub unsafe extern "C" fn user_to_supervisor() -> ! {
         "ld     tp, 35*8(a0)",
         // 将用户中断处理函数指针放到 t0 寄存器
         "ld     t0, 33*8(a0)",
-        // 将用户的 satp 寄存器放到 t2 寄存器里面去
-        "csrr   t2, satp",
+        // // 将用户的 satp 寄存器放到 t2 寄存器里面去
+        // "csrr   t2, satp",
         // 恢复内核页表
         "ld     t1, 31*8(a0)
     csrw    satp, t1",
@@ -217,12 +217,13 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
     )
 }
 
-use crate::memory::{SWAP_CONTEXT_VA, SWAP_FRAME_VA};
+use crate::memory::{swap_contex_va, SWAP_FRAME_VA, AddressSpaceId};
+use crate::hart::KernelHartInfo;
 
 /// 上升到用户态
 /// 目前让这个函数接收一个 SwapContext 参数和用户的页表
 #[no_mangle]
-pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
+pub fn switch_to_user(context: &SwapContext, user_satp: usize, user_asid: usize) -> ! {
     use riscv::register::{
         sstatus::{self, SPP},
         stvec::{self, TrapMode},
@@ -255,11 +256,14 @@ pub fn switch_to_user(context: &SwapContext, user_satp: usize) -> ! {
     // 这个是用户程序入口
     riscv::register::sepc::write(context.epc);
 
+    // 将即将要进入的用户地址空间编号写入 [`KernelHartInfo`]
+    KernelHartInfo::set_prev_asid(user_asid);
+
     // todo: 如何处理 tp 寄存器
 
     unsafe {
         llvm_asm!("fence.i" :::: "volatile");
-        llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(SWAP_CONTEXT_VA), "{a1}"(user_satp) :: "volatile");
+        llvm_asm!("jr $0" :: "r"(jmp_va), "{a0}"(swap_contex_va(user_asid)), "{a1}"(user_satp) :: "volatile");
     }
     unreachable!()
 }
