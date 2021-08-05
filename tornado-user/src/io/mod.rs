@@ -4,7 +4,6 @@ use core::future::Future;
 use core::task::{Context, Poll};
 use core::pin::Pin;
 use crate::syscall::sys_enroll_write;
-
 use super::syscall::sys_enroll_read;
 pub struct PollTwice {
     first: bool
@@ -30,12 +29,12 @@ impl Future for PollTwice {
     }
 }
 
-pub async fn read_block(block_id: usize, buf: &mut [u8]) -> PollTwice {
+pub fn read_block(block_id: usize, buf: &mut [u8]) -> PollTwice {
     let sys_ret = sys_enroll_read(block_id, buf);
     PollTwice::new()
 }
 
-pub async fn write_block(block_id: usize, buf: &[u8]) -> PollTwice {
+pub fn write_block(block_id: usize, buf: &[u8]) -> PollTwice {
     let sys_ret = sys_enroll_write(block_id, buf);
     PollTwice::new()
 }

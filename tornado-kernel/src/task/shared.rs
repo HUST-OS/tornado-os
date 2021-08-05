@@ -70,11 +70,11 @@ type SharedPayloadRaw = (
 impl SharedPayload {
     pub unsafe fn load(base: usize) -> Self {
         let mut payload_usize = *(base as *const SharedPayloadAsUsize);
-        println!(
-            "[kernel:shared] Raw table base: {:p}",
-            base as *const SharedPayloadAsUsize
-        );
-        println!("[kernel:shared] Content: {:x?}", payload_usize);
+        // println!(
+        //     "[kernel:shared] Raw table base: {:p}",
+        //     base as *const SharedPayloadAsUsize
+        // );
+        // println!("[kernel:shared] Content: {:x?}", payload_usize);
         let compiled_offset = payload_usize[0];
         for (i, idx) in payload_usize.iter_mut().enumerate() {
             if i == 0 {
@@ -85,11 +85,11 @@ impl SharedPayload {
                 panic!("shared scheduler used effective address of zero")
             }
         }
-        println!("[kernel:shared] After patched: {:x?}", payload_usize);
+        // println!("[kernel:shared] After patched: {:x?}", payload_usize);
         let payload_init: InitFunction = mem::transmute(payload_usize[1]);
         let page_list = payload_init(); // 初始化载荷，包括零初始化段的清零等等
         payload_usize[1] = 0; // 置空初始化函数
-        println!("[kernel:shared] Init, page list: {:x?}", page_list); // 应当在分页系统中使用上，本次比赛设计暂时不深入
+        // println!("[kernel:shared] Init, page list: {:x?}", page_list); // 应当在分页系统中使用上，本次比赛设计暂时不深入
         let raw_table: SharedPayloadRaw = mem::transmute(payload_usize);
         Self {
             shared_scheduler: raw_table.2,
