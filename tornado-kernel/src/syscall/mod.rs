@@ -45,7 +45,7 @@ fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
 fn switch_next_task(next_asid: usize) -> SyscallResult {
     if next_asid == 0 {
-        // 如果是内核任务
+        // 内核任务
         SyscallResult::KernelTask
     } else {
         let satp = KernelHartInfo::user_satp(next_asid).expect("get satp register with asid");
