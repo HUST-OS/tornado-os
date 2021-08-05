@@ -38,12 +38,13 @@ pub fn run_until_ready(
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的地址空间里面
-                set_task_state(task_repr, TaskState::Sleeping);
+                // set_task_state(task_repr, TaskState::Sleeping);
                 let task: Arc<UserTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
                 let waker = waker_ref(&task);
                 let mut context = Context::from_waker(&*waker);
                 let ret = task.task().future.lock().as_mut().poll(&mut context);
                 if let Poll::Pending = ret {
+                    set_task_state(task_repr, TaskState::Sleeping);
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 } else {
                     delete_task(task_repr);

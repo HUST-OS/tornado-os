@@ -116,14 +116,14 @@ impl woke::Woke for KernelTaskRepr {
 }
 
 /// 打开外部中断
-fn ext_intr_on() {
+pub fn ext_intr_on() {
     unsafe {
         riscv::register::sie::set_sext();
     }
 }
 
 /// 关闭外部中断
-fn ext_intr_off() {
+pub fn ext_intr_off() {
     unsafe {
         riscv::register::sie::clear_sext();
     }

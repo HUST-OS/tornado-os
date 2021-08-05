@@ -15,6 +15,8 @@ pub enum SyscallResult {
     Retry,
     NextASID { asid: usize, satp: Satp },
     KernelTask,
+    ReadTask { block_id: usize, buf_ptr: usize},
+    WriteTask { block_id: usize, buf_ptr: usize},
     Terminate(i32),
 }
 
@@ -36,6 +38,7 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
 fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
     match func {
         FUNC_SWITCH_TASK => switch_next_task(param[0]),
+        FUNC_IO_TASK => do_io_task(param[0], param[1], param[2]),
         _ => unimplemented!(),
     }
 }
@@ -56,13 +59,24 @@ fn switch_next_task(next_asid: usize) -> SyscallResult {
     }
 }
 
+fn do_io_task(io_type: usize, block_id: usize, buf_ptr: usize) -> SyscallResult {
+    match io_type {
+        0 => SyscallResult::ReadTask {
+            block_id, buf_ptr
+        },
+        1 => SyscallResult::WriteTask {
+            block_id, buf_ptr
+        },
+        _ => panic!("unknown io type")
+    }
+}
+
 fn do_process(param: [usize; 6], user_satp: usize, func: usize) -> SyscallResult {
     match func {
         FUNC_PROCESS_EXIT => SyscallResult::Terminate(param[0] as i32),
         FUNC_PROCESS_PANIC => {
             //[line as usize, col as usize, f_buf, f_len, m_buf, m_len]
             let [line, col, f_buf, f_len, m_buf, m_len] = param;
-            let user_satp = Satp(user_satp);
             let file_name = if f_buf == 0 {
                 None
             } else {
@@ -94,7 +108,6 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
     match func {
         FUNC_TEST_WRITE => {
             let (_iface, buf_ptr, buf_len) = (param[0], param[1], param[2]); // 调试接口编号，缓冲区指针，缓冲区长度
-            let user_satp = Satp(user_satp);
             let slice = unsafe { get_user_buf(user_satp, buf_ptr, buf_len) };
             for &byte in slice {
                 crate::sbi::console_putchar(byte as usize);
@@ -107,7 +120,6 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
         FUNC_TEST_READ_LINE => {
             // 读入len个字符，如果遇到换行符，或者缓冲区满，就停止
             let (_iface, buf_ptr, buf_len) = (param[0], param[1], param[2]); // 调试接口编号，输出缓冲区指针，输出缓冲区长度
-            let user_satp = Satp(user_satp);
             let slice = unsafe { get_user_buf_mut(user_satp, buf_ptr, buf_len) };
             for i in 0..buf_len {
                 let input = crate::sbi::console_getchar();
@@ -126,11 +138,12 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
     }
 }
 
-unsafe fn get_user_buf<'a>(user_satp: Satp, buf_ptr: usize, buf_len: usize) -> &'a [u8] {
+unsafe fn get_user_buf<'a>(user_satp: usize, buf_ptr: usize, buf_len: usize) -> &'a [u8] {
     get_user_buf_mut(user_satp, buf_ptr, buf_len)
 }
 
-unsafe fn get_user_buf_mut<'a>(user_satp: Satp, buf_ptr: usize, buf_len: usize) -> &'a mut [u8] {
+unsafe fn get_user_buf_mut<'a>(user_satp: usize, buf_ptr: usize, buf_len: usize) -> &'a mut [u8] {
+    let user_satp = Satp(user_satp);
     let offset = buf_ptr.get_bits(0..12); // Sv39 里面虚拟地址偏移量为低 12 位
     let vpn = VirtualPageNumber::floor(VirtualAddress(buf_ptr));
     let ppn = user_satp.translate(vpn).expect("no page fault");
