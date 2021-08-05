@@ -1,4 +1,7 @@
 use crate::task::{KernelTaskRepr, TaskResult, TaskState};
+use crate::hart::KernelHartInfo;
+use crate::syscall::get_swap_cx;
+use crate::trap::switch_to_user;
 use alloc::{boxed::Box, sync::Arc};
 use core::{
     mem,
@@ -46,7 +49,11 @@ pub fn run_until_idle(
                 } // 隐含一个drop(task)
             }
             TaskResult::ShouldYield(next_asid) => {
-                todo!("切换到 next_asid (= {}) 对应的地址空间", next_asid)
+                // 不释放这个任务的内存，执行切换地址空间的系统调用
+                mem::forget(task);
+                let next_satp = KernelHartInfo::user_satp(next_asid).expect("get satp with asid");
+                let swap_cx = unsafe { get_swap_cx(&next_satp, next_asid) };
+                switch_to_user(swap_cx, next_satp.inner(), next_asid)
             }
             TaskResult::NoWakeTask => {
                 // todo!()

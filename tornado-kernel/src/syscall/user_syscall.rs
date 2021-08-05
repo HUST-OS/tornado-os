@@ -3,6 +3,7 @@ use super::{syscall, SyscallResult};
 use crate::hart::KernelHartInfo;
 use crate::memory::{VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET};
 use crate::trap;
+use crate::task;
 use crate::{
     memory::{self, Satp},
     trap::SwapContext,
@@ -50,12 +51,21 @@ pub extern "C" fn user_trap_handler() {
                     // 跳过 `do_yield` 指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     // 需要转到目标地址空间去运行
-                    println!("[syscal] yield: {}", asid);
+                    println!("[syscall] yield: {}", asid);
                     let next_swap_contex = unsafe { get_swap_cx(&satp, asid) };
                     trap::switch_to_user(next_swap_contex, satp.inner(), asid)
                 }
                 SyscallResult::KernelTask => {
-                    todo!()
+                    // 跳过 `do_yield` 指令
+                    swap_cx.epc = swap_cx.epc.wrapping_add(4);
+                    println!("[syscall] yield kernel");
+                    let shared_payload = unsafe { task::SharedPayload::load(crate::SHAREDPAYLOAD_BASE) };
+                    task::run_until_idle(
+                        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+                        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+                        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
+                    );
+                    crate::end()
                 }
                 SyscallResult::Terminate(exit_code) => {
                     println!("User exit!");
