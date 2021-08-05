@@ -19,7 +19,7 @@ fn main() -> i32 {
     tornado_user::spawn(async_main());
     // 切换地址空间
     do_yield(2);
-    println!("yield back");
+    println!("yield back 1");
     execute_async();
     0
 }

@@ -27,7 +27,7 @@ pub enum TaskResult {
 pub struct TaskRepr(usize);
 
 /// 共享调度器的类型
-pub type SharedScheduler = Mutex<RingFifoScheduler<TaskMeta, 200>>;
+pub type SharedScheduler = Mutex<RingFifoScheduler<TaskMeta, 400>>;
 
 /// 全局的共享调度器
 /// 放到数据段，内核或用户从这个地址里取得共享调度器
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn shared_add_task(
     task_repr: TaskRepr,
 ) -> bool {
     // 本次比赛的设计比较简单，true表示成功，false表示失败
-    // println!("[Shared add task] {:p} {} {:?} {:x?}", shared_scheduler, hart_id, address_space_id, task_repr);
+    // println!("[Shared] {:p} {} {:?} {:x?}", shared_scheduler, hart_id, address_space_id, task_repr);
     let s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let handle = prepare_handle(hart_id, address_space_id, task_repr);
     let mut scheduler = s.as_ref().lock();
@@ -96,6 +96,7 @@ pub unsafe extern "C" fn shared_peek_task(
     shared_scheduler: NonNull<()>,
     should_switch: extern "C" fn(AddressSpaceId) -> bool,
 ) -> TaskResult {
+    print!(""); // 很奇怪的 bug，需要在这里输出点东西运行才会正常
     // 得到共享调度器的引用
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
@@ -141,6 +142,7 @@ pub unsafe extern "C" fn shared_delete_task(
     shared_scheduler: NonNull<()>,
     task_repr: TaskRepr,
 ) -> bool {
+    // println!("[shared] delete task");
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
     let len = scheduler.queue_len().unwrap();
@@ -181,6 +183,7 @@ pub unsafe extern "C" fn shared_set_task_state(
     task_repr: TaskRepr,
     new_state: TaskState,
 ) {
+    // println!("[shared] set task state");
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
     let len = scheduler.queue_len().unwrap();

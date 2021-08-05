@@ -8,7 +8,7 @@ use core::{
     task::{Context, Poll},
 };
 use woke::waker_ref;
-
+use riscv::register::{sstatus, sie};
 use super::{KernelTask, Process};
 
 /*
@@ -21,13 +21,13 @@ pub fn run_until_idle(
     set_task_state: impl Fn(usize, TaskState),
 ) {
     loop {
+        unsafe {
+            sstatus::set_sie();
+        }
         ext_intr_off();
         let task = peek_task();
         ext_intr_on();
-        unsafe {
-            riscv::register::sie::set_sext();
-        }
-        // println!(">>> kernel executor: next task = {:x?}", task);
+        println!(">>> kernel executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的（内核）地址空间里面
@@ -59,6 +59,9 @@ pub fn run_until_idle(
                 // todo!()
             }
             TaskResult::Finished => break,
+        }
+        unsafe {
+            sstatus::clear_sie();
         }
     }
 }
@@ -116,15 +119,15 @@ impl woke::Woke for KernelTaskRepr {
 }
 
 /// 打开外部中断
-fn ext_intr_on() {
+pub fn ext_intr_on() {
     unsafe {
-        riscv::register::sie::set_sext();
+        sie::set_sext();
     }
 }
 
 /// 关闭外部中断
-fn ext_intr_off() {
+pub fn ext_intr_off() {
     unsafe {
-        riscv::register::sie::clear_sext();
+        sie::clear_sext();
     }
 }
