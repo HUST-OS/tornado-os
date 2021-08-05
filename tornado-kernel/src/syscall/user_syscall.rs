@@ -12,12 +12,13 @@ use crate::virtio::VIRTIO_BLOCK;
 use crate::plic;
 use crate::SHAREDPAYLOAD_BASE;
 use riscv::register::scause::{self, Interrupt, Trap};
-use riscv::register::{sepc, stval};
+use riscv::register::{sepc, stval, sie, stvec};
 
 const BLOCK_SIZE: usize = 512;
 static mut WAKE_NUM: usize = 1;
 /// 测试用的中断处理函数，用户态发生中断会陷入到这里
 pub extern "C" fn user_trap_handler() {
+    
     // 从 [`KernelHartInfo`] 中获取用户地址空间的 [`Satp`] 结构
     let user_satp = KernelHartInfo::prev_satp().expect("get prev user satp");
     // 从 [`KernelHartInfo`] 中获取用户地址空间编号
@@ -65,6 +66,7 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     println!("[syscall] yield kernel");
                     let shared_payload = unsafe { task::SharedPayload::load(crate::SHAREDPAYLOAD_BASE) };
+                    trap::init();
                     task::run_until_idle(
                         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
                         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
@@ -86,7 +88,7 @@ pub extern "C" fn user_trap_handler() {
                         let task_repr = task.task_repr();
                         println!("[syscall] new kernel task: {:x}", task_repr);
                         ext_intr_off();
-                        shared_payload.add_task(0, AddressSpaceId::from_raw(0), task_repr);
+                        let ret = shared_payload.add_task(0, AddressSpaceId::from_raw(0), task_repr);
                         ext_intr_on();
                     }
                     // 运行下一条指令
@@ -115,6 +117,7 @@ pub extern "C" fn user_trap_handler() {
                         // 运行在用户程序中
                         // 唤醒一定数量的任务
                         VIRTIO_BLOCK.0.wake_ops.notify(WAKE_NUM);
+                        WAKE_NUM = 1;
                     } else {
                         // 运行在共享调度器中
                         // 这里不唤醒，增加计数，下次外部中断来的时候一起唤醒

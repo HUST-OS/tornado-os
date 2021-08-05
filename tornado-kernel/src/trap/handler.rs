@@ -260,6 +260,7 @@ pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) ->
         let _intr_ret = crate::virtio::VIRTIO_BLOCK
             .handle_interrupt()
             .expect("virtio handle interrupt error!");
+        println!("virtio intr: {}", _intr_ret);
         // 唤醒相应的块设备读写任务
         crate::virtio::VIRTIO_BLOCK.0.wake_ops.notify(1);
         // 通知 PLIC 外部中断已经处理完

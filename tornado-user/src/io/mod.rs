@@ -17,13 +17,11 @@ impl PollTwice {
 
 impl Future for PollTwice {
     type Output = ();
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.first {
-            println!("poll first");
             self.first = false;
             Poll::Pending
         } else {
-            println!("poll second");
             Poll::Ready(())
         }
     }
