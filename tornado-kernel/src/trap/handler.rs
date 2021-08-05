@@ -2,6 +2,7 @@ use super::timer;
 use crate::syscall::{syscall as do_syscall, SyscallResult};
 use crate::task::KernelTaskRepr;
 use crate::{hart::KernelHartInfo, plic, println};
+use crate::syscall::WAKE_NUM;
 use alloc::sync::Arc;
 use core::fmt;
 use riscv::register::{
@@ -262,7 +263,8 @@ pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) ->
             .expect("virtio handle interrupt error!");
         println!("virtio intr: {}", _intr_ret);
         // 唤醒相应的块设备读写任务
-        crate::virtio::VIRTIO_BLOCK.0.wake_ops.notify(1);
+        crate::virtio::VIRTIO_BLOCK.0.wake_ops.notify(WAKE_NUM);
+        WAKE_NUM = 1;
         // 通知 PLIC 外部中断已经处理完
         crate::plic::plic_complete(irq);
         trap_frame

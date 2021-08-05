@@ -15,7 +15,7 @@ use riscv::register::scause::{self, Interrupt, Trap};
 use riscv::register::{sepc, stval, sie, stvec};
 
 const BLOCK_SIZE: usize = 512;
-static mut WAKE_NUM: usize = 1;
+pub static mut WAKE_NUM: usize = 1;
 /// 测试用的中断处理函数，用户态发生中断会陷入到这里
 pub extern "C" fn user_trap_handler() {
     
@@ -74,30 +74,37 @@ pub extern "C" fn user_trap_handler() {
                     );
                     crate::end()
                 }
-                SyscallResult::ReadTask { block_id, buf_ptr } => {
+                SyscallResult::IOTask { block_id, buf_ptr, write  } => {
                     let wake_task_repr = unsafe { next_task_repr() };
                     let process = KernelHartInfo::current_process().expect("get kernel process");
                     unsafe {
                         let shared_payload = task::SharedPayload::load(SHAREDPAYLOAD_BASE);
-                        let task = task::new_kernel(
-                            read_block_task(block_id, buf_ptr, user_satp.inner(), wake_task_repr),
-                            process,
-                            shared_payload.shared_scheduler,
-                            shared_payload.shared_set_task_state
-                        );
+                        let task = if write {
+                            task::new_kernel(
+                                write_block_task(block_id, buf_ptr, user_satp.inner(), wake_task_repr),
+                                process,
+                                shared_payload.shared_scheduler,
+                                shared_payload.shared_set_task_state
+                            )
+                        } else {
+                            task::new_kernel(
+                                read_block_task(block_id, buf_ptr, user_satp.inner(), wake_task_repr),
+                                process,
+                                shared_payload.shared_scheduler,
+                                shared_payload.shared_set_task_state
+                            )
+                        };
                         let task_repr = task.task_repr();
                         println!("[syscall] new kernel task: {:x}", task_repr);
                         ext_intr_off();
-                        let ret = shared_payload.add_task(0, AddressSpaceId::from_raw(0), task_repr);
+                        shared_payload.add_task(0, AddressSpaceId::from_raw(0), task_repr);
                         ext_intr_on();
                     }
                     // 运行下一条指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::WriteTask { block_id, buf_ptr } => {
-                    todo!()
-                }
+                
                 SyscallResult::Terminate(exit_code) => {
                     println!("User exit!");
                     crate::sbi::shutdown();
@@ -106,6 +113,12 @@ pub extern "C" fn user_trap_handler() {
         }
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
             // 用户态被外部中断打断
+            //
+            // todo: 这里有个问题，就是最后一次外部中断的时候程序运行在共享调度器里面的时候
+            // 后面的任务不会被唤醒，执行器一直轮询找不到`醒着的`任务
+            //
+            // 目前的想法是用户执行器需要一个自检机制，当一直轮询找不到任务的次数达到某个阈值的时候
+            // 通过一个系统调用陷入内核检查是否有没有唤醒的块设备读写任务，将其唤醒
             unsafe {
                 let irq = plic::plic_claim();
                 if irq == 1 {
@@ -168,6 +181,16 @@ async fn read_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake
     }
 }
 
+async fn write_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake_task_repr: usize) {
+    let buf = unsafe { super::get_user_buf_mut(user_satp, buf_ptr, BLOCK_SIZE) };
+    VIRTIO_BLOCK.write_block(block_id, buf).await;
+    unsafe {
+        let shared_payload = task::SharedPayload::load(SHAREDPAYLOAD_BASE);
+        ext_intr_off();
+        shared_payload.set_task_state(wake_task_repr, task::TaskState::Ready);
+        ext_intr_on();
+    }
+}
 
 /// 从共享调度器中拿出下一个任务的指针，不弹出
 ///

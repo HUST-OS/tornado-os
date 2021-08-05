@@ -9,14 +9,14 @@ use bit_field::BitField;
 use config::*;
 pub use user_syscall::get_swap_cx;
 pub use user_syscall::user_trap_handler;
+pub use user_syscall::WAKE_NUM;
 
 pub enum SyscallResult {
     Procceed { code: usize, extra: usize },
     Retry,
     NextASID { asid: usize, satp: Satp },
     KernelTask,
-    ReadTask { block_id: usize, buf_ptr: usize},
-    WriteTask { block_id: usize, buf_ptr: usize},
+    IOTask { block_id: usize, buf_ptr: usize, write: bool},
     Terminate(i32),
 }
 
@@ -61,11 +61,11 @@ fn switch_next_task(next_asid: usize) -> SyscallResult {
 
 fn do_io_task(io_type: usize, block_id: usize, buf_ptr: usize) -> SyscallResult {
     match io_type {
-        0 => SyscallResult::ReadTask {
-            block_id, buf_ptr
+        0 => SyscallResult::IOTask {
+            block_id, buf_ptr, write: false
         },
-        1 => SyscallResult::WriteTask {
-            block_id, buf_ptr
+        1 => SyscallResult::IOTask {
+            block_id, buf_ptr, write: true
         },
         _ => panic!("unknown io type")
     }
