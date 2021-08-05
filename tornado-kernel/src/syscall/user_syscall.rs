@@ -73,18 +73,20 @@ pub extern "C" fn user_trap_handler() {
                     crate::end()
                 }
                 SyscallResult::ReadTask { block_id, buf_ptr } => {
-                    let task_repr = unsafe { next_task_repr() };
+                    let wake_task_repr = unsafe { next_task_repr() };
                     let process = KernelHartInfo::current_process().expect("get kernel process");
                     unsafe {
                         let shared_payload = task::SharedPayload::load(SHAREDPAYLOAD_BASE);
                         let task = task::new_kernel(
-                            read_block_task(block_id, buf_ptr, user_satp.inner(), task_repr),
+                            read_block_task(block_id, buf_ptr, user_satp.inner(), wake_task_repr),
                             process,
                             shared_payload.shared_scheduler,
                             shared_payload.shared_set_task_state
                         );
+                        let task_repr = task.task_repr();
+                        println!("[syscall] new kernel task: {:x}", task_repr);
                         ext_intr_off();
-                        shared_payload.add_task(0, AddressSpaceId::from_raw(0), task.task_repr());
+                        shared_payload.add_task(0, AddressSpaceId::from_raw(0), task_repr);
                         ext_intr_on();
                     }
                     // 运行下一条指令
@@ -109,12 +111,14 @@ pub extern "C" fn user_trap_handler() {
                     let _intr_ret = VIRTIO_BLOCK.handle_interrupt().unwrap();
                     let sepc = sepc::read();
                     if sepc < SHAREDPAYLOAD_BASE {
+                        println!("extr intr in user");
                         // 运行在用户程序中
                         // 唤醒一定数量的任务
                         VIRTIO_BLOCK.0.wake_ops.notify(WAKE_NUM);
                     } else {
                         // 运行在共享调度器中
                         // 这里不唤醒，增加计数，下次外部中断来的时候一起唤醒
+                        println!("extr intr in shared");
                         WAKE_NUM += 1;
                     }
                     plic::plic_complete(irq);

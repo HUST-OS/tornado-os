@@ -27,7 +27,7 @@ pub fn run_until_idle(
         unsafe {
             riscv::register::sie::set_sext();
         }
-        // println!(">>> kernel executor: next task = {:x?}", task);
+        println!(">>> kernel executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的（内核）地址空间里面
