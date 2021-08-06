@@ -9,6 +9,7 @@ extern crate tornado_user;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
+use alloc::string::String;
 
 /*
 飓风数据库。支持的语法示例：
@@ -94,27 +95,47 @@ show tables;
 
 async fn async_main() -> i32 {
     // let stdin = tornado_user::stdin();
-    let mut buf = alloc::string::String::new();
+    let mut buf = alloc::vec![0u8; 1024];
     print_welcome();
     loop {
         println!("[>] 请输入查询、操作或枚举语句来继续，使用q退出。");
-        let len = read_line(unsafe { buf.as_bytes_mut() }); // stdin.read_line(&mut buf);
-        let cmd = &buf[..len];
+        let len = read_line(&mut buf); // stdin.read_line(&mut buf);
+        let cmd = String::from_utf8_lossy(&buf[..len]);
         // todo
-        println!("[<] input: {}", cmd);
+        println!("[<] 您输入的指令: {}", cmd);
+        match cmd.as_ref() {
+            "q" => {
+                println!("[·] 程序退出，感谢再次使用！");
+                break
+            },
+            cmd => {
+                println!("[!] 无法识别的指令: {}", cmd);
+            }
+        }
     }
-    // 0
+    0
 }
 
 fn read_line(bytes: &mut [u8]) -> usize {
-    let mut input = tornado_user::syscall::sys_test_read_line_one().extra;
+    let mut input = tornado_user::syscall::sys_test_read_one().extra;
     let mut len = 0;
     while input != 13 && len < bytes.len() {
+        if input == 8 { // 退格
+            if len != 0 {
+                tornado_user::syscall::sys_test_write_one(8);
+                tornado_user::syscall::sys_test_write_one(b' ' as usize);
+                tornado_user::syscall::sys_test_write_one(8);
+                len -= 1;
+            }
+            continue
+        }
         tornado_user::syscall::sys_test_write_one(input); // 回显
         bytes[len] = input as u8;
         len += 1;
-        input = tornado_user::syscall::sys_test_read_line_one().extra;
+        input = tornado_user::syscall::sys_test_read_one().extra;
     }
+    tornado_user::syscall::sys_test_write_one(10);
+    tornado_user::syscall::sys_test_write_one(13); // 换行
     len
 }
 
