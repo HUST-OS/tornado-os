@@ -120,15 +120,14 @@ fn read_line(bytes: &mut [u8]) -> usize {
     let mut input = tornado_user::syscall::sys_test_read_one().extra;
     let mut len = 0;
     while input != 13 && len < bytes.len() {
-        if input == 8 { // 退格
-            if len != 0 {
-                tornado_user::syscall::sys_test_write_one(8);
-                tornado_user::syscall::sys_test_write_one(b' ' as usize);
-                tornado_user::syscall::sys_test_write_one(8);
-                len -= 1;
-            }
-            continue
-        }
+        // println!("[{}]", input);
+        // if input == 127 { // 退格
+        //     if len != 0 {
+        //         tornado_user::syscall::sys_test_write_one(8);
+        //         len -= 1;
+        //     }
+        //     continue
+        // } // 暂不支持退格
         tornado_user::syscall::sys_test_write_one(input); // 回显
         bytes[len] = input as u8;
         len += 1;
