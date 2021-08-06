@@ -1,23 +1,18 @@
 //! 异步 FAT32 文件系统
 mod bs_bpb;
-mod fat;
-mod entry;
 mod dir_file;
+mod entry;
+mod fat;
 mod tree;
 
-use crate::virtio::async_blk::VirtIOAsyncBlock;
-use crate::sdcard::AsyncSDCard;
 use crate::cache::CACHE;
-use alloc::{
-    vec::Vec,
-    boxed::Box,
-    sync::Arc,
-    string::String
-};
+use crate::sdcard::AsyncSDCard;
+use crate::virtio::async_blk::VirtIOAsyncBlock;
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use bs_bpb::*;
-use fat::*;
-use entry::*;
 use dir_file::*;
+use entry::*;
+use fat::*;
 use tree::*;
 
 const BLOCK_SIZE: usize = 512;
@@ -46,10 +41,7 @@ impl FAT32 {
         let bpb = Arc::new(bpb);
         // 获取根目录占用的块号集合
         let root_clusters = fat.get_link(2).await;
-        let root = RootDirectory::new(
-            root_clusters.clone(),
-            bpb.clone(),
-        );
+        let root = RootDirectory::new(root_clusters.clone(), bpb.clone());
         /*
         let fat_offset = fat1_offset_bytes(&*bpb);
         let root_offset = cluster_offset_bytes(&*bpb, 2);
@@ -84,11 +76,7 @@ impl FAT32 {
                         }
                         if !long_start {
                             // 短文件名目录，直接插入到目录树
-                            let dir = Directory::new(
-                                e,
-                                Arc::clone(&fat),
-                                Arc::clone(&bpb),
-                            );
+                            let dir = Directory::new(e, Arc::clone(&fat), Arc::clone(&bpb));
                             dirs.push(Box::new(dir.clone()));
                             node.insert(Box::new(dir));
                         } else {
@@ -127,11 +115,7 @@ impl FAT32 {
                         }
                         if !long_start {
                             // 短文件名文件
-                            let file = File::new(
-                                e,
-                                Arc::clone(&fat),
-                                Arc::clone(&bpb),
-                            );
+                            let file = File::new(e, Arc::clone(&fat), Arc::clone(&bpb));
                             node.insert(Box::new(file));
                         } else {
                             // 长文件名文件
@@ -140,12 +124,8 @@ impl FAT32 {
                             while let Some(l) = long_entries.pop() {
                                 v.push(l);
                             }
-                            let long_file = LongFile::new(
-                                e,
-                                v.into_iter(),
-                                Arc::clone(&bpb),
-                                Arc::clone(&fat),
-                            );
+                            let long_file =
+                                LongFile::new(e, v.into_iter(), Arc::clone(&bpb), Arc::clone(&fat));
                             node.insert(Box::new(long_file));
                         }
                     }
@@ -289,11 +269,7 @@ impl FAT32 {
                             panic!("no avaiable space in disk!")
                         }
                     }
-                    let file = File::new(
-                        entry,
-                        Arc::clone(&self.fat),
-                        Arc::new(self.bpb.clone()),
-                    );
+                    let file = File::new(entry, Arc::clone(&self.fat), Arc::new(self.bpb.clone()));
                     // 更新目录树
                     node.insert(Box::new(file));
                     Ok(())
@@ -341,7 +317,7 @@ impl FAT32 {
             // 清空剩余的块
             for cluster in clusters {
                 let sector = cluster_offset_sectors(&self.bpb, cluster) as usize;
-                let mut block  = CACHE.read_block(sector).await;
+                let mut block = CACHE.read_block(sector).await;
                 block.fill(0);
                 CACHE.write_block(sector, block).await;
             }

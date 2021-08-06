@@ -135,8 +135,7 @@ impl Mapping {
         self.map_range(vpn_range, ppn_range, flags);
     }
 
-    // 映射指定的虚拟页号和物理页号
-    // 不能指定初始数据
+    /// 映射指定的虚拟页号和物理页号
     fn map_range(
         &mut self,
         vpn_range: Range<VirtualPageNumber>,
@@ -154,7 +153,7 @@ impl Mapping {
         }
     }
 
-    // 插入和映射线性的段
+    /// 插入和映射线性的段
     fn map_range_linear(
         &mut self,
         vpn_range: Range<VirtualPageNumber>,
@@ -173,7 +172,7 @@ impl Mapping {
         Some(Vec::new())
     }
 
-    // 插入和映射按帧分页的段
+    /// 插入和映射按帧分页的段
     fn map_range_framed(
         &mut self,
         vpn_range: Range<VirtualPageNumber>,
@@ -214,7 +213,8 @@ impl Mapping {
         use riscv::register::satp::{self, Mode};
         let asid = asid.into_inner();
         unsafe {
-            // 将新的ppn和asid值写到satp寄存器
+            // 将新的 ppn 和 asid 值写到 satp 寄存器
+            // note: k210 平台上最大地址空间编号为 0，这样写可能会触发异常
             satp::set(Mode::Sv39, asid, self.root_ppn.into());
             // 刷新页表。rs1=x0、rs2=asid，说明刷新与这个地址空间有关的所有地址
             asm!("sfence.vma x0, {asid}", asid = in(reg) asid);
@@ -276,11 +276,11 @@ impl Iterator for VpnRangeIter {
     }
 }
 
-// 一个物理页号段区间的迭代器
+/// 一个物理页号段区间的迭代器
 struct PpnRangeIter {
-    // 区间结束，不包含
+    /// 区间结束，不包含
     end_addr: usize,
-    // 区间开始，包含
+    /// 区间开始，包含
     current_addr: usize,
 }
 

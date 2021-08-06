@@ -5,25 +5,26 @@
 #![feature(maybe_uninit_uninit_array)]
 #![feature(naked_functions)]
 #![feature(maybe_uninit_ref)]
+#![feature(linked_list_remove)]
 #[macro_use]
 extern crate alloc;
 
 #[macro_use]
 mod console;
 mod algorithm;
+mod cache;
+mod fs;
 mod hart;
 mod memory;
 mod panic;
+mod plic;
 mod sbi;
+mod sdcard;
 mod syscall;
 mod task;
 mod trap;
 mod user;
 mod virtio;
-mod plic;
-mod sdcard;
-mod fs;
-mod cache;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -113,9 +114,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // todo: 这里要有个地方往tp里写东西，否则目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
     kernel_memory.activate();
-    
+
     #[cfg(feature = "qemu")]
-    unsafe { plic::xv6_plic_init(); }
+    unsafe {
+        plic::xv6_plic_init();
+    }
 
     let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
 
@@ -123,7 +126,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let hart_id = crate::hart::KernelHartInfo::hart_id();
     let address_space_id = process.address_space_id();
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
-    
 
     let task_1 = task::new_kernel(
         task_1(),
@@ -143,13 +145,13 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    // #[cfg(feature = "qemu")]
-    // let task_4 = task::new_kernel(
-    //     virtio::async_virtio_blk_test(),
-    //     process.clone(),
-    //     shared_payload.shared_scheduler,
-    //     shared_payload.shared_set_task_state,
-    // ); // todo: 自检太久了，测试完关掉
+    #[cfg(feature = "qemu")]
+    let task_4 = task::new_kernel(
+        virtio::async_virtio_blk_test(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
     #[cfg(feature = "k210")]
     let task_4 = task::new_kernel(
         sdcard::sdcard_test(),
@@ -157,6 +159,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    // 初始化文件系统任务
     let task_5 = task::new_kernel(
         fs::fs_init(),
         process.clone(),
@@ -177,32 +180,56 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
-    let user_asid = unsafe { memory::AddressSpaceId::from_raw(1) };
-    // 通过一个异步任务进入用户态
+    // 准备两个用户态任务
     let task_6 = task::new_kernel(
-        user::first_enter_user("user_task.bin", user_asid, stack_handle.end.0 - 4),
+        user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    
+    let task_7 = task::new_kernel(
+        user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+    let task_8 = task::new_kernel(
+        user::prepare_user("async-read.bin", stack_handle.end.0 - 4),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
     }
 
-    task::run_one(
-        |task_repr| unsafe { shared_payload.add_task(0, address_space_id, task_repr)},
+    task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
-    unreachable!()
-    // end(stack_handle.end.0 - 4)
+    let task_9 = task::new_kernel(
+        yield_kernel(),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+    
+
+    unsafe {
+        shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
+    }
+    
+    // 进入地址空间编号为 1 的用户态空间
+    user::enter_user(1)
+    // end()
 }
 
-#[cfg(feature = "k210")]
-fn end(_stack_end: usize) -> ! {
+fn end() -> ! {
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
     unsafe { hart::KernelHartInfo::unload_hart() };
     // 没有任务了，关机
@@ -215,6 +242,10 @@ async fn task_1() {
 
 async fn task_2() {
     println!("hello world from 2!");
+}
+
+async fn yield_kernel() {
+    println!("yield kernel task!");
 }
 
 struct FibonacciFuture {
@@ -257,10 +288,3 @@ impl Future for FibonacciFuture {
         }
     }
 }
-
-// use alloc::vec::Vec;
-// use spin::Mutex;
-// use lazy_static::lazy_static;
-// lazy_static!(
-//     pub static ref VIRTIO_TASK: Mutex<Vec<usize>> = Mutex::new(Vec::new());
-// );

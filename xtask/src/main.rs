@@ -4,7 +4,7 @@ use std::{
     fs,
     io::{Seek, SeekFrom, Write},
     path::{Path, PathBuf},
-    process::{Command, Stdio}
+    process::{Command, Stdio},
 };
 
 #[macro_use]
@@ -15,10 +15,14 @@ const SERIAL_PORT: &'static str = "COM4";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
-const USER_APPS: [&'static str; 2] = [
+const USER_APPS: [&'static str; 6] = [
     "user_task",
-    "alloc-test"
-    ];
+    "alloc-test",
+    "yield-task0",
+    "yield-task1",
+    "async-read",
+    "database",
+];
 
 type Result<T = ()> = core::result::Result<T, XTaskError>;
 
@@ -56,7 +60,7 @@ enum XTaskError {
     GDBError,
     AsmError,
     SizeError,
-    MkfsError
+    MkfsError,
 }
 
 fn main() -> Result {
@@ -144,7 +148,7 @@ fn main() -> Result {
             "shared_scheduler" => xtask.shared_scheduler_size()?,
             app => xtask.user_app_size(app)?,
         };
-    } else if let Some(matches) = matches.subcommand_matches("debug") {
+    } else if let Some(_matches) = matches.subcommand_matches("debug") {
         // let app = matches.args.get("user").unwrap();
         xtask.build_kernel("qemu")?;
         xtask.build_shared_scheduler("qemu")?;
@@ -159,11 +163,10 @@ fn main() -> Result {
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
         if matches.is_present("sdcard") {
-            xtask.mkfs_fat_sdcard()?;    
+            xtask.mkfs_fat_sdcard()?;
         } else {
             xtask.mkfs_fat()?;
         }
-        
     } else {
         todo!()
     }
@@ -342,6 +345,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
     }
     /// 编译用户程序
+    #[allow(unused)]
     fn build_user_app<APP: AsRef<str>>(&self, app: APP) -> Result {
         let mut cargo = Command::new(&self.cargo);
         cargo.current_dir(self.root.join("tornado-user"));
@@ -476,14 +480,17 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             "loader,file=shared-scheduler.bin,addr=0x86000000",
         ]); // todo: 这里的地址需要可配置
-        // qemu.args(&[
-        //     "-device",
-        //     format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
-        // ]);
+            // qemu.args(&[
+            //     "-device",
+            //     format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
+            // ]);
         qemu.args(&["-drive", "file=../../../fs.img,if=none,format=raw,id=x0"]);
-        qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
+        qemu.args(&[
+            "-device",
+            "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
+        ]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
-        
+
         if let Ok(status) = qemu.status() {
             if status.success() {
                 Ok(())
@@ -507,21 +514,24 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             .open(&k210_bin)
             .expect("open k210 output file");
         let buf = fs::read(kernel).expect("read kernel binary");
-        k210.seek(SeekFrom::Start(KERNEL_OFFSET)).expect("seek to kernel offset");
-        k210.write(&buf).expect("write kernel binary to k210 output");
+        k210.seek(SeekFrom::Start(KERNEL_OFFSET))
+            .expect("seek to kernel offset");
+        k210.write(&buf)
+            .expect("write kernel binary to k210 output");
         let buf = fs::read(shared_scheduler).expect("read kernel binary");
-        k210.seek(SeekFrom::Start(SCHEDULER_OFFSET)).expect("seek to shared-scheduler offsets");
+        k210.seek(SeekFrom::Start(SCHEDULER_OFFSET))
+            .expect("seek to shared-scheduler offsets");
         k210.write(&buf).expect("write kernel binary to k210 ouput");
         let mut py = Command::new("python");
         py.current_dir(&self.root);
-         py
-            .arg("ktool.py")
+        py.arg("ktool.py")
             .args(&["--port", SERIAL_PORT])
             .args(&["--baudrate", "1500000"])
             .arg("--terminal")
             .arg(k210_bin)
-            .status().unwrap();
-        
+            .status()
+            .unwrap();
+
         if let Ok(status) = py.status() {
             if status.success() {
                 Ok(())
@@ -587,7 +597,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         self.size(app)
     }
     fn debug_qemu(&self, threads: u32) -> Result {
-    // fn debug_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
+        // fn debug_qemu<APP: AsRef<str>>(&self, app: APP, threads: u32) -> Result {
         /* @qemu-system-riscv64 \
         -machine virt \
         -nographic \
@@ -612,12 +622,15 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "-device",
             "loader,file=shared-scheduler.bin,addr=0x86000000",
         ]); // todo: 这里的地址需要可配置
-        // qemu.args(&[
-        //     "-device",
-        //     format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
-        // ]);
+            // qemu.args(&[
+            //     "-device",
+            //     format!("loader,file={}.bin,addr=0x87000000", app.as_ref()).as_str(),
+            // ]);
         qemu.args(&["-drive", "file=../../../fs.img,if=none,format=raw,id=x0"]);
-        qemu.args(&["-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]);
+        qemu.args(&[
+            "-device",
+            "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
+        ]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
         qemu.args(&["-gdb", "tcp::1234", "-S"]);
 
@@ -655,19 +668,25 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
                 Err(XTaskError::MkfsError)
-            } else { Ok(()) }
+            } else {
+                Ok(())
+            }
         };
         let s = |mut sudo: Command| {
             sudo.stdin(Stdio::piped());
             let mut child = sudo.spawn().expect("execute sudo command");
             {
                 let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-                stdin.write_all("xxx".as_bytes()).expect("Failed to write to stdin");
+                stdin
+                    .write_all("xxx".as_bytes())
+                    .expect("Failed to write to stdin");
             }
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
                 Err(XTaskError::MkfsError)
-            } else { Ok(()) }
+            } else {
+                Ok(())
+            }
         };
         let mut dd = Command::new(DD);
         dd.args(&["if=/dev/zero", "of=fs.img", "bs=512k", "count=512"]);
@@ -681,7 +700,10 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         for app in USER_APPS.iter() {
             let mut sudo = Command::new("sudo");
             let app = format!("{}.bin", *app);
-            sudo.current_dir(self.target_dir()).args(&["-S", "cp"]).arg(app).arg("/mnt");
+            sudo.current_dir(self.target_dir())
+                .args(&["-S", "cp"])
+                .arg(app)
+                .arg("/mnt");
             s(sudo)?;
         }
         let mut sudo = Command::new("sudo");
@@ -696,17 +718,24 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             let mut child = sudo.spawn().expect("execute sudo command");
             {
                 let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-                stdin.write_all("xxx".as_bytes()).expect("Failed to write to stdin");
+                stdin
+                    .write_all("xxx".as_bytes())
+                    .expect("Failed to write to stdin");
             }
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
                 Err(XTaskError::MkfsError)
-            } else { Ok(()) }
+            } else {
+                Ok(())
+            }
         };
         for app in USER_APPS.iter() {
             let mut sudo = Command::new("sudo");
             let app = format!("{}.bin", *app);
-            sudo.current_dir(self.target_dir()).args(&["-S", "cp"]).arg(app).arg("/dev/sdb");
+            sudo.current_dir(self.target_dir())
+                .args(&["-S", "cp"])
+                .arg(app)
+                .arg("/dev/sdb");
             s(sudo)?;
         }
         Ok(())

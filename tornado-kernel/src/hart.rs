@@ -1,9 +1,10 @@
 //! 和处理核相关的函数
-use crate::memory::{AddressSpaceId, Satp};
+use crate::memory::{AddressSpaceId, MemorySet, Satp};
 use crate::task::Process;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use alloc::sync::Arc;
+use core::ptr::NonNull;
 
 /// 写一个指针到上下文指针
 #[inline]
@@ -25,23 +26,26 @@ pub fn read_tp() -> usize {
 // 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，以及已经分配的地址空间
 pub struct KernelHartInfo {
     hart_id: usize,
-    current_address_space_id: AddressSpaceId,
-    current_process: Option<Arc<Process>>,
-    hart_max_asid: AddressSpaceId,
-    asid_alloc: (LinkedList<usize>, usize), // 空余的编号回收池；目前已分配最大的编号
-    satps: LinkedList<(AddressSpaceId, Satp)>, // 记录地址空间与 satp 寄存器的对应关系
+    current_address_space_id: AddressSpaceId,     // unused
+    current_process: Option<Arc<Process>>,        // unused
+    hart_max_asid: AddressSpaceId,                // note: different between qemu and k210 platform
+    asid_alloc: (LinkedList<usize>, usize),       // (空余的编号回收池，目前已分配最大的编号)
+    user_mm_sets: (LinkedList<MemorySet>, usize), // (注册的用户地址空间映射，上一次进入的用户地址空间编号)
 }
 
 impl KernelHartInfo {
     /// 准备一个新的核，以供调度器使用
+    ///
+    /// 在堆上申请一片内存存放 [`KernelHartInfo`] 数据结构
+    /// 这片内存不会马上释放，只有在调用 `unload_hart` 函数的时候才会释放
     pub unsafe fn load_hart(hart_id: usize) {
         let hart_info = Box::new(KernelHartInfo {
             hart_id,
             current_address_space_id: AddressSpaceId::from_raw(0),
             current_process: None,
             hart_max_asid: crate::memory::max_asid(),
-            asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用
-            satps: LinkedList::new(),
+            asid_alloc: (LinkedList::new(), 0), // 0留给内核，其它留给应用,
+            user_mm_sets: (LinkedList::new(), 0),
         });
         let tp = Box::into_raw(hart_info) as usize; // todo: 这里有内存泄漏，要在drop里处理
         write_tp(tp)
@@ -68,10 +72,12 @@ impl KernelHartInfo {
         use_tp_box(|b| b.current_address_space_id)
     }
 
+    // unused
     pub unsafe fn load_process(process: Arc<Process>) {
         use_tp_box(|b| b.current_process = Some(process.clone()));
     }
 
+    // unused
     pub fn current_process() -> Option<Arc<Process>> {
         use_tp_box(|b| b.current_process.clone())
     }
@@ -100,7 +106,20 @@ impl KernelHartInfo {
 
     #[cfg(feature = "k210")]
     pub fn alloc_address_space_id() -> Option<AddressSpaceId> {
-        unsafe { Some(AddressSpaceId::from_raw(0)) }
+        // k210 平台上最大地址空间编号为 `0`，这里假设可以存在大于 0 的地址空间编号
+        use_tp_box(|b| {
+            let (free, max) = &mut b.asid_alloc;
+            if let Some(_) = free.front() {
+                // 如果链表有内容，返回内容
+                return free
+                    .pop_front()
+                    .map(|idx| unsafe { AddressSpaceId::from_raw(idx) });
+            }
+            // 如果链表是空的
+            let ans = *max;
+            *max += 1;
+            Some(unsafe { AddressSpaceId::from_raw(ans) })
+        })
     }
 
     /// 释放地址空间编号
@@ -113,42 +132,91 @@ impl KernelHartInfo {
             } else {
                 free.push_back(asid.into_inner())
             }
-            let satps = &mut b.satps;
-            let len = satps.len();
-            for _ in 0..len {
-                if let Some(x) = satps.pop_front() {
-                    if x.0 != asid {
-                        satps.push_back((x.0, x.1));
-                    }
-                }
-            }
         });
     }
 
-    /// 添加地址空间编号和 satp 寄存器的对应关系
-    pub fn add_asid_satp_map(asid: AddressSpaceId, satp: Satp) {
-        // todo: 需要判断是否地址空间编号已经存在
-        use_tp_box(|b| {
-            b.satps.push_back((asid, satp));
+    /// 添加用户地址空间映射
+    pub fn load_user_mm_set(mm_set: MemorySet) -> bool {
+        use_tp_box_move(|b| {
+            // 检查链表当前是否有相同地址空间的 [`MemorySet`]
+            let (link, _prev) = &mut b.user_mm_sets;
+            for set in link.iter() {
+                if set.address_space_id == mm_set.address_space_id {
+                    return false;
+                }
+            }
+            link.push_back(mm_set);
+            true
         })
     }
 
-    /// 根据地址空间编号获得 satp 寄存器
-    pub fn get_satp(asid: AddressSpaceId) -> Option<Satp> {
+    /// 删除某个用户地址空间映射
+    ///
+    /// note: feature `linked_list_remove` is not stable
+    pub unsafe fn unload_user_mm_set(asid: usize) -> Option<MemorySet> {
         use_tp_box(|b| {
-            let v = &mut b.satps;
-            for x in v.iter() {
-                if x.0 == asid {
-                    return Some(x.1);
+            let (link, _prev) = &mut b.user_mm_sets;
+            let mut index = 0;
+            for set in link.iter() {
+                if set.address_space_id.into_inner() == asid {
+                    break;
+                }
+                index += 1;
+            }
+            if index < link.len() {
+                let mm_set = link.remove(index);
+                Some(mm_set)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// 根据地址空间编号找到相应的 [`Satp`] 结构
+    pub fn user_satp(asid: usize) -> Option<Satp> {
+        use_tp_box(|b| {
+            let (link, _prev) = &b.user_mm_sets;
+            for set in link.iter() {
+                if set.address_space_id.into_inner() == asid {
+                    return Some(set.satp());
                 }
             }
-            return None;
+            None
         })
+    }
+
+    /// 获取上一个进入的用户的 [`Satp`] 结构
+    pub fn prev_satp() -> Option<Satp> {
+        let asid = use_tp_box(|b| b.user_mm_sets.1);
+        Self::user_satp(asid)
+    }
+
+    /// 设置上一次进入的用户地址空间编号
+    ///
+    /// 用于即将进入用户态
+    pub fn set_prev_asid(asid: usize) {
+        use_tp_box(|b| b.user_mm_sets.1 = asid)
+    }
+
+    /// 获取上一次进入的用户态地址空间编号
+    ///
+    /// 用于用户陷入内核的时候
+    pub fn get_prev_asid() -> usize {
+        use_tp_box(|b| b.user_mm_sets.1)
     }
 }
 
 #[inline]
 fn use_tp_box<F: Fn(&mut Box<KernelHartInfo>) -> T, T>(f: F) -> T {
+    let addr = read_tp();
+    let mut bx: Box<KernelHartInfo> = unsafe { Box::from_raw(addr as *mut _) };
+    let ans = f(&mut bx);
+    drop(Box::into_raw(bx)); // 防止Box指向的空间被释放
+    ans
+}
+
+#[inline]
+fn use_tp_box_move<F: FnOnce(&mut Box<KernelHartInfo>) -> T, T>(f: F) -> T {
     let addr = read_tp();
     let mut bx: Box<KernelHartInfo> = unsafe { Box::from_raw(addr as *mut _) };
     let ans = f(&mut bx);

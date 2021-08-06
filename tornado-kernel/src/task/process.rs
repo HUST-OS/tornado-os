@@ -1,3 +1,4 @@
+//! unused
 use crate::hart::KernelHartInfo;
 use crate::memory::{AddressSpaceId, Flags, MemorySet, VirtualAddress, STACK_SIZE};
 use alloc::sync::Arc;
@@ -49,10 +50,10 @@ impl Process {
             is_user: true,
             inner: Mutex::new(ProcessInner { memory_set }),
         });
-        unsafe {
-            KernelHartInfo::load_address_space_id(process.address_space_id());
-            KernelHartInfo::load_process(process.clone());
-        };
+        // unsafe {
+        //     KernelHartInfo::load_address_space_id(process.address_space_id());
+        //     KernelHartInfo::load_process(process.clone());
+        // };
         Some(process)
     }
 
@@ -73,7 +74,6 @@ impl Process {
             .memory_set
             .alloc_page_range(STACK_SIZE, flags)
     }
-
 }
 
 /// 进程的编号

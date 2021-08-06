@@ -1,9 +1,7 @@
-use crate::memory::{KERNEL_MAP_OFFSET, PLIC_BASE, PhysicalPageNumber, SWAP_CONTEXT_VA, VIRTIO0, config::{
-        FREE_MEMORY_START,
-        MEMORY_END_ADDRESS,
-        PAGE_SIZE,
-        SWAP_FRAME_VA,
-    }};
+use crate::memory::{
+    config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
+    swap_contex_va, PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, VIRTIO0,
+};
 use crate::memory::{
     AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,
     VirtualAddress, VirtualPageNumber,
@@ -11,6 +9,8 @@ use crate::memory::{
 use crate::SHAREDPAYLOAD_BASE;
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
+
+use super::Satp;
 
 /// 一个地址空间中，所有与内存空间有关的信息
 #[derive(Debug)]
@@ -111,8 +111,10 @@ impl MemorySet {
         map_mmio(&mut mapping);
 
         // 映射共享载荷，目前地址是写死的
-        let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
-        let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
+        let va_range =
+            VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
+        let pa_range =
+            PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
         mapping.map_defined(
             &va_range,
             &pa_range,
@@ -133,8 +135,6 @@ impl MemorySet {
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?;
         println!("Kernel new asid = {:?}", address_space_id);
 
-        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
-        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
         Some(MemorySet {
             mapping,
             segments,
@@ -144,7 +144,7 @@ impl MemorySet {
     }
 
     /// 通过一个 bin 文件创建用户态映射
-    pub fn new_bin(base: usize, pages: usize) -> Option<MemorySet> {
+    pub fn new_bin(base: usize, pages: usize, asid: AddressSpaceId) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
         }
@@ -171,7 +171,7 @@ impl MemorySet {
         );
 
         // 映射 SwapContext
-        let swap_cx_va = VirtualAddress(SWAP_CONTEXT_VA);
+        let swap_cx_va = VirtualAddress(swap_contex_va(asid.into_inner()));
         mapping.map_segment(
             &Segment {
                 map_type: MapType::Framed,
@@ -182,25 +182,21 @@ impl MemorySet {
         )?;
 
         // 映射共享负荷
-        let va_range = VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
-        let pa_range = PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
+        let va_range =
+            VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
+        let pa_range =
+            PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
         mapping.map_defined(
             &va_range,
             &pa_range,
             Flags::WRITABLE | Flags::READABLE | Flags::EXECUTABLE | Flags::USER,
         );
 
-        let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?; // todo: 释放asid
-        println!("New user asid = {:?}", address_space_id);
-
-        let satp = super::Satp::new(mapping.get_satp(address_space_id).into());
-        crate::hart::KernelHartInfo::add_asid_satp_map(address_space_id, satp);
-
         Some(MemorySet {
             mapping,
             segments: Vec::new(),
             allocated_pairs,
-            address_space_id,
+            address_space_id: asid,
         })
     }
     /// 检测一段内存区域和已有的是否存在重叠区域
@@ -260,6 +256,11 @@ impl MemorySet {
         println!("Activating memory set in asid {:?}", self.address_space_id);
         self.mapping.activate_on(self.address_space_id)
     }
+
+    /// 获得当前映射的 [`Satp`]
+    pub fn satp(&self) -> Satp {
+        Satp(self.mapping.get_satp(self.address_space_id))
+    }
 }
 
 fn range_vpn_from_range_va(src: &Range<VirtualAddress>) -> Range<VirtualPageNumber> {
@@ -274,7 +275,7 @@ fn map_mmio(mapping: &mut Mapping) {
     mapping.map_defined(
         &(plic_va_start..plic_va_end),
         &(plic_va_start.physical_address_linear()..plic_va_end.physical_address_linear()),
-        Flags::READABLE | Flags::WRITABLE
+        Flags::READABLE | Flags::WRITABLE,
     );
 
     // 映射 virtio disk mmio
@@ -283,7 +284,7 @@ fn map_mmio(mapping: &mut Mapping) {
     mapping.map_one(
         VirtualPageNumber::floor(virtio_va),
         Some(PhysicalPageNumber::floor(virtio_pa)),
-        Flags::WRITABLE | Flags::READABLE
+        Flags::WRITABLE | Flags::READABLE,
     );
 }
 

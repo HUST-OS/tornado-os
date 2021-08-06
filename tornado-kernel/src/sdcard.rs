@@ -1,12 +1,12 @@
 //! 异步 SD 卡驱动
-use lazy_static::lazy_static;
-use async_sd::SDCardWrapper;
-use alloc::sync::Arc;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
+use async_sd::SDCardWrapper;
+use lazy_static::lazy_static;
 
-lazy_static!(
+lazy_static! {
     pub static ref SD_CARD: Arc<AsyncSDCard> = Arc::new(AsyncSDCard::new());
-);
+}
 
 pub struct AsyncSDCard(pub SDCardWrapper);
 

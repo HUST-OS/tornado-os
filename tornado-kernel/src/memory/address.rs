@@ -142,7 +142,7 @@ impl From<VirtualAddress> for usize {
 
 /// 虚拟页号
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct VirtualPageNumber(usize);
+pub struct VirtualPageNumber(pub usize);
 
 impl VirtualPageNumber {
     /// 将地址转换为页号，向下取整

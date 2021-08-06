@@ -312,7 +312,7 @@ impl</*'a,*/ X: SPI> SDCard</*'a,*/ X> {
         Response {
             spi: Arc::clone(&self.spi),
             spi_cs: self.spi_cs,
-            time_out: 0x0fff
+            time_out: 0x0fff,
         }
     }
 
@@ -759,8 +759,8 @@ impl<T: SPI> Future for Response<T> {
                     // 唤醒
                     cx.waker().wake_by_ref();
                     Poll::Pending
-                },
-                ret => Poll::Ready(Ok(ret))
+                }
+                ret => Poll::Ready(Ok(ret)),
             }
         } else {
             Poll::Ready(Err(()))

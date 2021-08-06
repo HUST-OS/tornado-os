@@ -4,7 +4,6 @@ use super::queue::VirtQueue;
 use super::util::AsBuf;
 use super::*;
 use alloc::sync::Arc;
-use event::Event;
 /// 虚拟块设备前端驱动
 /// ref: https://github.com/rcore-os/virtio-drivers/blob/master/src/blk.rs
 /// thanks!
@@ -28,6 +27,7 @@ use core::future::Future;
 use core::pin::Pin;
 use core::ptr::NonNull;
 use core::task::{Context, Poll};
+use event::Event;
 use spin::Mutex;
 use volatile::Volatile;
 
@@ -107,7 +107,7 @@ pub struct VirtIOBlock<const N: usize> {
     capacity: usize,
     /// 扇区大小
     pub sector_size: u32,
-    pub wake_ops: Event
+    pub wake_ops: Event,
 }
 
 // todo: 尽量让 VirtIOBlock 天然 Send 和 Sync
@@ -204,7 +204,7 @@ impl<const N: usize> VirtIOBlock<N> {
             unlock_queue: NonNull::new(queue_ptr).unwrap(),
             capacity: config.capacity.read() as usize,
             sector_size: config.sector_size.read(),
-            wake_ops: Event::new()
+            wake_ops: Event::new(),
         })
     }
 
@@ -252,7 +252,7 @@ impl<const N: usize> VirtIOBlock<N> {
             unlock_queue: NonNull::new(queue_ptr).unwrap(),
             capacity: config.capacity.read() as usize,
             sector_size: config.sector_size.read(),
-            wake_ops: Event::new()
+            wake_ops: Event::new(),
         })
     }
 
@@ -401,12 +401,13 @@ impl<const N: usize> VirtIOBlock<N> {
 
         q.add_buf(&[req.as_buf()], &[buf, resp.as_buf_mut()])
             .expect("[virtio] virtual queue add buf error");
-
+        
         h.notify(0);
 
         listener.await;
         
         q.pop_used()?;
+        
         match resp.status {
             BlockRespStatus::Ok => Ok(()),
             _ => Err(VirtIOError::IOError),
@@ -439,7 +440,7 @@ impl<const N: usize> VirtIOBlock<N> {
         h.notify(0);
 
         listener.await;
-        
+
         q.pop_used()?;
         match resp.status {
             BlockRespStatus::Ok => Ok(()),
@@ -462,7 +463,7 @@ impl<const N: usize> VirtIOBlock<N> {
         }
         Ok(())
     }
-    
+
     pub async fn write_block_event(&self, block_id: usize, buf: &[u8]) -> Result<()> {
         // 块大小 = 一个块中的扇区数 * 扇区大小
         let block_size = self.sector_size as usize * N;
@@ -477,7 +478,7 @@ impl<const N: usize> VirtIOBlock<N> {
         }
         Ok(())
     }
-    
+
     /// unused
     pub fn read_sector(&self, block_id: usize, buf: &mut [u8]) -> Result<()> {
         // 缓冲区大小必须等于扇区大小

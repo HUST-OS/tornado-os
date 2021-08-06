@@ -38,7 +38,7 @@ delete from 表格 where 字段1 = 值1;
 inputs = { SOI ~ input* ~ EOI }
 input = _{ command ~ blank ~ ";" ~ blank }
 command = _{ select | insert | show }
-select = { "select" ~ " " ~ column_selector ~ " " ~ 
+select = { "select" ~ " " ~ column_selector ~ " " ~
     "from" ~ " " ~ table ~ blank ~
     (where_clause)? }
 insert = { "insert" ~ " " ~ "into" ~ " " ~ table ~ blank ~ insert_content }
@@ -50,11 +50,11 @@ left_value = { ident }
 right_value = { ident }
 
 insert_content = { "(" ~columns ~ ")"~blank~
-	"values"~blank~"("~columns~")" }
-   
+    "values"~blank~"("~columns~")" }
+
 column_selector = { "*" | columns }
 columns = { column ~ (comma ~ column)+ }
-column = { ident } 
+column = { ident }
 table = { ident }
 
 comma = _{ blank ~ "," ~ blank }

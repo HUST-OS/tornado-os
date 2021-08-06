@@ -1,7 +1,7 @@
 use crate::do_yield;
 use crate::println;
 use crate::task::UserTaskRepr;
-
+use crate::ADDRESS_SPACE_ID;
 //！ 尝试在用户态给共享调度器添加任务
 use super::TaskResult;
 use alloc::sync::Arc;
@@ -23,8 +23,8 @@ impl AddressSpaceId {
     }
 }
 
-pub extern "C" fn user_should_switch(_asid: AddressSpaceId) -> bool {
-    false // todo
+pub extern "C" fn user_should_switch(asid: AddressSpaceId) -> bool {
+    asid.0 != unsafe { ADDRESS_SPACE_ID as u16 }
 }
 
 pub fn run_until_ready(
@@ -38,19 +38,21 @@ pub fn run_until_ready(
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的地址空间里面
-                set_task_state(task_repr, TaskState::Sleeping);
+                // set_task_state(task_repr, TaskState::Sleeping);
                 let task: Arc<UserTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
                 let waker = waker_ref(&task);
                 let mut context = Context::from_waker(&*waker);
                 let ret = task.task().future.lock().as_mut().poll(&mut context);
                 if let Poll::Pending = ret {
+                    set_task_state(task_repr, TaskState::Sleeping);
                     mem::forget(task); // 不要释放task的内存，它将继续保存在内存中被使用
                 } else {
                     delete_task(task_repr);
                 }
             }
             TaskResult::ShouldYield(next_asid) => {
-                // 让出操作
+                // 不释放这个任务的内存，执行切换地址空间的系统调用
+                mem::forget(task);
                 do_yield(next_asid);
             }
             TaskResult::NoWakeTask => {}

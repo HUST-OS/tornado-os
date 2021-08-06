@@ -1,27 +1,22 @@
 //! 文件系统
 mod fat32;
 
-use core::intrinsics::copy;
-use alloc::vec::Vec;
-use alloc::sync::Arc;
+use super::memory::{MemorySet, PhysicalAddress, PhysicalPageNumber, KERNEL_MAP_OFFSET, PAGE_SIZE};
+use super::sdcard::SD_CARD;
+use super::virtio::VIRTIO_BLOCK;
 use alloc::string::String;
-use core::mem::MaybeUninit;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use async_mutex::AsyncMutex;
+use core::intrinsics::copy;
+use core::mem::MaybeUninit;
 use fat32::FAT32;
 use lazy_static::lazy_static;
-use super::virtio::VIRTIO_BLOCK;
-use super::sdcard::SD_CARD;
-use super::memory::{
-    PhysicalAddress,
-    PhysicalPageNumber,
-    PAGE_SIZE,
-    KERNEL_MAP_OFFSET,
-    MemorySet
-};
 
-lazy_static!(
-    pub static ref FS: Arc<AsyncMutex<MaybeUninit<Fs>>> = unsafe { Arc::new(AsyncMutex::new(MaybeUninit::uninit())) };
-);
+lazy_static! {
+    pub static ref FS: Arc<AsyncMutex<MaybeUninit<Fs>>> =
+        unsafe { Arc::new(AsyncMutex::new(MaybeUninit::uninit())) };
+}
 
 pub struct Fs(pub FAT32);
 
@@ -38,17 +33,6 @@ impl Fs {
     }
     pub async fn store_binary<S: Into<String>>(&mut self, file: S, src: &[u8]) {
         self.0.load_binary(file).await.expect("store binary");
-    }
-    pub async fn load_user<S: Into<String>>(&self, user: S, pa: PhysicalAddress) -> MemorySet {
-        let data = self.load_binary(user).await;
-        let pages = data.len() / PAGE_SIZE + (data.len() % PAGE_SIZE != 0) as usize;
-        unsafe {
-            let src = data.as_ptr();
-            let dst = (pa.0 + KERNEL_MAP_OFFSET) as *const () as *mut u8;
-            copy(src, dst, data.len());
-        }
-        let mm_set = MemorySet::new_bin(pa.0, pages).expect("create user memory set");
-        mm_set
     }
     pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) {
         self.0.create(dir, file, size).await.expect("create file");

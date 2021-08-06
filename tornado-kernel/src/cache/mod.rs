@@ -7,19 +7,20 @@
 
 mod lfu;
 
-use alloc::vec::Vec;
+use crate::sdcard::{AsyncSDCard, SD_CARD};
+use crate::virtio::{async_blk::VirtIOAsyncBlock, VIRTIO_BLOCK};
 use alloc::sync::Arc;
-use core::mem::MaybeUninit;
+use alloc::vec::Vec;
 use async_mutex::AsyncMutex;
-use lfu::LFUCache;
+use core::mem::MaybeUninit;
 use lazy_static::lazy_static;
-use crate::virtio::{VIRTIO_BLOCK, async_blk::VirtIOAsyncBlock};
-use crate::sdcard::{SD_CARD, AsyncSDCard};
+use lfu::LFUCache;
 
 const BLOCK_SIZE: usize = 512;
 const CACHE_SIZE: usize = 4;
 
-pub type BlockCache = AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, CACHE_SIZE>;
+pub type BlockCache =
+    AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, CACHE_SIZE>;
 
 #[cfg(feature = "qemu")]
 type AsyncBlockDevice = Arc<VirtIOAsyncBlock>;
@@ -28,14 +29,14 @@ type AsyncBlockDevice = Arc<VirtIOAsyncBlock>;
 type AsyncBlockDevice = Arc<AsyncSDCard>;
 
 #[cfg(feature = "qemu")]
-lazy_static!(
+lazy_static! {
     pub static ref CACHE: BlockCache = BlockCache::init(Arc::clone(&VIRTIO_BLOCK));
-);
+}
 
 #[cfg(feature = "k210")]
-lazy_static!(
+lazy_static! {
     pub static ref CACHE: BlockCache = BlockCache::init(Arc::clone(&SD_CARD));
-);
+}
 
 /// 各种缓存替换算法需要实现的 trait
 ///
@@ -65,7 +66,7 @@ pub struct AsyncBlockCache<
     /// 可以是采用各种替换算法的缓存具体实现
     cache: AsyncMutex<C>,
     /// 异步块设备驱动
-    device: AsyncBlockDevice
+    device: AsyncBlockDevice,
 }
 
 impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, CACHE_SIZE> {
@@ -78,11 +79,11 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
         }
         let nodes =
             unsafe { core::mem::transmute::<_, [Node<usize, [u8; BLOCK_SIZE]>; CACHE_SIZE]>(data) };
-        
+
         let lfu_cache = LFUCache::empty(nodes);
         Self {
             cache: AsyncMutex::new(lfu_cache),
-            device
+            device,
         }
     }
 
@@ -133,7 +134,6 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
             self.device.write_block(id, &block).await;
         }
     }
-
 }
 
 /// 缓存项

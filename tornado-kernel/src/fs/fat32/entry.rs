@@ -1,13 +1,13 @@
 use super::bs_bpb::cluster_offset_sectors;
-use super::{BLOCK_SIZE, fat::FAT};
+use super::{fat::FAT, BLOCK_SIZE};
 use crate::cache::CACHE;
 use crate::fs::fat32::bs_bpb::cluster_offset_bytes;
 use alloc::format;
+use alloc::string::String;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use bit_field::BitField;
 use core::convert::TryInto;
-use alloc::vec::Vec;
-use alloc::string::String;
 
 /// 短文件名目录项
 #[derive(Clone, Default)]
@@ -195,11 +195,7 @@ impl DirectoryEntry {
     }
 
     /// 读取该目录项占据的块设备数据
-    pub async fn load(
-        &self,
-        fat: &Arc<FAT>,
-        bpb: &Arc<[u8; BLOCK_SIZE]>,
-    ) -> Vec<u8> {
+    pub async fn load(&self, fat: &Arc<FAT>, bpb: &Arc<[u8; BLOCK_SIZE]>) -> Vec<u8> {
         let fst_cluster = self.fst_cluster;
         let clusters_link = fat.get_link(fst_cluster).await;
         let mut ret = Vec::new();

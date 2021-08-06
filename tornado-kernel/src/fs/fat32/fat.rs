@@ -1,8 +1,8 @@
 use super::BLOCK_SIZE;
 use crate::cache::CACHE;
-use core::convert::TryInto;
-use alloc::vec::Vec;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::convert::TryInto;
 
 /// `FAT` 数据结构
 ///
@@ -34,10 +34,7 @@ impl FAT {
     /// note: 这里假设一个块对应一个扇区
     pub async fn first_blank(&self) -> Option<u32> {
         for sector_id in 0..self.fat_size {
-            let block = 
-                CACHE
-                .read_block((self.base + sector_id) as usize)
-                .await;
+            let block = CACHE.read_block((self.base + sector_id) as usize).await;
             for (idx, fat) in block.chunks(4).enumerate() {
                 let value = u32::from_le_bytes(fat.try_into().unwrap());
                 if value == 0 {

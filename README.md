@@ -47,13 +47,13 @@ pub extern "C" fn kernel_main() {
 下载源码：  
 ```bash
 git clone https://github.com/HUST-OS/tornado-os
-git submodule update --init
 ```
 
 快速运行：  
 ```bash
 cd tornado-os
-just qemu user_task
+cargo mkfs
+cargo qemu
 ```
 
 ## 进度

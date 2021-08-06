@@ -1,14 +1,14 @@
 //! RISC-V 平台级中断控制器逻辑
 
+use crate::hart;
+use crate::memory::{PLIC_BASE, VIRTIO0_IRQ};
 use core::convert::TryFrom;
 use plic::{Nr, Plic, Priority};
-use crate::memory::{VIRTIO0_IRQ, PLIC_BASE};
-use crate::hart;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u16)]
 pub enum ExternInterrupt {
-    VIRTIO0 = VIRTIO0_IRQ as u16
+    VIRTIO0 = VIRTIO0_IRQ as u16,
 }
 
 impl From<ExternInterrupt> for Nr {
@@ -33,17 +33,20 @@ pub unsafe fn init() {
 pub const PLIC_PENDING: usize = PLIC_BASE.wrapping_add(0x1000);
 
 pub const fn plic_senable(hart: usize) -> usize {
-    PLIC_BASE.wrapping_add(0x2080)
+    PLIC_BASE
+        .wrapping_add(0x2080)
         .wrapping_add((hart).wrapping_mul(0x100))
 }
 
 pub const fn plic_spriority(hart: usize) -> usize {
-    PLIC_BASE.wrapping_add(0x201000)
+    PLIC_BASE
+        .wrapping_add(0x201000)
         .wrapping_add((hart).wrapping_mul(0x2000))
 }
 
 pub const fn plic_sclaim(hart: usize) -> usize {
-    PLIC_BASE.wrapping_add(0x201004)
+    PLIC_BASE
+        .wrapping_add(0x201004)
         .wrapping_add((hart).wrapping_mul(0x2000))
 }
 
@@ -53,7 +56,6 @@ pub unsafe fn xv6_plic_init() {
     let hart = hart::KernelHartInfo::hart_id();
     *(plic_senable(hart) as *mut u32) = (1 << VIRTIO0_IRQ) as u32;
     *(plic_spriority(hart) as *mut u32) = 0;
-
 }
 
 /// ask the PLIC what interrupt we should serve.

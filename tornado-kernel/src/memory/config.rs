@@ -27,17 +27,17 @@ pub const SWAP_FRAME_VA: usize = usize::MAX - PAGE_SIZE + 1;
 
 /// 用户态和内核态切换时上下文保存的地址
 /// 用户和内核在该地址上同样有相同的映射关系
-pub const SWAP_CONTEXT_VA: usize = SWAP_FRAME_VA - PAGE_SIZE;
-
-
+///
+/// 每个用户程序都有一个页来保存上下文
+pub const fn swap_contex_va(asid: usize) -> usize {
+    SWAP_FRAME_VA - PAGE_SIZE * asid
+}
 
 // ref: https://github.com/kaist-cp/rv6/blob/riscv/kernel-rs/src/arch/memlayout.rs
 // thanks!
-
 /// qemu puts platform-level interrupt controller (PLIC) here.
 pub const PLIC_BASE: usize = 0xc000000 + KERNEL_MAP_OFFSET;
 
 // qemu virtio disk mmio
 pub const VIRTIO0: usize = 0x10001000 + KERNEL_MAP_OFFSET;
 pub const VIRTIO0_IRQ: usize = 1;
-

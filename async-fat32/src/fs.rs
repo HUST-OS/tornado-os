@@ -10,10 +10,10 @@ use crate::AsyncBlockDevive;
 use crate::FAT32Error;
 use crate::Result;
 use crate::ABC;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
 use alloc::boxed::Box;
 use alloc::string::String;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 
 /// FAT32 文件系统实现
 pub struct FAT32 {

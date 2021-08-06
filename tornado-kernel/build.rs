@@ -9,11 +9,15 @@ fn main() {
     // Put the linker script somewhere the linker can find it
     let mut linker = fs::File::create(out_dir.join("linker.ld")).unwrap();
     match platform.as_str() {
-        "qemu" => linker.write_all(include_bytes!("src/linker-qemu.ld")).unwrap(),
-        "k210" => linker.write_all(include_bytes!("src/linker-k210.ld")).unwrap(),
-        p => panic!("haven't supported platform: {}", p)
+        "qemu" => linker
+            .write_all(include_bytes!("src/linker-qemu.ld"))
+            .unwrap(),
+        "k210" => linker
+            .write_all(include_bytes!("src/linker-k210.ld"))
+            .unwrap(),
+        p => panic!("haven't supported platform: {}", p),
     }
-    
+
     println!("cargo:rustc-link-search={}", out_dir.display());
 
     println!("cargo:rerun-if-changed=build.rs");
