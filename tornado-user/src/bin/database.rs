@@ -93,6 +93,14 @@ show tables;
   - EOI: ""
 */
 
+
+use pest_derive::Parser;
+use pest::Parser;
+
+#[derive(Parser)]
+#[grammar = "bin/database-console.pest"]
+struct ConsoleParser;
+
 async fn async_main() -> i32 {
     // let stdin = tornado_user::stdin();
     let mut buf = alloc::vec![0u8; 1024];
@@ -103,13 +111,18 @@ async fn async_main() -> i32 {
         let cmd = String::from_utf8_lossy(&buf[..len]);
         // todo
         println!("[<] 您输入的指令: {}", cmd);
-        match cmd.as_ref() {
-            "q" => {
-                println!("[·] 程序退出，感谢再次使用！");
-                break
+        if cmd.as_ref() == "q" {
+            println!("[·] 程序退出，感谢再次使用！");
+            break
+        }
+        match ConsoleParser::parse(Rule::inputs, &buf.trim()) {
+            Ok(mut pairs) => match pairs.next().map(|p| p.as_rule()) {
+                rule => {
+                    println!("合法的命令 {:?}", rule)
+                }
             },
-            cmd => {
-                println!("[!] 无法识别的指令: {}", cmd);
+            Err(e) => {
+                println!("[!] 无法识别的指令: {}。错误：{}", cmd, e);
             }
         }
     }
