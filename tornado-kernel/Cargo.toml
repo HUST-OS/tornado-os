@@ -26,6 +26,6 @@ rv-lock = { path  = "../rv-lock" }
 # async-fat32 = { path = "../async-fat32" }
 
 [features]
-default = []
+default = ["qemu"] # 过cargo test和rust-analyzer
 qemu = []
 k210 = []
