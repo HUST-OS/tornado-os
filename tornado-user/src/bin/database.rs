@@ -115,10 +115,10 @@ async fn async_main() -> i32 {
             println!("[·] 程序退出，感谢再次使用！");
             break
         }
-        match ConsoleParser::parse(Rule::inputs, &buf.trim()) {
+        match ConsoleParser::parse(Rule::inputs, cmd.trim()) {
             Ok(mut pairs) => match pairs.next().map(|p| p.as_rule()) {
                 rule => {
-                    println!("合法的命令 {:?}", rule)
+                    println!("[·] 合法的命令 {:?}", rule)
                 }
             },
             Err(e) => {
