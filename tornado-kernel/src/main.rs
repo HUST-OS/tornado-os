@@ -181,28 +181,28 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     // 准备两个用户态任务
-    let task_6 = task::new_kernel(
-        user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
-    let task_7 = task::new_kernel(
-        user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
+    // let task_6 = task::new_kernel(
+    //     user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
+    //     process.clone(),
+    //     shared_payload.shared_scheduler,
+    //     shared_payload.shared_set_task_state,
+    // );
+    // let task_7 = task::new_kernel(
+    //     user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
+    //     process.clone(),
+    //     shared_payload.shared_scheduler,
+    //     shared_payload.shared_set_task_state,
+    // );
     let task_8 = task::new_kernel(
-        user::prepare_user("async-read.bin", stack_handle.end.0 - 4),
+        user::prepare_user("database.bin", stack_handle.end.0 - 4),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
 
     unsafe {
-        shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
     }
 

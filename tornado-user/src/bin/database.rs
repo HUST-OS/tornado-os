@@ -93,17 +93,28 @@ show tables;
 */
 
 async fn async_main() -> i32 {
-    let stdin = tornado_user::stdin();
+    // let stdin = tornado_user::stdin();
     let mut buf = alloc::string::String::new();
     print_welcome();
     loop {
         println!("[>] 请输入查询、操作或枚举语句来继续，使用q退出。");
-        let len = stdin.read_line(&mut buf);
+        let len = read_line(unsafe { buf.as_bytes_mut() }); // stdin.read_line(&mut buf);
         let cmd = &buf[..len];
         // todo
         println!("[<] input: {}", cmd);
     }
-    0
+    // 0
+}
+
+fn read_line(bytes: &mut [u8]) -> usize {
+    let mut input = tornado_user::syscall::sys_test_read().extra;
+    let mut len = 0;
+    while input != 13 && len < bytes.len() {
+        bytes[len] = input as u8;
+        len += 1;
+        input = tornado_user::syscall::sys_test_read().extra;
+    }
+    len
 }
 
 fn print_welcome() {

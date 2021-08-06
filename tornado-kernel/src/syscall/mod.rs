@@ -30,7 +30,7 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
     match module {
         MODULE_PROCESS => do_process(param, user_satp, func),
         MODULE_TEST_INTERFACE => do_test_interface(param, user_satp, func),
-        MODULE_SWITCH_TASK => do_task(param, func),
+        MODULE_TASK => do_task(param, func),
         _ => panic!("Unknown module {:x}", module),
     }
 }
@@ -117,12 +117,22 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
                 extra: buf_len,
             }
         }
+        FUNC_TEST_READ => { // 读一个字符
+            let _iface = param[0]; // 调试接口编号
+            let input = crate::sbi::console_getchar();
+            SyscallResult::Procceed {
+                code: 0,
+                extra: input, // 返回读出的一个字符结果
+            }
+        }
         FUNC_TEST_READ_LINE => {
             // 读入len个字符，如果遇到换行符，或者缓冲区满，就停止
+            println!("[kernel syscall] Read line {} {:x} {}", param[0], param[1], param[2]);
             let (_iface, buf_ptr, buf_len) = (param[0], param[1], param[2]); // 调试接口编号，输出缓冲区指针，输出缓冲区长度
             let slice = unsafe { get_user_buf_mut(user_satp, buf_ptr, buf_len) };
             for i in 0..buf_len {
                 let input = crate::sbi::console_getchar();
+                println!("[syscall] input = {}", input);
                 let byte = input as u8; // 假定SBI输入都是u8类型
                 if byte == b'\n' {
                     break;
