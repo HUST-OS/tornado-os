@@ -53,7 +53,8 @@ git submodule update --init
 快速运行：  
 ```bash
 cd tornado-os
-just qemu user_task
+cargo mkfs
+cargo qemu
 ```
 
 ## 进度
