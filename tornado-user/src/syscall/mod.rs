@@ -6,7 +6,8 @@ const FUNC_PROCESS_EXIT: usize = 0x1919810;
 const FUNC_PROCESS_PANIC: usize = 0x11451419;
 
 const FUNC_TEST_WRITE: usize = 0x666233;
-const FUNC_TEST_READ: usize = 0x999888;
+const FUNC_TEST_WRITE_ONE: usize = 0x444555;
+const FUNC_TEST_READ_ONE: usize = 0x999888;
 const FUNC_TEST_READ_LINE: usize = 0x11117777;
 
 const FUNC_SWITCH_TASK: usize = 0x666666;
@@ -168,15 +169,15 @@ pub fn sys_test_write(buf: &[u8]) -> SyscallResult {
     )
 }
 
-pub fn sys_test_read() -> SyscallResult {
+pub fn sys_test_read_line_one() -> SyscallResult {
     syscall_1(
         MODULE_TEST_INTERFACE,
-        FUNC_TEST_READ,
+        FUNC_TEST_READ_ONE,
         0,
     )
 }
 
-pub fn sys_test_read_line(buf: &mut [u8]) -> SyscallResult {
+pub fn sys_test_read_line_one_line(buf: &mut [u8]) -> SyscallResult {
     syscall_3(
         MODULE_TEST_INTERFACE,
         FUNC_TEST_READ_LINE,

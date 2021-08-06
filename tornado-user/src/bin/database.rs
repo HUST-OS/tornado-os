@@ -107,12 +107,13 @@ async fn async_main() -> i32 {
 }
 
 fn read_line(bytes: &mut [u8]) -> usize {
-    let mut input = tornado_user::syscall::sys_test_read().extra;
+    let mut input = tornado_user::syscall::sys_test_read_line_one().extra;
     let mut len = 0;
     while input != 13 && len < bytes.len() {
+        tornado_user::syscall::sys_test_write_one(input); // 回显
         bytes[len] = input as u8;
         len += 1;
-        input = tornado_user::syscall::sys_test_read().extra;
+        input = tornado_user::syscall::sys_test_read_line_one().extra;
     }
     len
 }

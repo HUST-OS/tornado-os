@@ -117,7 +117,15 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
                 extra: buf_len,
             }
         }
-        FUNC_TEST_READ => { // 读一个字符
+        FUNC_TEST_WRITE_ONE => { // 写一个字符
+            let (_iface, value) = (param[0], param[1]); // 调试接口编号
+            crate::sbi::console_putchar(value);
+            SyscallResult::Procceed {
+                code: 0,
+                extra: 1, // 写了一个字符
+            }
+        }
+        FUNC_TEST_READ_ONE => { // 读一个字符
             let _iface = param[0]; // 调试接口编号
             let input = crate::sbi::console_getchar();
             SyscallResult::Procceed {

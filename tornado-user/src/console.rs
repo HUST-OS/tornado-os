@@ -49,7 +49,7 @@ impl Stdin {
         const CAPACITY: usize = 1024; // 目前的内核最长读1024字符，后面都切断，未来修改
         buf.reserve(CAPACITY);
         let buf_input = unsafe { core::slice::from_raw_parts_mut(buf.as_mut_ptr(), CAPACITY) };
-        let syscall_ans = crate::syscall::sys_test_read_line(buf_input);
+        let syscall_ans = crate::syscall::sys_test_read_line_line(buf_input);
         let bytes_read = syscall_ans.extra;
         // buf.shrink_to(bytes_read); // 与API风格有关，不用缩缓冲区
         bytes_read
