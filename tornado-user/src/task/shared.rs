@@ -1,4 +1,5 @@
 use crate::do_yield;
+use crate::sys_kernel_check;
 use crate::println;
 use crate::task::UserTaskRepr;
 use crate::ADDRESS_SPACE_ID;
@@ -32,7 +33,12 @@ pub fn run_until_ready(
     delete_task: impl Fn(usize) -> bool,
     set_task_state: impl Fn(usize, TaskState),
 ) {
+    let mut threshold = 0;
     loop {
+        if threshold > 50 {
+            sys_kernel_check();
+            threshold = 0;
+        }
         let task = peek_task();
         println!(">>> user executor: next task = {:x?}", task);
         match task {
@@ -55,7 +61,7 @@ pub fn run_until_ready(
                 mem::forget(task);
                 do_yield(next_asid);
             }
-            TaskResult::NoWakeTask => {}
+            TaskResult::NoWakeTask => threshold += 1,
             TaskResult::Finished => {
                 break;
             }

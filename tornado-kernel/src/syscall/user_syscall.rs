@@ -104,7 +104,18 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                
+                SyscallResult::Check => {
+                    // 如果有未唤醒的块设备读写任务，将其唤醒
+                    unsafe {
+                        if WAKE_NUM > 1 {
+                            VIRTIO_BLOCK.0.wake_ops.notify(WAKE_NUM);
+                            WAKE_NUM = 1;
+                        }
+                    }
+                    // 运行下一条指令
+                    swap_cx.epc = swap_cx.epc.wrapping_add(4);
+                    trap::switch_to_user(swap_cx, user_satp.inner(), asid)
+                }
                 SyscallResult::Terminate(exit_code) => {
                     println!("User exit!");
                     crate::sbi::shutdown();
