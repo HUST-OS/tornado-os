@@ -1,5 +1,6 @@
 # 飓风内核（开发中）
-异步内核就像风一样快！  
+异步内核就像风一样快！
+飓风内核是运用共享调度器的异步内核。运行内核请参考“[如何运行](#如何运行)”章节。
 
 ## 基于共享调度器的异步内核设计
 操作系统内核经历了几个主要的发展阶段，从裸机应用，批处理系统到多道任务系统，演变为至今主流的线程操作系统。这种系统基于线程的切换来调度任务；为了进一步提升性能，一些现代编程语言在应用层复用线程资源，提出了“协程”的概念，节省任务调度的开销。  
@@ -35,18 +36,17 @@ pub extern "C" fn kernel_main() {
  <img src="assets/system.png" width = "600" height = "500" alt="系统架构" align=center />  
 
 ## 如何运行
-构建工具：  
-+ Rust 环境(nightly-2021-03-01或以上)
-+ [Just 工具](https://github.com/casey/just)
-+ [cargo-binutils](https://github.com/rust-embedded/cargo-binutils)
-+ [qemu-system-riscv64](https://github.com/qemu/qemu)(推荐 5.2.0 版本)
 
-另外反汇编需要 `riscv64-linux-gnu-objdump`，该工具在 Ubuntu 操作系统上可以通过 `apt-get` 下载。  
-调试工具：RISC-V 指令集支持的 [gdb](https://mirrors.tuna.tsinghua.edu.cn/gnu/gdb/?C=M&O=D)  
+如果您已经能够运行rCore-Tutorial，那么您的环境已经能满足编译飓风内核的要求，不需要再次安装构建工具，请直接开始下一步。
+
+首先需要准备构建工具：  
++ Rust 环境(nightly-2021-03-01或以上)
++ [cargo-binutils](https://github.com/rust-embedded/cargo-binutils)
++ [qemu-system-riscv64](https://github.com/qemu/qemu)(建议使用 5.2.0 版本)
 
 下载源码：  
 ```bash
-git clone https://github.com/HUST-OS/tornado-os
+git clone git@github.com:HUST-OS/tornado-os.git
 ```
 
 快速运行：  
@@ -55,6 +55,15 @@ cd tornado-os
 cargo mkfs
 cargo qemu
 ```
+
+其中，cargo mkfs将生成文件的镜像，它需要在Linux或macOS系统下运行；如果开发环境是Windows，可以考虑在WSL下开发项目。
+cargo qemu能在任何的操作系统下运行。
+
+项目直接使用xtask写法，所以不需要安装make、just等脚本工具。如果在编写的过程中要求输入账号密码，可能因为xtask写法而输入失败。
+这时候请先使用`sudo su`等需要特权的Linux命令，输入密码后退出`su`环境，当前控制台暂时保存权限，此时再运行命令就不需要输入密码了。
+
+如果需要调试功能，请安装调试工具链 `riscv64-linux-gnu-objdump`，该工具在 Ubuntu 操作系统上可以通过 `apt-get` 下载。  
+调试工具：RISC-V 指令集支持的 [gdb](https://mirrors.tuna.tsinghua.edu.cn/gnu/gdb/?C=M&O=D)  
 
 ## 进度
 + 内核开发基础设施(内存管理，页表机制，中断处理等)已经基本完成
