@@ -12,5 +12,5 @@ nb = "1.0.0"
 volatile = "0.2"
 bitflags = "1.2"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
-event = { path = "../event" }
+event = { path = "../event", features = ["kernel"] }
 rv-lock = { path = "../rv-lock" }

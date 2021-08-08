@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 spin = "0.7"
 rv-lock = { path  = "../rv-lock" }
+
+[features]
+kernel = []
