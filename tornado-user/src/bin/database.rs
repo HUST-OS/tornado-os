@@ -169,7 +169,7 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
                 println!("[!] 无法创建新表格，因为表格 {} 已存在。", table_name);
                 return
             }
-            let mut fields = field_type_list.iter().map(|(n, _t)| n.to_string()).collect();
+            let mut fields: Vec<_> = field_type_list.iter().map(|(n, _t)| n.to_string()).collect();
             fields.sort(); // 排序，方便后续插入操作
             let new_table = Table {
                 fields,
@@ -195,37 +195,37 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             let table_names = database.tables.keys().map(|a| a.as_ref()).collect::<Vec<_>>().join(", ");
             println!("[>] 数据库中有{}个表格。分别是：{}。", len, table_names);
         },
-        Command::Insert(tabel_name, mut kv_pairs) => {
+        Command::Insert(table_name, mut kv_pairs) => {
             if !database.tables.contains_key(table_name) {
                 println!("[!] 数据库中不存在表格 {} ，插入失败。", table_name);
                 return
             }
             let table = database.tables.get_mut(table_name).unwrap();
-            for key in kv_pairs.keys() {
-                if !table.fields.contains(key) {
-                    println!("[!] 插入失败：表格 {} 不包含字段 {}");
+            for (ref key, _) in kv_pairs.iter() {
+                if table.fields.binary_search_by(|field| field.as_str().cmp(key)).is_err() {
+                    println!("[!] 插入失败：表格 {} 不包含字段 {}。", table_name, key);
                     return
                 }
             }
             for field in &table.fields {
-                if !kv_pairs.contains_key(field) {
-                    println!("[!] 插入失败：尝试插入表格 {}，但插入语句中没有提供必要的字段 {}");
+                if kv_pairs.binary_search_by_key(&field.as_str(), |(k, _v)| k).is_err() {
+                    println!("[!] 插入失败：尝试插入表格 {}，但插入语句中没有提供必要的字段 {}。", table_name, field);
                     return
                 }
             }
-            kv_pairs.sort_by_key(|(k, _v)| k); // 相同的排序方法，确保字段顺序一致
-            for value in kv_pairs.values() {
+            kv_pairs.sort_by(|(ka, _), (kb, _)| ka.cmp(kb)); // 相同的排序方法，确保字段顺序一致
+            for (_, value) in kv_pairs.iter() {
                 let value_int: i64 = match value.parse() {
                     Ok(a) => a,
                     Err(e) => {
-                        println!("[!] 插入失败：数据 {} 无法被识别为 i64 整数类型。");
+                        println!("[!] 插入失败：数据 {} 无法被识别为 i64 整数类型。", value);
                         return
                     }
                 };
             }            
-            for value in kv_pairs.values() {
+            for (_, value) in kv_pairs.iter() {
                 let value_int: i64 = value.parse().unwrap();
-                table.values.push(value);
+                table.values.push(value_int);
             }
         }
         Command::Error => {} // 什么也不做
@@ -406,27 +406,14 @@ fn parse_insert<'i>(insert_pairs: Pairs<'i, Rule>) -> Command {
                 let mut keys = Vec::new();
                 let mut values = Vec::new();
                 for (idx, insert_content_pair) in insert_pair.into_inner().enumerate() {
+                    // println!("{} => {:?}", idx, insert_content_pair);
                     if idx == 0 { // key
                         for columns_pair in insert_content_pair.into_inner() {
-                            match columns_pair.as_rule() {
-                                Rule::column => {
-                                    for column_pair in columns_pair.into_inner() {
-                                        keys.push(column_pair.as_str())
-                                    }
-                                }
-                                _ => unreachable!()
-                            }
+                            keys.push(columns_pair.as_str())
                         }
                     } else { // value
                         for columns_pair in insert_content_pair.into_inner() {
-                            match columns_pair.as_rule() {
-                                Rule::column => {
-                                    for column_pair in columns_pair.into_inner() {
-                                        values.push(column_pair.as_str())
-                                    }
-                                }
-                                _ => unreachable!()
-                            }
+                            values.push(columns_pair.as_str())
                         }
                     }
                 }
@@ -435,13 +422,14 @@ fn parse_insert<'i>(insert_pairs: Pairs<'i, Rule>) -> Command {
                     return Command::Error
                 } 
                 for (i, key) in keys.iter().enumerate() {
-                    kv_pairs.push((key, value[i]))
+                    kv_pairs.push((*key, values[i]))
                 }
             }
             Rule::table => table_name = insert_pair.as_span().as_str(),
             _ => unreachable!()
         }
     }
+    // println!("KV pairs: {:?}", kv_pairs);
     Command::Insert(table_name, kv_pairs)
 }
 
