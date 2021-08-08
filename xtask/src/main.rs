@@ -490,7 +490,10 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
         ]);
         qemu.args(&["-smp", format!("threads={}", &threads).as_str()]);
-
+        // 不使用ctrl+c来退出
+        ctrlc::set_handler(|| {
+            // 什么也不做，这样就不能退出了，必须使用qemu的ctrl+a和x来退出
+        }).expect("set Ctrl-C handler");
         if let Ok(status) = qemu.status() {
             if status.success() {
                 Ok(())
@@ -675,12 +678,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         let s = |mut sudo: Command| {
             sudo.stdin(Stdio::piped());
             let mut child = sudo.spawn().expect("execute sudo command");
-            {
-                let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-                stdin
-                    .write_all("xxx".as_bytes())
-                    .expect("Failed to write to stdin");
-            }
+            // {
+            //     let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+            //     stdin
+            //         .write_all("xxx".as_bytes())
+            //         .expect("Failed to write to stdin");
+            // }
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
                 Err(XTaskError::MkfsError)
@@ -716,12 +719,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         let s = |mut sudo: Command| {
             sudo.stdin(Stdio::piped());
             let mut child = sudo.spawn().expect("execute sudo command");
-            {
-                let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-                stdin
-                    .write_all("xxx".as_bytes())
-                    .expect("Failed to write to stdin");
-            }
+            // {
+            //     let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+            //     stdin
+            //         .write_all("xxx".as_bytes())
+            //         .expect("Failed to write to stdin");
+            // }
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
                 Err(XTaskError::MkfsError)

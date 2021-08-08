@@ -8,7 +8,7 @@ extern crate alloc;
 extern crate tornado_user;
 use core::future::Future;
 use core::pin::Pin;
-use core::task::{Context, Poll};
+// use core::task::{Context, Poll};
 use alloc::string::String;
 
 /*
@@ -117,9 +117,10 @@ async fn async_main() -> i32 {
         }
         match ConsoleParser::parse(Rule::inputs, cmd.trim()) {
             Ok(mut pairs) => match pairs.next().map(|p| p.as_rule()) {
-                rule => {
+                Some(rule) => {
                     println!("[·] 合法的命令 {:?}", rule)
                 }
+                _ => unreachable!()
             },
             Err(e) => {
                 println!("[!] 无法识别的指令: {}。错误：{}", cmd, e);
