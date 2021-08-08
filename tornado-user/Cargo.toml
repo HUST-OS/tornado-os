@@ -13,6 +13,7 @@ spin = "0.5.2"
 r0 = "1"
 pest = { version = "2", default-features = false }
 pest_derive = { version = "2", default-features = false }
+hashbrown = "0.9"
 
 [dependencies.lazy_static]
 version = "1.4.0"

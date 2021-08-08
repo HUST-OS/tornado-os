@@ -8,7 +8,9 @@ extern crate alloc;
 extern crate tornado_user;
 
 use alloc::string::String;
+use alloc::string::ToString;
 use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 /*
 飓风数据库。支持的语法示例：
@@ -109,24 +111,17 @@ struct Where<'i> { // where [left] = [right]
     right: &'i str,
 }
 
-use pest_derive::Parser;
-use pest::Parser;
-use pest::iterators::Pairs;
-
-#[derive(Parser)]
-#[grammar = "bin/database-console.pest"]
-struct ConsoleParser;
-
 async fn async_main() -> i32 {
     // let stdin = tornado_user::stdin();
     let mut buf = alloc::vec![0u8; 1024];
+    let mut database = Database::new();
     print_welcome();
     loop {
         println!("[>] 请输入查询、操作或枚举语句来继续，使用q退出。");
         let len = read_line(&mut buf); // stdin.read_line(&mut buf);
         let cmd = String::from_utf8_lossy(&buf[..len]);
         // todo
-        println!("[<] 您输入的指令: {}", cmd);
+        println!("[<] 您输入的指令：{}", cmd);
         if cmd.as_ref() == "q" || cmd.as_ref() == "exit" {
             println!("[·] 程序退出，感谢再次使用！");
             break
@@ -134,14 +129,80 @@ async fn async_main() -> i32 {
         let parse_result = parse_commands(&cmd);
         if let Err(ref e) = parse_result {
             let e = parse_result.as_ref().unwrap_err(); // 一定是Err(e)
-            println!("[!] 无法识别的指令: {}。错误：{}", cmd, e);
+            println!("[!] 无法识别的指令：{}。错误：{}", cmd, e);
             continue;
         }
         let commands = parse_result.unwrap();
-        execute_commands(commands);
+        execute_commands(&mut database, commands);
     }
     0
 }
+
+struct Database { // 简单的数据库引擎
+    tables: HashMap<String, Table>,
+}
+
+impl Database {
+    #[inline] fn new() -> Database {
+        Database { tables: HashMap::new() }
+    }
+}
+
+struct Table {
+    fields: Vec<String>,
+    values: Vec<i64>, // 访问行i（从1开始）的值：values[fields.len() * (i - 1)]开始的fields.len()个
+}
+
+fn execute_commands(database: &mut Database, commands: Vec<Command<'_>>) {
+    // println!("Commands: {:?}", commands);
+    for command in commands {
+        execute_command(database, command)
+    }
+}
+
+fn execute_command(database: &mut Database, command: Command<'_>) {
+    match command {
+        Command::Create(table_name, field_type_list) => {
+            if database.tables.contains_key(table_name) {
+                // 如果相同名字的表存在，返回错误  
+                println!("[!] 无法创建新表格，因为表格 {} 已存在。", table_name);
+                return
+            }
+            let new_table = Table {
+                fields: field_type_list.iter().map(|(n, _t)| n.to_string()).collect(),
+                values: Vec::new()
+            };
+            database.tables.insert(table_name.to_string(), new_table);
+            println!("[>] 成功创建表格 {} 。", table_name);
+        },
+        Command::Drop(table_name) => {
+            if !database.tables.contains_key(table_name) {
+                println!("[!] 数据库中不存在表格 {} ，删除失败。", table_name);
+                return
+            }
+            database.tables.remove(table_name);
+            println!("[>] 成功删除表格 {}。", table_name);
+        }
+        Command::ShowTables => {
+            if database.tables.is_empty() {
+                println!("[>] 数据库中没有表格。");
+                return
+            }
+            let len = database.tables.len();
+            let table_names = database.tables.keys().map(|a| a.as_ref()).collect::<Vec<_>>().join(", ");
+            println!("[>] 数据库中有{}个表格。分别是：{}。", len, table_names);
+        },
+        _ => todo!()
+    }
+}
+
+use pest_derive::Parser;
+use pest::Parser;
+use pest::iterators::Pairs;
+
+#[derive(Parser)]
+#[grammar = "bin/database-console.pest"]
+struct ConsoleParser;
 
 fn parse_commands(input_str: &str) -> Result<Vec<Command>, pest::error::Error<Rule>> {
     let mut input_pairs = ConsoleParser::parse(Rule::inputs, input_str.trim())?;
@@ -173,16 +234,14 @@ Pair { rule: EOI, span: Span { str: "", start: 43, end: 43 }, inner: [] }
         match pair.as_rule() {
             Rule::select => commands.push(parse_select(pair.into_inner())),
             Rule::create => commands.push(parse_create(pair.into_inner())),
+            Rule::drop => commands.push(parse_drop(pair.into_inner())),
+            Rule::show => commands.push(Command::ShowTables),
             Rule::EOI => break,
             _ => todo!()
         }
     }
     // println!("Commands: {:?}", commands);
     Ok(commands)
-}
-
-fn execute_commands(commands: Vec<Command<'_>>) {
-    println!("Commands: {:?}", commands);
 }
 
 fn parse_select<'i>(select_pairs: Pairs<'i, Rule>) -> Command {
@@ -274,6 +333,20 @@ fn parse_create<'i>(create_pairs: Pairs<'i, Rule>) -> Command {
         }
     }
     Command::Create(table_name, name_type_list)
+}
+
+/*
+- drop > table: "a"
+*/
+fn parse_drop<'i>(drop_pairs: Pairs<'i, Rule>) -> Command {
+    let mut table_name = "";
+    for drop_pair in drop_pairs {
+        match drop_pair.as_rule() {
+            Rule::table => table_name = drop_pair.as_span().as_str(),
+            _ => unreachable!()
+        }
+    }
+    Command::Drop(table_name)
 }
 
 fn read_line(bytes: &mut [u8]) -> usize {
