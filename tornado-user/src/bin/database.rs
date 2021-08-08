@@ -6,8 +6,8 @@
 extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
-use core::future::Future;
-use core::pin::Pin;
+// use core::future::Future;
+// use core::pin::Pin;
 // use core::task::{Context, Poll};
 use alloc::string::String;
 
@@ -117,8 +117,9 @@ async fn async_main() -> i32 {
         }
         match ConsoleParser::parse(Rule::inputs, cmd.trim()) {
             Ok(mut pairs) => match pairs.next().map(|p| p.as_rule()) {
-                Some(rule) => {
-                    println!("[·] 合法的命令 {:?}", rule)
+                Some(Rule::inputs) => match pairs.next() {
+                    Some(r) => println!("[] rule: {:?}", r),
+                    _ => println!("[!] todo")
                 }
                 _ => unreachable!()
             },
