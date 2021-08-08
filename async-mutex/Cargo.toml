@@ -16,4 +16,5 @@ event = { path = "../event", features = ["kernel"] }
 event = { path = "../event"}
 
 [features]
+default = []
 kernel = []
