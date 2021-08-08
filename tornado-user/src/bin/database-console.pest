@@ -70,7 +70,7 @@ column = { ident }
 table = { ident }
 
 create_content = { "(" ~ parameters ~ ")" }
-parameters = { parameter ~ (comma ~ parameter)* }
+parameters = _{ parameter ~ (comma ~ parameter)* }
 parameter = { column ~ " " ~ data_type }
 data_type = { "integer" }
 
