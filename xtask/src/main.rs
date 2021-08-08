@@ -23,6 +23,7 @@ const USER_APPS: [&'static str; 6] = [
     "async-read",
     "database",
 ];
+const PASSWORD: &'static str = "xxx";
 
 type Result<T = ()> = core::result::Result<T, XTaskError>;
 
@@ -719,7 +720,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             {
                 let stdin = child.stdin.as_mut().expect("Failed to open stdin");
                 stdin
-                    .write_all("xxx".as_bytes())
+                    .write_all(PASSWORD.as_bytes())
                     .expect("Failed to write to stdin");
             }
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;

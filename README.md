@@ -60,7 +60,9 @@ cargo qemu
 cargo qemu能在任何的操作系统下运行。
 
 项目直接使用xtask写法，所以不需要安装make、just等脚本工具。如果在编写的过程中要求输入账号密码，可能因为xtask写法而输入失败。
-这时候请先使用`sudo su`等需要特权的Linux命令，输入密码后退出`su`环境，当前控制台暂时保存权限，此时再运行命令就不需要输入密码了。
+这时候需要修改[xtask/src/main.rs](./xtask/src/main.rs)文件中的 `PASSWORD` 全局变量。
+也可以使用`sudo su`等需要特权的Linux命令，输入密码后退出`su`环境，当前控制台暂时保存权限，此时再运行命令就不需要输入密码了。
+
 
 如果需要调试功能，请安装调试工具链 `riscv64-linux-gnu-objdump`，该工具在 Ubuntu 操作系统上可以通过 `apt-get` 下载。  
 调试工具：RISC-V 指令集支持的 [gdb](https://mirrors.tuna.tsinghua.edu.cn/gnu/gdb/?C=M&O=D)  
@@ -69,14 +71,21 @@ cargo qemu能在任何的操作系统下运行。
 + 内核开发基础设施(内存管理，页表机制，中断处理等)已经基本完成
 + 共享调度器的设计与实现已经完成，将来或许会有些改动，但总体实现思路已经比较成熟
 + 内核态和用户态的异步运行时的实现初步完成，由于 Rust 语言异步运行时的灵活性，将来可能有较为频繁的改动
-+ 异步版的 virtio 块设备驱动已经基本完成，下一步可以继续写文件系统了(参考代码：[如何在飓风内核中运行virtio块设备读写任务](https://github.com/HUST-OS/tornado-os/tree/virtio/tornado-kernel/src/virtio))
-+ **内核生成器语法**有了[可以运行的代码](https://github.com/HUST-OS/luojia-os-labs/blob/main/01b-magic-return-kern/kernel/src/executor.rs)，下一步可以考虑用在飓风内核的开发上
++ 异步版的 [virtio 块设备驱动](./async-virtio-driver)已经完成
++ 不同地址空间之间任务的切换已经实现
++ 异步块设备读写系统调用已经实现
 
 ## 源码阅读小助手
-该项目主要由三个目录组成：  
-+ shared-scheduler: 共享调度器实现
+该项目主要由如下几个子项目组成：  
 + tornado-kernel: 飓风内核实现
++ shared-scheduler: 共享调度器实现
 + tornado-user: 用户态代码实现
++ async-virtio-driver: 异步virtio块设备驱动
++ async-fat32: 异步fat32文件系统
++ async-mutex: 异步锁
++ async-sd: 异步sd卡驱动
++ event: 事件机制库`no_std`支持
++ rv-lock: RISC-V指令集关中断的锁
 
 其中共享调度器以二进制包的形式编译，集成一些接口提供给内核和用户，具体实现参考[代码](shared-scheduler/src/main.rs)。  
 飓风内核中与共享调度器通过 API 兼容方式进行交互，具体参考[代码](tornado-kernel/src/task/shared.rs)，用户态代码同上，具体请参考[代码](tornado-user/src/task/shared.rs)。  
