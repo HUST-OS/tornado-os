@@ -15,12 +15,13 @@ const SERIAL_PORT: &'static str = "COM4";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
-const USER_APPS: [&'static str; 6] = [
+const USER_APPS: [&'static str; 7] = [
     "user_task",
     "alloc-test",
     "yield-task0",
     "yield-task1",
     "async-read",
+    "channel",
     "database",
 ];
 const PASSWORD: &'static str = "xxx";

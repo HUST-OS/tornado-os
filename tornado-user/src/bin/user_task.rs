@@ -14,10 +14,10 @@ async fn async_main() -> i32 {
     // todo: 唤醒逻辑
     tornado_user::spawn(async {
         let ans = FibonacciFuture::new(5).await;
-        println!("[User] Fibonacci[5] = {}", ans);
+        println!("[user] Fibonacci[5] = {}", ans);
     });
     let ans = FibonacciFuture::new(6).await;
-    println!("[User] Fibonacci[6] = {}", ans);
+    println!("[user] Fibonacci[6] = {}", ans);
     0
 }
 

@@ -4,6 +4,7 @@
 #![feature(panic_info_message)]
 #![feature(linkage)]
 #![feature(alloc_error_handler)]
+#![feature(maybe_uninit_uninit_array)]
 
 extern crate alloc;
 

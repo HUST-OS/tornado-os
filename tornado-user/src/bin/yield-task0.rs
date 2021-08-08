@@ -9,7 +9,7 @@ extern crate tornado_user;
 
 use tornado_user::{do_yield, execute_async};
 async fn async_main() {
-    println!("yield test task 0");
+    println!("[user] yield test task 0");
 }
 
 // 异步main函数，由entry调用execute_async_main
@@ -19,7 +19,7 @@ fn main() -> i32 {
     tornado_user::spawn(async_main());
     // 切换地址空间
     do_yield(2);
-    println!("yield back 1");
+    println!("[user] yield back 1");
     execute_async();
     0
 }

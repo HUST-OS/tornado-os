@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 const BASE: usize = 0x8700_0000;
 
 lazy_static! {
-    pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<1000, BASE>> =
+    pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<2000, BASE>> =
         AsyncMutex::new(UserSpaceManager::new());
 }
 
