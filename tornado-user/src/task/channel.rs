@@ -19,7 +19,7 @@ impl<T, const N: usize> ChannelBuf<T, N> {
         Self {
             data: MaybeUninit::uninit_array(),
             head: 0,
-            tail: N - 1
+            tail: 0
         }
     }
     pub const fn len(&self)  -> usize {
@@ -27,7 +27,7 @@ impl<T, const N: usize> ChannelBuf<T, N> {
     }
     #[inline]
     pub const fn is_empty(&self) -> bool {
-        self.tail == self.tail
+        self.tail == self.head
     }
     #[inline]
     fn is_full(&self) -> bool {
@@ -68,7 +68,7 @@ pub struct Receiver<T, const N: usize> {
 impl<T, const N: usize> Receiver<T, N> {
     pub async fn receive(&self) -> T {
         let rx_listener = self.rx_event.listen();
-        let should_yield;
+        let mut should_yield = false;
         {
             let s = self.buf.lock().await;
             should_yield = s.is_empty();
