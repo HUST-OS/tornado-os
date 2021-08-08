@@ -103,6 +103,7 @@ enum Command<'i> {
     Create(&'i str, Vec<(&'i str, &'i str)>), // create table 表格 (字段1 integer, 字段2 integer);
     Drop(&'i str), // drop table [table];
     Describe(&'i str), // describle [table];
+    Error,
 }
 
 #[derive(Debug)]
@@ -168,8 +169,10 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
                 println!("[!] 无法创建新表格，因为表格 {} 已存在。", table_name);
                 return
             }
+            let mut fields = field_type_list.iter().map(|(n, _t)| n.to_string()).collect();
+            fields.sort(); // 排序，方便后续插入操作
             let new_table = Table {
-                fields: field_type_list.iter().map(|(n, _t)| n.to_string()).collect(),
+                fields,
                 values: Vec::new()
             };
             database.tables.insert(table_name.to_string(), new_table);
@@ -192,6 +195,40 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             let table_names = database.tables.keys().map(|a| a.as_ref()).collect::<Vec<_>>().join(", ");
             println!("[>] 数据库中有{}个表格。分别是：{}。", len, table_names);
         },
+        Command::Insert(tabel_name, mut kv_pairs) => {
+            if !database.tables.contains_key(table_name) {
+                println!("[!] 数据库中不存在表格 {} ，插入失败。", table_name);
+                return
+            }
+            let table = database.tables.get_mut(table_name).unwrap();
+            for key in kv_pairs.keys() {
+                if !table.fields.contains(key) {
+                    println!("[!] 插入失败：表格 {} 不包含字段 {}");
+                    return
+                }
+            }
+            for field in &table.fields {
+                if !kv_pairs.contains_key(field) {
+                    println!("[!] 插入失败：尝试插入表格 {}，但插入语句中没有提供必要的字段 {}");
+                    return
+                }
+            }
+            kv_pairs.sort_by_key(|(k, _v)| k); // 相同的排序方法，确保字段顺序一致
+            for value in kv_pairs.values() {
+                let value_int: i64 = match value.parse() {
+                    Ok(a) => a,
+                    Err(e) => {
+                        println!("[!] 插入失败：数据 {} 无法被识别为 i64 整数类型。");
+                        return
+                    }
+                };
+            }            
+            for value in kv_pairs.values() {
+                let value_int: i64 = value.parse().unwrap();
+                table.values.push(value);
+            }
+        }
+        Command::Error => {} // 什么也不做
         _ => todo!()
     }
 }
@@ -233,6 +270,7 @@ Pair { rule: EOI, span: Span { str: "", start: 43, end: 43 }, inner: [] }
         // println!("{:?}", pair.as_rule());
         match pair.as_rule() {
             Rule::select => commands.push(parse_select(pair.into_inner())),
+            Rule::insert => commands.push(parse_insert(pair.into_inner())),
             Rule::create => commands.push(parse_create(pair.into_inner())),
             Rule::drop => commands.push(parse_drop(pair.into_inner())),
             Rule::show => commands.push(Command::ShowTables),
@@ -347,6 +385,64 @@ fn parse_drop<'i>(drop_pairs: Pairs<'i, Rule>) -> Command {
         }
     }
     Command::Drop(table_name)
+}
+
+/*
+- table: "a"
+- insert_content
+  - columns
+    - column: "b"
+    - column: "c"
+  - columns
+    - column: "d"
+    - column: "e"
+*/
+fn parse_insert<'i>(insert_pairs: Pairs<'i, Rule>) -> Command {
+    let mut table_name = "";
+    let mut kv_pairs = Vec::new();
+    for insert_pair in insert_pairs {
+        match insert_pair.as_rule() {
+            Rule::insert_content => {
+                let mut keys = Vec::new();
+                let mut values = Vec::new();
+                for (idx, insert_content_pair) in insert_pair.into_inner().enumerate() {
+                    if idx == 0 { // key
+                        for columns_pair in insert_content_pair.into_inner() {
+                            match columns_pair.as_rule() {
+                                Rule::column => {
+                                    for column_pair in columns_pair.into_inner() {
+                                        keys.push(column_pair.as_str())
+                                    }
+                                }
+                                _ => unreachable!()
+                            }
+                        }
+                    } else { // value
+                        for columns_pair in insert_content_pair.into_inner() {
+                            match columns_pair.as_rule() {
+                                Rule::column => {
+                                    for column_pair in columns_pair.into_inner() {
+                                        values.push(column_pair.as_str())
+                                    }
+                                }
+                                _ => unreachable!()
+                            }
+                        }
+                    }
+                }
+                if keys.len() != values.len() {
+                    println!("[!] 语法无效：键和值的长度不同。");
+                    return Command::Error
+                } 
+                for (i, key) in keys.iter().enumerate() {
+                    kv_pairs.push((key, value[i]))
+                }
+            }
+            Rule::table => table_name = insert_pair.as_span().as_str(),
+            _ => unreachable!()
+        }
+    }
+    Command::Insert(table_name, kv_pairs)
 }
 
 fn read_line(bytes: &mut [u8]) -> usize {
