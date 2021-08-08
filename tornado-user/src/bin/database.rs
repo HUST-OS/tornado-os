@@ -131,47 +131,58 @@ async fn async_main() -> i32 {
             println!("[·] 程序退出，感谢再次使用！");
             break
         }
-        let parse_result = ConsoleParser::parse(Rule::inputs, cmd.trim());
-        if let Ok(mut pairs) = parse_result {
-            let pair = pairs.next();
-            if pair == None {
-                unreachable!()
-            }
-            let pair = pair.unwrap();
-            if pair.as_rule() != Rule::inputs {
-                unreachable!();
-            }
-            let inner_pairs = pair.into_inner();
-            // println!("{:?}", inner_pairs);
+        let parse_result = parse_commands(&cmd);
+        if let Err(ref e) = parse_result {
+            let e = parse_result.as_ref().unwrap_err(); // 一定是Err(e)
+            println!("[!] 无法识别的指令: {}。错误：{}", cmd, e);
+            continue;
+        }
+        let commands = parse_result.unwrap();
+        execute_commands(commands);
+    }
+    0
+}
+
+fn parse_commands(input_str: &str) -> Result<Vec<Command>, pest::error::Error<Rule>> {
+    let mut input_pairs = ConsoleParser::parse(Rule::inputs, input_str.trim())?;
+    let pair = input_pairs.next();
+    if pair == None {
+        unreachable!()
+    }
+    let pair = pair.unwrap();
+    if pair.as_rule() != Rule::inputs {
+        unreachable!();
+    }
+    let inner_pairs = pair.into_inner();
+    // println!("{:?}", inner_pairs);
 /*[
 Pair { rule: select, span: "select * from tables" , inner: [
-    Pair { rule: column_selector, span: Span { str: "*", start: 7, end: 8 }, inner: [] }, 
-    Pair { rule: table, span: Span { str: "tables", start: 14, end: 20 }, inner: [] }
+Pair { rule: column_selector, span: Span { str: "*", start: 7, end: 8 }, inner: [] }, 
+Pair { rule: table, span: Span { str: "tables", start: 14, end: 20 }, inner: [] }
 ] }, 
 Pair { rule: select, span: "select * from tables" }, inner: [
-    Pair { rule: column_selector, span: Span { str: "*", start: 29, end: 30 }, inner: [] },
-    Pair { rule: table, span: Span { str: "tables", start: 36, end: 42 }, inner: [] }
+Pair { rule: column_selector, span: Span { str: "*", start: 29, end: 30 }, inner: [] },
+Pair { rule: table, span: Span { str: "tables", start: 36, end: 42 }, inner: [] }
 ] }, 
 Pair { rule: EOI, span: Span { str: "", start: 43, end: 43 }, inner: [] }
 ] */                    
-            let mut commands = Vec::new();
-            for pair in inner_pairs {
-                // println!("{:?}", pair);
-                // println!("{:?}", pair.as_rule());
-                match pair.as_rule() {
-                    Rule::select => commands.push(parse_select(pair.into_inner())),
-                    Rule::create => commands.push(parse_create(pair.into_inner())),
-                    Rule::EOI => break,
-                    _ => todo!()
-                }
-            }
-            println!("Commands: {:?}", commands);
-        } else { // if let Ok(mut pairs) = parse_result
-            let e = parse_result.unwrap_err(); // 一定是Err(e)
-            println!("[!] 无法识别的指令: {}。错误：{}", cmd, e);
+    let mut commands = Vec::new();
+    for pair in inner_pairs {
+        // println!("{:?}", pair);
+        // println!("{:?}", pair.as_rule());
+        match pair.as_rule() {
+            Rule::select => commands.push(parse_select(pair.into_inner())),
+            Rule::create => commands.push(parse_create(pair.into_inner())),
+            Rule::EOI => break,
+            _ => todo!()
         }
     }
-    0
+    // println!("Commands: {:?}", commands);
+    Ok(commands)
+}
+
+fn execute_commands(commands: Vec<Command<'_>>) {
+    println!("Commands: {:?}", commands);
 }
 
 fn parse_select<'i>(select_pairs: Pairs<'i, Rule>) -> Command {
@@ -206,12 +217,12 @@ Pair { rule: column, span: Span { str: "b", start: 10, end: 11 }, inner: [] }
     Command::Select(var_list, table_name, where_clause)
 }
 
+/*
+- where_clause > equation
+  - left_value: "a"
+  - right_value: "1"
+*/
 fn parse_where_clause<'i>(where_pairs: Pairs<'i, Rule>) -> Where {
-    /*
-    - where_clause > equation
-      - left_value: "a"
-      - right_value: "1"
-    */
     let mut left_value = "";
     let mut right_value = "";
     for where_pair in where_pairs {
