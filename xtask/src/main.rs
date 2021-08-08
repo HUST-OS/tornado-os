@@ -21,6 +21,7 @@ const USER_APPS: [&'static str; 6] = [
     "yield-task0",
     "yield-task1",
     "async-read",
+    "channel",
     "database",
 ];
 const PASSWORD: &'static str = "xxx";
