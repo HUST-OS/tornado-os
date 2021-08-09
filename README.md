@@ -1,7 +1,7 @@
 # 飓风内核（开发中）
 异步内核就像风一样快！  
 ![os](https://img.shields.io/badge/kernel-asynchronous-red)
-![stars](https://img.shields.io/github/stars/HUST-OS/tornado-os)
+![ISA](https://img.shields.io/badge/ISA-RISC--V-yellow)
 ![License](https://img.shields.io/github/license/HUST-OS/tornado-os)
 ## 基于共享调度器的异步内核设计
 操作系统内核经历了几个主要的发展阶段，从裸机应用，批处理系统到多道任务系统，演变为至今主流的线程操作系统。这种系统基于线程的切换来调度任务；为了进一步提升性能，一些现代编程语言在应用层复用线程资源，提出了“协程”的概念，节省任务调度的开销。  
@@ -31,8 +31,8 @@ pub extern "C" fn kernel_main() {
 
 用户态运行异步任务的方法和内核态基本一致。  
 
-## 系统架构(todo)
- <img src="assets/system.png" width = "600" height = "500" alt="系统架构" align=center />  
+## 系统架构
+ <img src="assets/飓风内核系统架构.png" width = "800" height = "500" alt="系统架构" align=center />  
 
 ## 如何运行
 
