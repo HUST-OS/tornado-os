@@ -153,6 +153,7 @@ impl Database {
 struct Table {
     fields: Vec<String>,
     values: Vec<i64>, // 访问行i（从1开始）的值：values[fields.len() * (i - 1)]开始的fields.len()个
+    deleted: Vec<usize>,
 }
 
 fn execute_commands(database: &mut Database, commands: Vec<Command<'_>>) {
@@ -174,7 +175,8 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             fields.sort(); // 排序，方便后续插入操作
             let new_table = Table {
                 fields,
-                values: Vec::new()
+                values: Vec::new(),
+                deleted: Vec::new(),
             };
             database.tables.insert(table_name.to_string(), new_table);
             println!("[>] 成功创建表格 {} 。", table_name);
@@ -203,7 +205,7 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             }
             let table = database.tables.get(table_name).unwrap();
             println!("[·] | 字段 | 类型 |");
-            for field_name in table.fields {
+            for field_name in &table.fields {
                 println!("[·] | {} | integer |", field_name);
             }
         }
@@ -227,7 +229,7 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             }
             kv_pairs.sort_by(|(ka, _), (kb, _)| ka.cmp(kb)); // 相同的排序方法，确保字段顺序一致
             for (_, value) in kv_pairs.iter() {
-                let value_int: i64 = match value.parse() {
+                let _value_int: i64 = match value.parse() {
                     Ok(a) => a,
                     Err(_e) => {
                         println!("[!] 插入失败：数据 {} 无法被识别为 i64 整数类型。", value);
@@ -296,14 +298,17 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             // 表格内容
             let mut count = 0;
             let table_width = table.fields.len();
-            'outer: for chunk in table.values.chunks(table_width) {
+            'outer_select: for (row_idx, chunk) in table.values.chunks(table_width).enumerate() {
+                if table.deleted.contains(&row_idx) { // 已标记为删除行
+                    continue;
+                }
                 // println!("{:?} {:?}", where_clause_idx, where_clause_number);
                 if !where_clause_idx.is_empty() || !where_clause_number.is_empty() {
                     let mut eq_number = None;
                     for idx in &where_clause_idx {
                         if let Some(number) = eq_number {
                             if chunk[*idx] != number {
-                                continue 'outer
+                                continue 'outer_select
                             }
                         } else {
                             eq_number = Some(chunk[*idx]);
@@ -312,7 +317,7 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
                     for n in &where_clause_number {
                         if let Some(number) = eq_number {
                             if *n != number {
-                                continue 'outer
+                                continue 'outer_select
                             }
                         } else {
                             eq_number = Some(*n);
@@ -328,8 +333,70 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             }
             println!("[>] 查询返回 {} 条数据。", count);
         }
+        Command::Delete(table_name, where_clause) => {
+            if !database.tables.contains_key(table_name) {
+                println!("[!] 数据库中不存在表格 {} ，无法删除数据。", table_name);
+                return
+            }
+            let table = database.tables.get_mut(table_name).unwrap();
+            // 预处理where语句
+            let mut where_clause_idx = Vec::new();
+            let mut where_clause_number = Vec::new();
+            {
+                let number_result: Result<i64, _> = where_clause.left.parse();
+                if let Ok(num) = number_result {
+                    where_clause_number.push(num);
+                } else {
+                    let search_result = table.fields.binary_search_by(|a| a.as_str().cmp(&where_clause.left));
+                    if let Err(_) = search_result {
+                        println!("[!] 查找失败！在条件判断语句中，表格 {} 中不存在名为 {} 的字段。", table_name, where_clause.left);
+                        return
+                    }
+                    where_clause_idx.push(search_result.unwrap());
+                }
+                let number_result: Result<i64, _> = where_clause.right.parse();
+                if let Ok(num) = number_result {
+                    where_clause_number.push(num);
+                } else {
+                    let search_result = table.fields.binary_search_by(|a| a.as_str().cmp(&where_clause.right));
+                    if let Err(_) = search_result {
+                        println!("[!] 查找失败！在条件判断语句中，表格 {} 中不存在名为 {} 的字段。", table_name, where_clause.right);
+                        return
+                    }
+                    where_clause_idx.push(search_result.unwrap());
+                }
+            }
+            // 开始删除
+            let mut count = 0;
+            let table_width = table.fields.len();
+            'outer_delete: for (row_idx, chunk) in table.values.chunks(table_width).enumerate() {
+                if !where_clause_idx.is_empty() || !where_clause_number.is_empty() {
+                    let mut eq_number = None;
+                    for idx in &where_clause_idx {
+                        if let Some(number) = eq_number {
+                            if chunk[*idx] != number {
+                                continue 'outer_delete
+                            }
+                        } else {
+                            eq_number = Some(chunk[*idx]);
+                        }
+                    }
+                    for n in &where_clause_number {
+                        if let Some(number) = eq_number {
+                            if *n != number {
+                                continue 'outer_delete
+                            }
+                        } else {
+                            eq_number = Some(*n);
+                        }
+                    }
+                }
+                count += 1;
+                table.deleted.push(row_idx);
+            }
+            println!("[>] 成功删除了 {} 条数据。", count);
+        }
         Command::Error => {} // 什么也不做
-        _ => todo!()
     }
 }
 
@@ -371,6 +438,7 @@ Pair { rule: EOI, span: Span { str: "", start: 43, end: 43 }, inner: [] }
         match pair.as_rule() {
             Rule::select => commands.push(parse_select(pair.into_inner())),
             Rule::insert => commands.push(parse_insert(pair.into_inner())),
+            Rule::delete => commands.push(parse_delete(pair.into_inner())),
             Rule::create => commands.push(parse_create(pair.into_inner())),
             Rule::drop => commands.push(parse_drop(pair.into_inner())),
             Rule::describe => commands.push(parse_describe(pair.into_inner())),
@@ -537,6 +605,25 @@ fn parse_insert<'i>(insert_pairs: Pairs<'i, Rule>) -> Command {
 }
 
 /*
+- table: "a"
+- where_clause > equation
+  - left_value: "b"
+  - right_value: "c"
+*/
+fn parse_delete<'i>(delete_pairs: Pairs<'i, Rule>) -> Command {
+    let mut table_name = "";
+    let mut where_clause = Where { left: "", right: "" };
+    for delete_pair in delete_pairs {
+        match delete_pair.as_rule() {
+            Rule::where_clause => where_clause = parse_where_clause(delete_pair.into_inner()),
+            Rule::table => table_name = delete_pair.as_span().as_str(),
+            _ => unreachable!()
+        }
+    }
+    Command::Delete(table_name, where_clause)
+}
+
+/*
 - describe > table: "a"
 */
 fn parse_describe<'i>(describe_pairs: Pairs<'i, Rule>) -> Command {
@@ -547,7 +634,7 @@ fn parse_describe<'i>(describe_pairs: Pairs<'i, Rule>) -> Command {
             _ => unreachable!()
         }
     }
-    Command::Drop(table_name)
+    Command::Describe(table_name)
 }
 
 fn init_database(database: &mut Database) {
@@ -558,6 +645,7 @@ fn init_database(database: &mut Database) {
             201800002, 90, 7,
             201800003, 95, 6,
         ],
+        deleted: Vec::new(),
     };
     database.tables.insert("students".to_string(), table_students);
     let table_campus_buildings = Table {
@@ -567,6 +655,7 @@ fn init_database(database: &mut Database) {
             11, 4, 1980,
             12, 18, 2010,
         ],
+        deleted: Vec::new(),
     };
     database.tables.insert("campus_buildings".to_string(), table_campus_buildings);
 }
