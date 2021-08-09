@@ -91,16 +91,17 @@ cargo qemu能在任何的操作系统下运行。
 |exec|❌|低|
 
 ## 目录介绍
-该项目主要由如下几个子项目组成：  
-+ tornado-kernel: 飓风内核实现
-+ shared-scheduler: 共享调度器实现
-+ tornado-user: 用户态代码实现
-+ async-virtio-driver: 异步virtio块设备驱动
-+ async-fat32: 异步fat32文件系统
-+ async-mutex: 异步锁
-+ async-sd: 异步sd卡驱动
-+ event: 事件机制库`no_std`支持
-+ rv-lock: RISC-V指令集关中断的锁
+|目录名称|介绍|
+|---|---|
+|tornado-kernel|飓风内核实现|
+|shared-scheduler|共享调度器实现|
+|tornado-user|用户态代码实现|
+|async-virtio-driver|异步virtio块设备驱动|
+|async-fat32|异步fat32文件系统|
+|async-mutex|异步锁|
+|async-sd|异步sd卡驱动|
+|event|事件机制库`no_std`支持|
+|rv-lock|RISC-V指令集关中断的锁|
 
 其中共享调度器以二进制包的形式编译，集成一些接口提供给内核和用户，具体实现参考[代码](shared-scheduler/src/main.rs)。  
 飓风内核中与共享调度器通过 API 兼容方式进行交互，具体参考[代码](tornado-kernel/src/task/shared.rs)，用户态代码同上，具体请参考[代码](tornado-user/src/task/shared.rs)。  
