@@ -196,6 +196,17 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             let table_names = database.tables.keys().map(|a| a.as_ref()).collect::<Vec<_>>().join(", ");
             println!("[>] 数据库中有{}个表格。分别是：{}。", len, table_names);
         },
+        Command::Describe(table_name) => {
+            if !database.tables.contains_key(table_name) {
+                println!("[!] 数据库中不存在表格 {} 。", table_name);
+                return
+            }
+            let table = database.tables.get(table_name).unwrap();
+            println!("[·] | 字段 | 类型 |");
+            for field_name in table.fields {
+                println!("[·] | {} | integer |", field_name);
+            }
+        }
         Command::Insert(table_name, mut kv_pairs) => {
             if !database.tables.contains_key(table_name) {
                 println!("[!] 数据库中不存在表格 {} ，插入失败。", table_name);
@@ -362,6 +373,7 @@ Pair { rule: EOI, span: Span { str: "", start: 43, end: 43 }, inner: [] }
             Rule::insert => commands.push(parse_insert(pair.into_inner())),
             Rule::create => commands.push(parse_create(pair.into_inner())),
             Rule::drop => commands.push(parse_drop(pair.into_inner())),
+            Rule::describe => commands.push(parse_describe(pair.into_inner())),
             Rule::show => commands.push(Command::ShowTables),
             Rule::EOI => break,
             _ => todo!()
@@ -522,6 +534,20 @@ fn parse_insert<'i>(insert_pairs: Pairs<'i, Rule>) -> Command {
     }
     // println!("KV pairs: {:?}", kv_pairs);
     Command::Insert(table_name, kv_pairs)
+}
+
+/*
+- describe > table: "a"
+*/
+fn parse_describe<'i>(describe_pairs: Pairs<'i, Rule>) -> Command {
+    let mut table_name = "";
+    for describe_pair in describe_pairs {
+        match describe_pair.as_rule() {
+            Rule::table => table_name = describe_pair.as_span().as_str(),
+            _ => unreachable!()
+        }
+    }
+    Command::Drop(table_name)
 }
 
 fn init_database(database: &mut Database) {
