@@ -1,6 +1,6 @@
 # 飓风内核（开发中）
 异步内核就像风一样快！  
-![kernel](https://img.shields.io/badge/os-coroutines--kernel-red)
+![os](https://img.shields.io/badge/kernel-asynchronous-red)
 ![stars](https://img.shields.io/github/stars/HUST-OS/tornado-os)
 ![License](https://img.shields.io/github/license/HUST-OS/tornado-os)
 ## 基于共享调度器的异步内核设计
