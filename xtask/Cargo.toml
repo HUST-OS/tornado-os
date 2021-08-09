@@ -8,3 +8,7 @@ edition = "2018"
 
 [dependencies]
 clap = "2"
+
+[dependencies.ctrlc]
+version  = "3.1"
+features = ["termination"]
