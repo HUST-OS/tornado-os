@@ -1,12 +1,11 @@
 # 飓风内核（开发中）
-异步内核就像风一样快！
-飓风内核是运用共享调度器的异步内核。运行内核请参考“[如何运行](#如何运行)”章节。
-
+异步内核就像风一样快！  
+![os](https://img.shields.io/badge/kernel-asynchronous-red)
+![stars](https://img.shields.io/github/stars/HUST-OS/tornado-os)
+![License](https://img.shields.io/github/license/HUST-OS/tornado-os)
 ## 基于共享调度器的异步内核设计
 操作系统内核经历了几个主要的发展阶段，从裸机应用，批处理系统到多道任务系统，演变为至今主流的线程操作系统。这种系统基于线程的切换来调度任务；为了进一步提升性能，一些现代编程语言在应用层复用线程资源，提出了“协程”的概念，节省任务调度的开销。  
 在本项目中我们提出一种新的内核开发思路：由不同资源共享调度器，在操作系统层面提供协程。我们希望这种全新设计的内核在满足传统内核的易用性的同时，拥有着专有内核的高性能特点，“像风一样快”，因此取名**飓风内核**——**tornado-os**。  
-设计文档请参考[这里](https://qf.rs/2021/04/23/%E5%BC%82%E6%AD%A5%E5%86%85%E6%A0%B8%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0.html)  
-同时这里有开发成员制作的[PPT](doc/shared_scheduler_based_async_kernel_design.pdf)
 
 ## 运行异步任务
 飓风内核中和传统内核最大的不同点就在于多任务的运行方式，在飓风内核中基于共享调度器来运行异步任务，伪代码呈现如下：    
@@ -32,28 +31,29 @@ pub extern "C" fn kernel_main() {
 
 用户态运行异步任务的方法和内核态基本一致。  
 
-## 系统架构
+## 系统架构(todo)
  <img src="assets/system.png" width = "600" height = "500" alt="系统架构" align=center />  
 
 ## 如何运行
 
-如果您已经能够运行rCore-Tutorial，那么您的环境已经能满足编译飓风内核的要求，不需要再次安装构建工具，请直接开始下一步。
+如果您已经能够运行[rCore-Tutorial](https://github.com/rcore-os/rCore-Tutorial-v3)，那么您的环境已经能满足编译飓风内核的要求，不需要再次安装构建工具，请直接开始下一步。
 
 首先需要准备构建工具：  
-+ Rust 环境(nightly-2021-03-01或以上)
-+ [cargo-binutils](https://github.com/rust-embedded/cargo-binutils)
-+ [qemu-system-riscv64](https://github.com/qemu/qemu)(建议使用 5.2.0 版本)
+* Rust 环境(nightly-2021-03-01或以上)
+* [qemu-system-riscv64](https://github.com/qemu/qemu)(建议使用 5.2.0 版本)
+* `riscv64-linux-gnu-`系列或`riscv64-unknown-elf-`系列两种常用的RISC-V工具链，或Rust嵌入式社区的[cargo-binutils](https://github.com/rust-embedded/cargo-binutils)工具链
+* 调试工具(可选)：RISC-V 指令集支持的 [gdb](https://mirrors.tuna.tsinghua.edu.cn/gnu/gdb/?C=M&O=D)
 
 下载源码：  
 ```bash
-git clone git@github.com:HUST-OS/tornado-os.git
+git clone https://github.com/HUST-OS/tornado-os.git
 ```
 
-快速运行：  
+在qemu上运行：  
 ```bash
 cd tornado-os
-cargo mkfs
-cargo qemu
+cargo mkfs # 生成文件镜像
+cargo qemu # 运行qemu模拟器
 ```
 
 其中，cargo mkfs将生成文件的镜像，它需要在Linux或macOS系统下运行；如果开发环境是Windows，可以考虑在WSL下开发项目。
@@ -64,33 +64,47 @@ cargo qemu能在任何的操作系统下运行。
 也可以使用`sudo su`等需要特权的Linux命令，输入密码后退出`su`环境，当前控制台暂时保存权限，此时再运行命令就不需要输入密码了。
 
 
-如果需要调试功能，请安装调试工具链 `riscv64-linux-gnu-objdump`，该工具在 Ubuntu 操作系统上可以通过 `apt-get` 下载。  
-调试工具：RISC-V 指令集支持的 [gdb](https://mirrors.tuna.tsinghua.edu.cn/gnu/gdb/?C=M&O=D)  
+## Features
+|内核组件|状态|未来改动|
+|---|---|---|
+|内存管理|✅|小|
+|中断管理|✅|小|
+|跳板页切换|✅(特权级切换)|小|
+|共享调度器|✅|较小|
+|内核异步运行时|✅(执行器)|比较大|
+|用户异步运行时|✅(执行器)|大|
+|virtio异步块设备驱动|✅|小|
+|sd卡异步驱动|❌|待实现|
+|virtio异步网卡驱动|❌|待实现|
+|不同地址空间任务切换|✅(yield系统调用)|小|
+|保底机制(时钟中断的处理)|❌|待实现|
+|相同地址空间任务通信|✅(Channel)|较小|
+|不同地址空间任务通信|❌|待实现|
+|性能测试|❌|待实现|
 
-## 进度
-+ 内核开发基础设施(内存管理，页表机制，中断处理等)已经基本完成
-+ 共享调度器的设计与实现已经完成，将来或许会有些改动，但总体实现思路已经比较成熟
-+ 内核态和用户态的异步运行时的实现初步完成，由于 Rust 语言异步运行时的灵活性，将来可能有较为频繁的改动
-+ 异步版的 [virtio 块设备驱动](./async-virtio-driver)已经完成
-+ 不同地址空间之间任务的切换已经实现
-+ 异步块设备读写系统调用已经实现
 
-## 源码阅读小助手
-该项目主要由如下几个子项目组成：  
-+ tornado-kernel: 飓风内核实现
-+ shared-scheduler: 共享调度器实现
-+ tornado-user: 用户态代码实现
-+ async-virtio-driver: 异步virtio块设备驱动
-+ async-fat32: 异步fat32文件系统
-+ async-mutex: 异步锁
-+ async-sd: 异步sd卡驱动
-+ event: 事件机制库`no_std`支持
-+ rv-lock: RISC-V指令集关中断的锁
+|系统调用|状态|实现优先级|
+|---|---|---|
+|yield|✅|高|
+|异步IO|✅(块设备读写)|高|
+|异步文件IO|❌|较高|
+|exec|❌|低|
+
+## 目录介绍
+|目录名称|介绍|
+|---|---|
+|tornado-kernel|飓风内核实现|
+|shared-scheduler|共享调度器实现|
+|tornado-user|用户态代码实现|
+|async-virtio-driver|异步virtio块设备驱动|
+|async-fat32|异步fat32文件系统|
+|async-mutex|异步锁|
+|async-sd|异步sd卡驱动|
+|event|事件机制库`no_std`支持|
+|rv-lock|RISC-V指令集关中断的锁|
 
 其中共享调度器以二进制包的形式编译，集成一些接口提供给内核和用户，具体实现参考[代码](shared-scheduler/src/main.rs)。  
 飓风内核中与共享调度器通过 API 兼容方式进行交互，具体参考[代码](tornado-kernel/src/task/shared.rs)，用户态代码同上，具体请参考[代码](tornado-user/src/task/shared.rs)。  
-内核态和用户态都分别实现了一个`执行器`，分别是[内核态执行器](tornado-kernel/src/task/executor.rs)和[用户态执行器](tornado-user/src/task/shared.rs)。  
-内核中任务的定义在[这里](tornado-kernel/src/task/kernel_task.rs)，用户态中任务的定义在[这里](tornado-user/src/task/user_task.rs)，不同的地址空间可以定义自己的任务语义，其他地址空间无法解析。  
 
 ## 开发文档
 + [无相之风战队官方网站](https://qf.rs/)
@@ -108,9 +122,14 @@ cargo qemu能在任何的操作系统下运行。
 + [异步virtio块设备驱动](https://github.com/HUST-OS/async-virtio-driver)
 
 其中，`洛佳的异步内核实验室`中实现了一个**内核中的生成器语法**，非常有研究价值，欢迎访问博客[执行器与生成语义](https://qf.rs/2021/05/01/%E6%89%A7%E8%A1%8C%E5%99%A8%E4%B8%8E%E7%94%9F%E6%88%90%E8%AF%AD%E4%B9%89.html)  
-另外，我们还初步实现了一款基于 Rust 语言异步语法的 virtio 块设备驱动库，并可以结合本项目以异步的方式运行块设备读写任务，详细内容请访问博客[异步版VIRTIO之块设备驱动实现](https://qf.rs/2021/05/26/%E5%BC%82%E6%AD%A5%E7%89%88virtio%E5%9D%97%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E5%AE%9E%E7%8E%B0.html)  
 
 ## TODO
-+ 从内核层面提供异步网络 IO(异步网络协议栈)
++ 从内核层面提供异步网络IO(异步网络协议栈)
 + 性能测试分析
 + 活用内核生成器语法
++ 多核环境下的上下文管理机制
+
+## 开源协议
+本项目使用双开源协议：  
+* [木兰许可证](./LICENSE-MULAN)
+* [Apache](./LICENSE-Apache)
