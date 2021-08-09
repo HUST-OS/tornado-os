@@ -210,7 +210,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         // shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
         // shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
     }
 
     task::run_until_idle(
