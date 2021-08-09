@@ -32,7 +32,7 @@ pub extern "C" fn kernel_main() {
 用户态运行异步任务的方法和内核态基本一致。  
 
 ## 系统架构
- <img src="assets/飓风内核系统架构.png" width = "800" height = "500" alt="系统架构" align=center />  
+ <img src="assets/飓风内核系统架构.png" alt="系统架构" align=center />  
 
 ## 如何运行
 
