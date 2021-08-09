@@ -15,14 +15,16 @@ const SERIAL_PORT: &'static str = "COM4";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
-const USER_APPS: [&'static str; 6] = [
+const USER_APPS: [&'static str; 7] = [
     "user_task",
     "alloc-test",
     "yield-task0",
     "yield-task1",
     "async-read",
+    "channel",
     "database",
 ];
+const PASSWORD: &'static str = "xxx";
 
 type Result<T = ()> = core::result::Result<T, XTaskError>;
 
@@ -719,12 +721,14 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         let s = |mut sudo: Command| {
             sudo.stdin(Stdio::piped());
             let mut child = sudo.spawn().expect("execute sudo command");
-            // {
-            //     let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-            //     stdin
-            //         .write_all("xxx".as_bytes())
-            //         .expect("Failed to write to stdin");
-            // }
+
+            {
+                let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+                stdin
+                    .write_all(PASSWORD.as_bytes())
+                    .expect("Failed to write to stdin");
+            }
+
             let status = child.wait().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
                 Err(XTaskError::MkfsError)

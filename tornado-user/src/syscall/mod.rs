@@ -15,6 +15,8 @@ const FUNC_TEST_READ_LINE: usize = 0x11117777;
 const FUNC_SWITCH_TASK: usize = 0x666666;
 const FUNC_IO_TASK: usize = 0x55555;
 
+const FUNC_CHECK: usize = 0x4444;
+
 const BLOCK_SIZE: usize = 512;
 pub struct SyscallResult {
     pub code: usize,
@@ -218,15 +220,23 @@ pub fn sys_test_read_line(buf: &mut [u8]) -> SyscallResult {
     )
 }
 
-/// 往内核注册一个
+/// 往内核注册一个块设备读任务
 pub fn sys_enroll_read(block_id: usize, buf: &mut [u8]) -> SyscallResult {
     assert!(buf.len() == BLOCK_SIZE);
     // 第一个参数 0 表示读块设备
     syscall_3(MODULE_TASK, FUNC_IO_TASK, [0, block_id, buf.as_ptr() as usize])
 }
 
+/// 往内核注册一个块设备写任务
 pub fn sys_enroll_write(block_id: usize, buf: &[u8]) -> SyscallResult {
     assert!(buf.len() == BLOCK_SIZE);
     // 第一个参数 1 表示写块设备
     syscall_3(MODULE_TASK, FUNC_IO_TASK, [1, block_id, buf.as_ptr() as usize])
+}
+
+/// 进行内核检查
+///
+/// 用于异步运行时中轮询一定次数都没发现可执行的任务时
+pub fn sys_kernel_check() -> SyscallResult {
+    syscall_0(MODULE_TASK, FUNC_CHECK)
 }

@@ -17,6 +17,7 @@ pub enum SyscallResult {
     NextASID { asid: usize, satp: Satp },
     KernelTask,
     IOTask { block_id: usize, buf_ptr: usize, write: bool},
+    Check,
     Terminate(i32),
 }
 
@@ -39,6 +40,7 @@ fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
     match func {
         FUNC_SWITCH_TASK => switch_next_task(param[0]),
         FUNC_IO_TASK => do_io_task(param[0], param[1], param[2]),
+        FUNC_CHECK => do_check(),
         _ => unimplemented!(),
     }
 }
@@ -69,6 +71,10 @@ fn do_io_task(io_type: usize, block_id: usize, buf_ptr: usize) -> SyscallResult 
         },
         _ => panic!("unknown io type")
     }
+}
+
+fn do_check() -> SyscallResult {
+    SyscallResult::Check
 }
 
 fn do_process(param: [usize; 6], user_satp: usize, func: usize) -> SyscallResult {

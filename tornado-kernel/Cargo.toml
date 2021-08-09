@@ -19,8 +19,8 @@ async-trait = { git = "https://github.com.cnpmjs.org/HUST-OS/async-trait.git", r
 riscv = { git = "https://github.com.cnpmjs.org/HUST-OS/riscv.git"}
 plic = { git = "https://github.com.cnpmjs.org/HUST-OS/plic.git", branch = "main" }
 async-virtio-driver = { path = "../async-virtio-driver" }
-event = { path = "../event" }
-async-mutex = { path = "../async-mutex" }
+event = { path = "../event", features = ["kernel"] }
+async-mutex = { path = "../async-mutex", features = ["kernel"] }
 async-sd = { path = "../async-sd" }
 rv-lock = { path  = "../rv-lock" }
 # async-fat32 = { path = "../async-fat32" }
