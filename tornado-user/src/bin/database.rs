@@ -250,6 +250,32 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
                     field_idx_list.push(field_idx);
                 }
             }
+            let mut where_clause_idx = Vec::new();
+            let mut where_clause_number = Vec::new();
+            if let Some(where_clause) = where_clause {
+                let number_result: Result<i64, _> = where_clause.left.parse();
+                if let Ok(num) = number_result {
+                    where_clause_number.push(num);
+                } else {
+                    let search_result = table.fields.binary_search_by(|a| a.as_str().cmp(&where_clause.left));
+                    if let Err(_) = search_result {
+                        println!("[!] 查找失败！在条件判断语句中，表格 {} 中不存在名为 {} 的字段。", table_name, where_clause.left);
+                        return
+                    }
+                    where_clause_idx.push(search_result.unwrap());
+                }
+                let number_result: Result<i64, _> = where_clause.right.parse();
+                if let Ok(num) = number_result {
+                    where_clause_number.push(num);
+                } else {
+                    let search_result = table.fields.binary_search_by(|a| a.as_str().cmp(&where_clause.right));
+                    if let Err(_) = search_result {
+                        println!("[!] 查找失败！在条件判断语句中，表格 {} 中不存在名为 {} 的字段。", table_name, where_clause.right);
+                        return
+                    }
+                    where_clause_idx.push(search_result.unwrap());
+                }
+            }
             // 表格头
             print!("[·] | ");
             for field_idx in &field_idx_list {
@@ -259,7 +285,29 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             // 表格内容
             let mut count = 0;
             let table_width = table.fields.len();
-            for chunk in table.values.chunks(table_width) {
+            'outer: for chunk in table.values.chunks(table_width) {
+                // println!("{:?} {:?}", where_clause_idx, where_clause_number);
+                if !where_clause_idx.is_empty() || !where_clause_number.is_empty() {
+                    let mut eq_number = None;
+                    for idx in &where_clause_idx {
+                        if let Some(number) = eq_number {
+                            if chunk[*idx] != number {
+                                continue 'outer
+                            }
+                        } else {
+                            eq_number = Some(chunk[*idx]);
+                        }
+                    }
+                    for n in &where_clause_number {
+                        if let Some(number) = eq_number {
+                            if *n != number {
+                                continue 'outer
+                            }
+                        } else {
+                            eq_number = Some(*n);
+                        }
+                    }
+                }
                 count += 1;
                 print!("[·] | ");
                 for field_idx in &field_idx_list {
