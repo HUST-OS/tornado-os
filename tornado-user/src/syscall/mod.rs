@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 const MODULE_PROCESS: usize = 0x114514;
 const MODULE_TEST_INTERFACE: usize = 0x233666;
 const MODULE_TASK: usize = 0x7777777;
@@ -6,6 +8,8 @@ const FUNC_PROCESS_EXIT: usize = 0x1919810;
 const FUNC_PROCESS_PANIC: usize = 0x11451419;
 
 const FUNC_TEST_WRITE: usize = 0x666233;
+const FUNC_TEST_WRITE_ONE: usize = 0x444555;
+const FUNC_TEST_READ_ONE: usize = 0x999888;
 const FUNC_TEST_READ_LINE: usize = 0x11117777;
 
 const FUNC_SWITCH_TASK: usize = 0x666666;
@@ -59,6 +63,29 @@ fn syscall_1(module: usize, func: usize, arg: usize) -> SyscallResult {
         #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => {
             drop((module, func, arg));
+            unimplemented!("not RISC-V instruction set architecture")
+        }
+    }
+}
+
+fn syscall_2(module: usize, func: usize, args: [usize; 2]) -> SyscallResult {
+    match () {
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+        () => {
+            let (code, extra);
+            unsafe {
+                asm!(
+                    "ecall",
+                    in("a0") args[0], in("a1") args[1],
+                    in("a6") func, in("a7") module,
+                    lateout("a0") code, lateout("a1") extra,
+                )
+            };
+            SyscallResult { code, extra }
+        }
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
+        () => {
+            drop((module, func, args));
             unimplemented!("not RISC-V instruction set architecture")
         }
     }
@@ -166,6 +193,22 @@ pub fn sys_test_write(buf: &[u8]) -> SyscallResult {
         MODULE_TEST_INTERFACE,
         FUNC_TEST_WRITE,
         [0, buf.as_ptr() as usize, buf.len()],
+    )
+}
+
+pub fn sys_test_write_one(data: usize) -> SyscallResult {
+    syscall_2(
+        MODULE_TEST_INTERFACE,
+        FUNC_TEST_WRITE_ONE,
+        [0, data],
+    )
+}
+
+pub fn sys_test_read_one() -> SyscallResult {
+    syscall_1(
+        MODULE_TEST_INTERFACE,
+        FUNC_TEST_READ_ONE,
+        0,
     )
 }
 
