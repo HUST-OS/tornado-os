@@ -3,6 +3,7 @@
 #![feature(asm)]
 #![feature(llvm_asm)]
 
+#[macro_use]
 extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
@@ -116,6 +117,7 @@ async fn async_main() -> i32 {
     // let stdin = tornado_user::stdin();
     let mut buf = alloc::vec![0u8; 1024];
     let mut database = Database::new();
+    init_database(&mut database);
     print_welcome();
     loop {
         println!("[>] 请输入查询、操作或枚举语句来继续，使用q退出。");
@@ -129,7 +131,6 @@ async fn async_main() -> i32 {
         }
         let parse_result = parse_commands(&cmd);
         if let Err(ref e) = parse_result {
-            let e = parse_result.as_ref().unwrap_err(); // 一定是Err(e)
             println!("[!] 无法识别的指令：{}。错误：{}", cmd, e);
             continue;
         }
@@ -217,7 +218,7 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
             for (_, value) in kv_pairs.iter() {
                 let value_int: i64 = match value.parse() {
                     Ok(a) => a,
-                    Err(e) => {
+                    Err(_e) => {
                         println!("[!] 插入失败：数据 {} 无法被识别为 i64 整数类型。", value);
                         return
                     }
@@ -227,6 +228,46 @@ fn execute_command(database: &mut Database, command: Command<'_>) {
                 let value_int: i64 = value.parse().unwrap();
                 table.values.push(value_int);
             }
+        }
+        Command::Select(fields, table_name, where_clause) => {
+            if !database.tables.contains_key(table_name) {
+                println!("[!] 查找失败！数据库中不存在表格 {}。", table_name);
+                return
+            }
+            let table = database.tables.get_mut(table_name).unwrap();
+            let mut field_idx_list = Vec::new();
+            for field in &fields {
+                let search_result = table.fields.binary_search_by(|a| a.as_str().cmp(&field));
+                if let Err(_) = search_result {
+                    println!("[!] 查找失败！表格 {} 中不存在名为 {} 的字段。", table_name, field);
+                    return
+                }
+                let field_idx = search_result.unwrap();
+                field_idx_list.push(field_idx);
+            }
+            if fields.is_empty() { // *号的情况
+                for field_idx in 0..table.fields.len() {
+                    field_idx_list.push(field_idx);
+                }
+            }
+            // 表格头
+            print!("[·] | ");
+            for field_idx in &field_idx_list {
+                print!("{} | ", table.fields[*field_idx]);
+            }
+            println!("");
+            // 表格内容
+            let mut count = 0;
+            let table_width = table.fields.len();
+            for chunk in table.values.chunks(table_width) {
+                count += 1;
+                print!("[·] | ");
+                for field_idx in &field_idx_list {
+                    print!("{} | ", &chunk[*field_idx]);
+                }
+                println!("");
+            }
+            println!("[>] 查询返回 {} 条数据。", count);
         }
         Command::Error => {} // 什么也不做
         _ => todo!()
@@ -297,10 +338,12 @@ Pair { rule: column, span: Span { str: "b", start: 10, end: 11 }, inner: [] }
 ] */
                 // let column_pairs = select_pair.into_inner();
                 // println!("[[]] {:?}", column_pairs);
-                for column_pair in select_pair.into_inner() {
+                for columns_pair in select_pair.into_inner() {
                     // println!("[] {:?}", column_pair.as_str());
                     // println!("[] {:?}", column_pair);
-                    var_list.push(column_pair.as_str());
+                    for column_pair in columns_pair.into_inner() {
+                        var_list.push(column_pair.as_str());
+                    }
                 }
                 // 如果inner是“*”，var_list为空
             }
@@ -431,6 +474,27 @@ fn parse_insert<'i>(insert_pairs: Pairs<'i, Rule>) -> Command {
     }
     // println!("KV pairs: {:?}", kv_pairs);
     Command::Insert(table_name, kv_pairs)
+}
+
+fn init_database(database: &mut Database) {
+    let table_students = Table {
+        fields: vec!["id".to_string(), "score".to_string(), "sleep_hours_per_day".to_string()],
+        values: vec![
+            201800001, 80, 9,
+            201800002, 90, 7,
+            201800003, 95, 6,
+        ],
+    };
+    database.tables.insert("students".to_string(), table_students);
+    let table_campus_buildings = Table {
+        fields: vec!["building_id".to_string(), "floors".to_string(), "since".to_string()],
+        values: vec![
+            10, 5, 1960,
+            11, 4, 1980,
+            12, 18, 2010,
+        ],
+    };
+    database.tables.insert("campus_buildings".to_string(), table_campus_buildings);
 }
 
 fn read_line(bytes: &mut [u8]) -> usize {
