@@ -28,11 +28,11 @@ impl Future for PollTwice {
 }
 
 pub fn read_block(block_id: usize, buf: &mut [u8]) -> PollTwice {
-    let sys_ret = sys_enroll_read(block_id, buf);
+    let _sys_ret = sys_enroll_read(block_id, buf);
     PollTwice::new()
 }
 
 pub fn write_block(block_id: usize, buf: &[u8]) -> PollTwice {
-    let sys_ret = sys_enroll_write(block_id, buf);
+    let _sys_ret = sys_enroll_write(block_id, buf);
     PollTwice::new()
 }
