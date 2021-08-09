@@ -1,6 +1,8 @@
 # 飓风内核（开发中）
 异步内核就像风一样快！  
-
+![kernel](https://img.shields.io/badge/os-coroutines--kernel-red)
+![stars](https://img.shields.io/github/stars/HUST-OS/tornado-os)
+![License](https://img.shields.io/github/license/HUST-OS/tornado-os)
 ## 基于共享调度器的异步内核设计
 操作系统内核经历了几个主要的发展阶段，从裸机应用，批处理系统到多道任务系统，演变为至今主流的线程操作系统。这种系统基于线程的切换来调度任务；为了进一步提升性能，一些现代编程语言在应用层复用线程资源，提出了“协程”的概念，节省任务调度的开销。  
 在本项目中我们提出一种新的内核开发思路：由不同资源共享调度器，在操作系统层面提供协程。我们希望这种全新设计的内核在满足传统内核的易用性的同时，拥有着专有内核的高性能特点，“像风一样快”，因此取名**飓风内核**——**tornado-os**。  
@@ -125,3 +127,8 @@ cargo qemu能在任何的操作系统下运行。
 + 性能测试分析
 + 活用内核生成器语法
 + 多核环境下的上下文管理机制
+
+## 开源协议
+本项目使用双开源协议：  
+* [木兰许可证](./LICENSE-MULAN)
+* [Apache](./LICENSE-Apache)
