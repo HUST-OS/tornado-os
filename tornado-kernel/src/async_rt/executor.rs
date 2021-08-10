@@ -1,8 +1,10 @@
-use super::{KernelTask, Process};
-use crate::hart::KernelHartInfo;
-use crate::syscall::get_swap_cx;
-use crate::task::{KernelTaskRepr, TaskResult, TaskState};
-use crate::trap::switch_to_user;
+use super::shared::TaskState;
+use crate::{
+    task::{KernelTask, KernelTaskRepr, TaskResult, Process},
+    hart::KernelHartInfo,
+    syscall::get_swap_cx,
+    trap::switch_to_user
+};
 use alloc::{boxed::Box, sync::Arc};
 use core::{
     mem,
@@ -11,19 +13,20 @@ use core::{
 use riscv::register::{sie, sstatus};
 use woke::waker_ref;
 
-/*
-如果是当前上下文，就解释运行，如果不是，就切换上下文
-切换上下文时，要把上下文保存好，最终还是要回到切换的地方继续运行。
-*/
+/// 内核执行器实现
+///
+/// 如果是当前上下文，就解释运行，如果不是，就切换上下文。
+///
+/// 切换上下文时，要把上下文保存好，最终还是要回到切换的地方继续运行。
 pub fn run_until_idle(
     peek_task: impl Fn() -> TaskResult,
     delete_task: impl Fn(usize) -> bool,
     set_task_state: impl Fn(usize, TaskState),
 ) {
     loop {
-        unsafe {
-            sstatus::set_sie();
-        }
+        // unsafe {
+        //     sstatus::set_sie();
+        // }
         ext_intr_off();
         let task = peek_task();
         ext_intr_on();
@@ -56,19 +59,22 @@ pub fn run_until_idle(
                 switch_to_user(swap_cx, next_satp.inner(), next_asid)
             }
             TaskResult::NoWakeTask => {
-                // todo!()
+                // 没有醒着的任务，直接跳过
             }
             TaskResult::Finished => break,
         }
-        unsafe {
-            sstatus::clear_sie();
-        }
+        // unsafe {
+        //     sstatus::clear_sie();
+        // }
     }
 }
 
 /// 用于内核第一次升到用户态
 ///
 /// note: 需要确保共享调度器中只有一个任务
+///
+/// 不一定会用到，但先留着
+#[allow(unused)]
 pub fn run_one(
     add_task: impl Fn(usize) -> bool,
     peek_task: impl Fn() -> TaskResult,
@@ -105,13 +111,13 @@ pub fn run_one(
                 }
             }
             TaskResult::NoWakeTask => {
-                // todo!()
             }
             _ => unreachable!(),
         }
     }
 }
 
+/// 唤醒机制
 impl woke::Woke for KernelTaskRepr {
     fn wake_by_ref(task: &Arc<Self>) {
         unsafe { task.do_wake() }

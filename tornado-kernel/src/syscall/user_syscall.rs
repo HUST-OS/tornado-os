@@ -3,7 +3,8 @@ use super::{syscall, SyscallResult};
 use crate::hart::KernelHartInfo;
 use crate::memory::{AddressSpaceId, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET};
 use crate::plic;
-use crate::task::{self, ext_intr_off, ext_intr_on};
+use crate::task;
+use crate::async_rt::{self, ext_intr_off, ext_intr_on, TaskState};
 use crate::trap;
 use crate::virtio::VIRTIO_BLOCK;
 use crate::SHAREDPAYLOAD_BASE;
@@ -65,10 +66,10 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     println!("[syscall] yield kernel");
                     let shared_payload =
-                        unsafe { task::SharedPayload::load(crate::SHAREDPAYLOAD_BASE) };
+                        unsafe { async_rt::SharedPayload::load(crate::SHAREDPAYLOAD_BASE) };
                     trap::init();
-                    task::run_until_idle(
-                        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+                    async_rt::run_until_idle(
+                        || unsafe { shared_payload.peek_task(async_rt::kernel_should_switch) },
                         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
                         |task_repr, new_state| unsafe {
                             shared_payload.set_task_state(task_repr, new_state)
@@ -84,7 +85,7 @@ pub extern "C" fn user_trap_handler() {
                     let wake_task_repr = unsafe { next_task_repr() };
                     let process = KernelHartInfo::current_process().expect("get kernel process");
                     unsafe {
-                        let shared_payload = task::SharedPayload::load(SHAREDPAYLOAD_BASE);
+                        let shared_payload = async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE);
                         let task = if write {
                             task::new_kernel(
                                 write_block_task(
@@ -201,9 +202,9 @@ async fn read_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake
     let buf = unsafe { super::get_user_buf_mut(user_satp, buf_ptr, BLOCK_SIZE) };
     VIRTIO_BLOCK.read_block(block_id, buf).await;
     unsafe {
-        let shared_payload = task::SharedPayload::load(SHAREDPAYLOAD_BASE);
+        let shared_payload = async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE);
         ext_intr_off();
-        shared_payload.set_task_state(wake_task_repr, task::TaskState::Ready);
+        shared_payload.set_task_state(wake_task_repr, TaskState::Ready);
         ext_intr_on();
     }
 }
@@ -217,9 +218,9 @@ async fn write_block_task(
     let buf = unsafe { super::get_user_buf_mut(user_satp, buf_ptr, BLOCK_SIZE) };
     VIRTIO_BLOCK.write_block(block_id, buf).await;
     unsafe {
-        let shared_payload = task::SharedPayload::load(SHAREDPAYLOAD_BASE);
+        let shared_payload = async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE);
         ext_intr_off();
-        shared_payload.set_task_state(wake_task_repr, task::TaskState::Ready);
+        shared_payload.set_task_state(wake_task_repr, TaskState::Ready);
         ext_intr_on();
     }
 }
@@ -229,7 +230,7 @@ async fn write_block_task(
 /// note: 这个函数需要保证调用时共享调度器 `peek_task` 的返回值是任务指针
 /// 一般只用于 `enroll_read` 或 `enroll_write` 系统调用
 unsafe fn next_task_repr() -> usize {
-    let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
+    let shared_payload = unsafe { async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE) };
     ext_intr_off();
     let next_task = shared_payload.peek_task(should_switch);
     ext_intr_on();

@@ -1,5 +1,4 @@
 pub use allocator::{Allocator, StackedAllocator};
-
 mod allocator {
     mod stacked_allocator;
 

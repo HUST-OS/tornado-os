@@ -36,6 +36,7 @@ mod task;
 mod trap;
 mod user;
 mod virtio;
+mod async_rt;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -134,7 +135,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         plic::xv6_plic_init();
     }
 
-    let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
+    let shared_payload = unsafe { async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE) };
 
     // 创建一个内核进程
     let process = task::Process::new(kernel_memory).expect("create process 1");
@@ -193,8 +194,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     // 运行任务
-    task::run_until_idle(
-        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+    async_rt::run_until_idle(
+        || unsafe { shared_payload.peek_task(async_rt::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
@@ -233,8 +234,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     // 运行执行器
-    task::run_until_idle(
-        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+    async_rt::run_until_idle(
+        || unsafe { shared_payload.peek_task(async_rt::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );

@@ -1,13 +1,19 @@
-mod executor;
+//! 内核态的任务管理模块
+
 mod kernel_task;
 mod process;
-mod shared;
 
-pub use executor::{ext_intr_off, ext_intr_on, run_one, run_until_idle};
 pub use kernel_task::{KernelTask, TaskId};
 pub use process::{Process, ProcessId};
 pub use rv_lock::{Lock, LockGuard};
-pub use shared::{kernel_should_switch, SharedPayload, TaskState};
+
+use crate::async_rt::TaskState;
+use alloc::sync::Arc;
+use core::{
+    future::Future,
+    ptr::NonNull
+};
+
 /// 共享调度器返回的结果
 #[derive(Debug)]
 #[repr(C)]
@@ -23,10 +29,6 @@ pub enum TaskResult {
     Finished,
 }
 
-use alloc::sync::Arc;
-use core::future::Future;
-use core::ptr::NonNull;
-
 /// 创建一个新的内核任务，打包它的环境
 pub fn new_kernel(
     future: impl Future<Output = ()> + 'static + Send + Sync,
@@ -41,6 +43,7 @@ pub fn new_kernel(
     ))
 }
 
+/// 内核任务的表示
 #[derive(Debug)]
 pub struct KernelTaskRepr(
     KernelTask,
@@ -55,6 +58,9 @@ impl KernelTaskRepr {
     pub unsafe fn task_repr(self: Arc<Self>) -> usize {
         Arc::into_raw(self) as usize
     }
+    /// 唤醒这个任务
+    ///
+    /// 目前内核里面有些地方使用上这个函数代码会比较简洁，这个留到比赛后修改
     pub unsafe fn do_wake(self: &Arc<Self>) {
         let shared_scheduler = NonNull::new(self.1 as *mut ()).unwrap();
         let task_repr = Arc::as_ptr(self) as usize;

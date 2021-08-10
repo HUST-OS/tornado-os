@@ -1,4 +1,4 @@
-// syscall-exit
+//! 系统调用管理模块
 
 mod config;
 mod user_syscall;
