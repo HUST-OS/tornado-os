@@ -2,7 +2,7 @@
 异步内核就像风一样快！  
 ![os](https://img.shields.io/badge/kernel-asynchronous-red)
 ![ISA](https://img.shields.io/badge/ISA-RISC--V-yellow)
-![License](https://img.shields.io/github/license/HUST-OS/tornado-os)
+![competition](https://img.shields.io/badge/os-competition-blue)
 
 ## 基于共享调度器的异步内核设计
 操作系统内核经历了几个主要的发展阶段，从裸机应用，批处理系统到多道任务系统，演变为至今主流的线程操作系统。这种系统基于线程的切换来调度任务；为了进一步提升性能，一些现代编程语言在应用层复用线程资源，提出了“协程”的概念，节省任务调度的开销。  
