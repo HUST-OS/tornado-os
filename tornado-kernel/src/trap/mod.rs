@@ -22,8 +22,8 @@ macro_rules! define_load_store {
 }
 
 mod handler;
-mod timer;
 mod switch;
+mod timer;
 
 pub use handler::{trap_vector, TrapFrame};
 pub use switch::*;
@@ -42,5 +42,3 @@ pub fn init() {
 
     println!("mod interrupt initialized");
 }
-
-

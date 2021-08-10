@@ -6,8 +6,7 @@ use crate::{
         KERNEL_MAP_OFFSET, STACK_SIZE,
     },
     syscall::{get_swap_cx, user_trap_handler},
-    task,
-    trap
+    task, trap,
 };
 use alloc::string::String;
 use riscv::register::satp;
@@ -20,9 +19,9 @@ use riscv::register::satp;
 /// ```Rust
 /// # let kernel_memory = memory::MemorySet::new_kernel().unwrap();
 /// # let process = task::Process::new(kernel_memory).unwrap();
-/// 
+///
 /// let kernel_stack = process.alloc_task().unwrap();
-/// 
+///
 /// async {
 ///     prepare_user("alloc-test.bin", kernel_stack.end.0).await;
 /// }

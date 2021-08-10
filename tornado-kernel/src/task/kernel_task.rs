@@ -1,17 +1,11 @@
-use crate::{
-    memory::VirtualAddress,
-    task::Process
-};
-use alloc::{
-    boxed::Box,
-    sync::Arc
-};
+use crate::{memory::VirtualAddress, task::Process};
+use alloc::{boxed::Box, sync::Arc};
 use core::{
     fmt,
     future::Future,
     ops::Range,
     pin::Pin,
-    sync::atomic::{AtomicUsize, Ordering}
+    sync::atomic::{AtomicUsize, Ordering},
 };
 use spin::Mutex;
 

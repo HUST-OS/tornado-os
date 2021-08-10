@@ -1,19 +1,18 @@
 //! 从用户过来的系统调用在这里处理
 use super::{syscall, SyscallResult};
 use crate::{
-    hart::KernelHartInfo,
-    memory::{AddressSpaceId, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET},
-    plic,
-    task,
-    trap::{self, SwapContext},
     async_rt::{self, ext_intr_off, ext_intr_on, TaskState},
+    hart::KernelHartInfo,
+    memory::{self, Satp},
+    memory::{AddressSpaceId, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET},
+    plic, task,
+    trap::{self, SwapContext},
     virtio::VIRTIO_BLOCK,
     SHAREDPAYLOAD_BASE,
-    memory::{self, Satp},
 };
 use riscv::register::{
     scause::{self, Interrupt, Trap},
-    sepc, sie, stval, stvec
+    sepc, sie, stval, stvec,
 };
 
 const BLOCK_SIZE: usize = 512;
@@ -57,7 +56,8 @@ pub extern "C" fn user_trap_handler() {
                     // 不跳过指令，继续运行
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::NextASID { asid, satp } => { // 需要切换地址空间
+                SyscallResult::NextASID { asid, satp } => {
+                    // 需要切换地址空间
                     // 跳过`do_yield`指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     // 需要转到目标地址空间去运行
@@ -65,7 +65,8 @@ pub extern "C" fn user_trap_handler() {
                     let next_swap_contex = unsafe { get_swap_cx(&satp, asid) };
                     trap::switch_to_user(next_swap_contex, satp.inner(), asid)
                 }
-                SyscallResult::KernelTask => { // 需要运行内核任务
+                SyscallResult::KernelTask => {
+                    // 需要运行内核任务
                     // 跳过 `do_yield` 指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     println!("[syscall] yield kernel");
@@ -81,7 +82,8 @@ pub extern "C" fn user_trap_handler() {
                     );
                     crate::end()
                 }
-                SyscallResult::IOTask { // 需要注册IO任务
+                SyscallResult::IOTask {
+                    // 需要注册IO任务
                     block_id,
                     buf_ptr,
                     write,
@@ -125,7 +127,8 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::Check => { // 内核检查
+                SyscallResult::Check => {
+                    // 内核检查
                     // 如果有未唤醒的块设备读写任务，将其唤醒
                     unsafe {
                         if WAKE_NUM > 1 {
@@ -137,13 +140,15 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::Terminate(exit_code) => { // 用户执行器认为可以退出系统了
+                SyscallResult::Terminate(exit_code) => {
+                    // 用户执行器认为可以退出系统了
                     println!("User exit!");
                     crate::sbi::shutdown();
                 }
             }
         }
-        Trap::Interrupt(Interrupt::SupervisorExternal) => { // 用户态被外部中断打断
+        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            // 用户态被外部中断打断
             // 用户态被外部中断打断
             //
             // todo: 这里有个问题，就是最后一次外部中断的时候程序运行在共享调度器里面的时候

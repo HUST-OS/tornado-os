@@ -1,13 +1,7 @@
 //! virtio异步块设备驱动
 use crate::memory::VIRTIO0;
-use alloc::{
-    boxed::Box,
-    sync::Arc
-};
-use async_virtio_driver::{
-    block::*,
-    mmio::VirtIOHeader
-};
+use alloc::{boxed::Box, sync::Arc};
+use async_virtio_driver::{block::*, mmio::VirtIOHeader};
 /// 异步虚拟块设备接口
 ///
 /// note: [`VirtIOBlock`]中的常量泛型参数指代一个块中有多少个扇区，

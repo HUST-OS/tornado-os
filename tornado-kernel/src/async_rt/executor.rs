@@ -1,9 +1,9 @@
 use super::shared::TaskState;
 use crate::{
-    task::{KernelTask, KernelTaskRepr, TaskResult, Process},
     hart::KernelHartInfo,
     syscall::get_swap_cx,
-    trap::switch_to_user
+    task::{KernelTask, KernelTaskRepr, Process, TaskResult},
+    trap::switch_to_user,
 };
 use alloc::{boxed::Box, sync::Arc};
 use core::{
@@ -110,8 +110,7 @@ pub fn run_one(
                     unreachable!() // 该任务不可能返回 Ready(T)
                 }
             }
-            TaskResult::NoWakeTask => {
-            }
+            TaskResult::NoWakeTask => {}
             _ => unreachable!(),
         }
     }

@@ -1,13 +1,9 @@
 //! 和处理核相关的函数
 use crate::{
     memory::{AddressSpaceId, MemorySet, Satp},
-    task::Process
+    task::Process,
 };
-use alloc::{
-    boxed::Box,
-    collections::LinkedList,
-    sync::Arc
-};
+use alloc::{boxed::Box, collections::LinkedList, sync::Arc};
 use core::ptr::NonNull;
 
 /// 写一个指针到上下文指针
@@ -32,10 +28,10 @@ pub fn read_tp() -> usize {
 /// 以及已经分配的地址空间和对应的用户上下文
 pub struct KernelHartInfo {
     hart_id: usize,
-    current_address_space_id: AddressSpaceId,     // currently unused
-    current_process: Option<Arc<Process>>,        // currently unused
-    hart_max_asid: AddressSpaceId,                // note: different between qemu and k210 platform
-    asid_alloc: (LinkedList<usize>, usize),       // (空余的编号回收池，目前已分配最大的编号)
+    current_address_space_id: AddressSpaceId, // currently unused
+    current_process: Option<Arc<Process>>,    // currently unused
+    hart_max_asid: AddressSpaceId,            // note: different between qemu and k210 platform
+    asid_alloc: (LinkedList<usize>, usize),   // (空余的编号回收池，目前已分配最大的编号)
     user_mm_sets: (LinkedList<MemorySet>, usize), // (注册的用户地址空间映射，上一次进入的用户地址空间编号)
 }
 
@@ -69,7 +65,6 @@ impl KernelHartInfo {
         use_tp_box(|b| b.hart_id)
     }
 
-    
     pub unsafe fn load_address_space_id(asid: AddressSpaceId) {
         use_tp_box(|b| b.current_address_space_id = asid);
     }

@@ -5,13 +5,11 @@ mod user_syscall;
 
 use crate::{
     hart::KernelHartInfo,
-    memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber}
+    memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber},
 };
 use bit_field::BitField;
 use config::*;
-pub use user_syscall::{
-    get_swap_cx, user_trap_handler, WAKE_NUM
-};
+pub use user_syscall::{get_swap_cx, user_trap_handler, WAKE_NUM};
 
 /// 系统调用结果
 pub enum SyscallResult {

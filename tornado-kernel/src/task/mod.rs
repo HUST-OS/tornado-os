@@ -9,10 +9,7 @@ pub use rv_lock::{Lock, LockGuard};
 
 use crate::async_rt::TaskState;
 use alloc::sync::Arc;
-use core::{
-    future::Future,
-    ptr::NonNull
-};
+use core::{future::Future, ptr::NonNull};
 
 /// 共享调度器返回的结果
 #[derive(Debug)]

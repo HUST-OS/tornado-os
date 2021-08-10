@@ -53,11 +53,11 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     /// example:
     /// ```Rust
     /// let mut user_space = UserSpaceManager::new();
-    /// 
+    ///
     /// // 分配100帧物理内存给地址空间1
     /// let asid = unsafe { AddressSpaceId::from_raw(1) };
     /// let ppn = user_space.alloc(100, asid).expect("alloc user space");
-    /// 
+    ///
     /// println!("alloc ppn {:?}", ppn);
     /// ```
     pub fn alloc(&mut self, pages: usize, asid: AddressSpaceId) -> Option<PhysicalPageNumber> {

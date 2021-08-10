@@ -1,20 +1,17 @@
 use super::timer;
 use crate::{
-    syscall::{
-        WAKE_NUM,
-        syscall as do_syscall,
-        SyscallResult
-    },
-    task::KernelTaskRepr,
     hart::KernelHartInfo,
-    plic
+    plic,
+    syscall::{syscall as do_syscall, SyscallResult, WAKE_NUM},
+    task::KernelTaskRepr,
 };
 use alloc::sync::Arc;
 use core::fmt;
 use riscv::register::{
     scause::{self, Exception, Trap},
+    sepc,
     sstatus::{self, Sstatus, SPP},
-    sepc, stval, stvec,
+    stval, stvec,
 };
 
 // todo: doc
@@ -243,7 +240,7 @@ pub unsafe extern "C" fn supervisor_timer() {
 /// S态时钟中断处理函数
 pub extern "C" fn rust_supervisor_timer(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     timer::tick(); // 设置下一个时钟中断时间
-    // todo: 保存当前任务的上下文，恢复下一个任务的上下文
+                   // todo: 保存当前任务的上下文，恢复下一个任务的上下文
     trap_frame
 }
 

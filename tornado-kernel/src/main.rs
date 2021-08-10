@@ -23,6 +23,7 @@ extern crate alloc;
 #[macro_use]
 mod console;
 mod algorithm;
+mod async_rt;
 mod cache;
 mod fs;
 mod hart;
@@ -36,7 +37,6 @@ mod task;
 mod trap;
 mod user;
 mod virtio;
-mod async_rt;
 
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
@@ -95,7 +95,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     println!("[kernel] heap test passed");
-    
+
     println!("[kernel] max asid = {:?}", memory::max_asid());
 
     // 物理页分配
@@ -117,8 +117,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     println!("[kernel] _swap_frame: {:#x}", _swap_frame as usize);
-    println!("[kernel] _user_to_supervisor: {:#x}", _user_to_supervisor as usize);
-    println!("[kernel] _supervisor_to_user: {:#x}", _supervisor_to_user as usize);
+    println!(
+        "[kernel] _user_to_supervisor: {:#x}",
+        _user_to_supervisor as usize
+    );
+    println!(
+        "[kernel] _supervisor_to_user: {:#x}",
+        _supervisor_to_user as usize
+    );
 
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };

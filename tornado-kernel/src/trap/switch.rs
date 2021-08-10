@@ -8,9 +8,7 @@
 
 use crate::{
     hart::KernelHartInfo,
-    memory::{
-        swap_contex_va, AddressSpaceId, SWAP_FRAME_VA
-    }
+    memory::{swap_contex_va, AddressSpaceId, SWAP_FRAME_VA},
 };
 /// 内核态和用户态切换时需要保存的上下文
 #[repr(C)]
@@ -197,7 +195,6 @@ pub unsafe extern "C" fn supervisor_to_user() -> ! {
         options(noreturn)
     )
 }
-
 
 /// 上升到用户态
 ///
