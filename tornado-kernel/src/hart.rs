@@ -1,9 +1,13 @@
 //! 和处理核相关的函数
-use crate::memory::{AddressSpaceId, MemorySet, Satp};
-use crate::task::Process;
-use alloc::boxed::Box;
-use alloc::collections::LinkedList;
-use alloc::sync::Arc;
+use crate::{
+    memory::{AddressSpaceId, MemorySet, Satp},
+    task::Process
+};
+use alloc::{
+    boxed::Box,
+    collections::LinkedList,
+    sync::Arc
+};
 use core::ptr::NonNull;
 
 /// 写一个指针到上下文指针
@@ -22,12 +26,14 @@ pub fn read_tp() -> usize {
     tp
 }
 
-// 用户层将定义自己的tp寄存器意义
-// 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，以及已经分配的地址空间
+/// 用户层将定义自己的tp寄存器意义
+///
+/// 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，
+/// 以及已经分配的地址空间和对应的用户上下文
 pub struct KernelHartInfo {
     hart_id: usize,
-    current_address_space_id: AddressSpaceId,     // unused
-    current_process: Option<Arc<Process>>,        // unused
+    current_address_space_id: AddressSpaceId,     // currently unused
+    current_process: Option<Arc<Process>>,        // currently unused
     hart_max_asid: AddressSpaceId,                // note: different between qemu and k210 platform
     asid_alloc: (LinkedList<usize>, usize),       // (空余的编号回收池，目前已分配最大的编号)
     user_mm_sets: (LinkedList<MemorySet>, usize), // (注册的用户地址空间映射，上一次进入的用户地址空间编号)
@@ -36,8 +42,8 @@ pub struct KernelHartInfo {
 impl KernelHartInfo {
     /// 准备一个新的核，以供调度器使用
     ///
-    /// 在堆上申请一片内存存放 [`KernelHartInfo`] 数据结构
-    /// 这片内存不会马上释放，只有在调用 `unload_hart` 函数的时候才会释放
+    /// 在堆上申请一片内存存放[`KernelHartInfo`]数据结构
+    /// 这片内存不会马上释放，只有在调用`unload_hart`函数的时候才会释放
     pub unsafe fn load_hart(hart_id: usize) {
         let hart_info = Box::new(KernelHartInfo {
             hart_id,
@@ -63,6 +69,7 @@ impl KernelHartInfo {
         use_tp_box(|b| b.hart_id)
     }
 
+    
     pub unsafe fn load_address_space_id(asid: AddressSpaceId) {
         use_tp_box(|b| b.current_address_space_id = asid);
     }
@@ -136,9 +143,11 @@ impl KernelHartInfo {
     }
 
     /// 添加用户地址空间映射
+    ///
+    /// 添加成功返回true，否则返回false
     pub fn load_user_mm_set(mm_set: MemorySet) -> bool {
         use_tp_box_move(|b| {
-            // 检查链表当前是否有相同地址空间的 [`MemorySet`]
+            // 检查链表当前是否有相同地址空间的[`MemorySet`]
             let (link, _prev) = &mut b.user_mm_sets;
             for set in link.iter() {
                 if set.address_space_id == mm_set.address_space_id {
@@ -172,7 +181,9 @@ impl KernelHartInfo {
         })
     }
 
-    /// 根据地址空间编号找到相应的 [`Satp`] 结构
+    /// 根据地址空间编号找到相应的[`Satp`]结构
+    ///
+    /// 没有对应的地址空间编号返回[`None`]
     pub fn user_satp(asid: usize) -> Option<Satp> {
         use_tp_box(|b| {
             let (link, _prev) = &b.user_mm_sets;
@@ -185,7 +196,7 @@ impl KernelHartInfo {
         })
     }
 
-    /// 获取上一个进入的用户的 [`Satp`] 结构
+    /// 获取上一个进入的用户的[`Satp`]结构
     pub fn prev_satp() -> Option<Satp> {
         let asid = use_tp_box(|b| b.user_mm_sets.1);
         Self::user_satp(asid)

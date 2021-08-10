@@ -27,7 +27,7 @@ pub fn run_until_idle(
         ext_intr_off();
         let task = peek_task();
         ext_intr_on();
-        println!(">>> kernel executor: next task = {:x?}", task);
+        // println!(">>> kernel executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的（内核）地址空间里面
