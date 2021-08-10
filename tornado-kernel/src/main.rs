@@ -23,6 +23,7 @@ extern crate alloc;
 #[macro_use]
 mod console;
 mod algorithm;
+mod async_rt;
 mod cache;
 mod fs;
 mod hart;
@@ -94,7 +95,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     println!("[kernel] heap test passed");
-    
+
     println!("[kernel] max asid = {:?}", memory::max_asid());
 
     // 物理页分配
@@ -116,8 +117,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     println!("[kernel] _swap_frame: {:#x}", _swap_frame as usize);
-    println!("[kernel] _user_to_supervisor: {:#x}", _user_to_supervisor as usize);
-    println!("[kernel] _supervisor_to_user: {:#x}", _supervisor_to_user as usize);
+    println!(
+        "[kernel] _user_to_supervisor: {:#x}",
+        _user_to_supervisor as usize
+    );
+    println!(
+        "[kernel] _supervisor_to_user: {:#x}",
+        _supervisor_to_user as usize
+    );
 
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };
@@ -134,7 +141,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         plic::xv6_plic_init();
     }
 
-    let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
+    let shared_payload = unsafe { async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE) };
 
     // 创建一个内核进程
     let process = task::Process::new(kernel_memory).expect("create process 1");
@@ -193,8 +200,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     // 运行任务
-    task::run_until_idle(
-        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+    async_rt::run_until_idle(
+        || unsafe { shared_payload.peek_task(async_rt::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
@@ -233,8 +240,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     }
 
     // 运行执行器
-    task::run_until_idle(
-        || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
+    async_rt::run_until_idle(
+        || unsafe { shared_payload.peek_task(async_rt::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );

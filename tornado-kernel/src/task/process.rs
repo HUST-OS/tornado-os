@@ -27,7 +27,7 @@ pub struct ProcessInner {
 impl Process {
     /// 创建一个进程
     ///
-    /// 如果内存分配失败，返回None
+    /// 如果内存分配失败，返回[`None`]
     pub fn new(memory_set: MemorySet) -> Option<Arc<Self>> {
         let process = Arc::new(Process {
             id: next_process_id(),
@@ -50,10 +50,6 @@ impl Process {
             is_user: true,
             inner: Mutex::new(ProcessInner { memory_set }),
         });
-        // unsafe {
-        //     KernelHartInfo::load_address_space_id(process.address_space_id());
-        //     KernelHartInfo::load_process(process.clone());
-        // };
         Some(process)
     }
 

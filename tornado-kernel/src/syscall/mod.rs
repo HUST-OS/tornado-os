@@ -1,16 +1,17 @@
-// syscall-exit
+//! 系统调用管理模块
 
 mod config;
 mod user_syscall;
 
-use crate::hart::KernelHartInfo;
-use crate::memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber};
+use crate::{
+    hart::KernelHartInfo,
+    memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber},
+};
 use bit_field::BitField;
 use config::*;
-pub use user_syscall::get_swap_cx;
-pub use user_syscall::user_trap_handler;
-pub use user_syscall::WAKE_NUM;
+pub use user_syscall::{get_swap_cx, user_trap_handler, WAKE_NUM};
 
+/// 系统调用结果
 pub enum SyscallResult {
     Procceed {
         code: usize,
@@ -37,6 +38,7 @@ impl SyscallResult {
     }
 }
 
+/// 系统调用的第一次分发
 pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) -> SyscallResult {
     match module {
         MODULE_PROCESS => do_process(param, user_satp, func),
@@ -46,6 +48,7 @@ pub fn syscall(param: [usize; 6], user_satp: usize, func: usize, module: usize) 
     }
 }
 
+/// 任务相关系统调用
 fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
     match func {
         FUNC_SWITCH_TASK => switch_next_task(param[0]),
@@ -55,8 +58,12 @@ fn do_task(param: [usize; 6], func: usize) -> SyscallResult {
     }
 }
 
+/// `yield`系统调用
+///
 /// 用户态轮询任务的时候，发现下一个任务在不同地址空间，则产生该系统调用
+///
 /// 从共享调度器里面拿出下一个任务的引用，根据地址空间编号切换到相应的地址空间
+///
 /// 下一个任务的地址空间编号由用户通过 a0 参数传给内核
 fn switch_next_task(next_asid: usize) -> SyscallResult {
     if next_asid == 0 {
@@ -71,6 +78,11 @@ fn switch_next_task(next_asid: usize) -> SyscallResult {
     }
 }
 
+/// 异步IO系统调用
+///
+/// 这时候内核会创建一个块设备读写任务并添加到共享调度器中。
+///
+/// 任务的结尾会将对应的用户态任务唤醒。
 fn do_io_task(io_type: usize, block_id: usize, buf_ptr: usize) -> SyscallResult {
     match io_type {
         0 => SyscallResult::IOTask {
@@ -87,10 +99,14 @@ fn do_io_task(io_type: usize, block_id: usize, buf_ptr: usize) -> SyscallResult 
     }
 }
 
+/// `kernel_check`系统调用
+///
+/// 进行内核检查
 fn do_check() -> SyscallResult {
     SyscallResult::Check
 }
 
+#[allow(missing_docs)]
 fn do_process(param: [usize; 6], user_satp: usize, func: usize) -> SyscallResult {
     match func {
         FUNC_PROCESS_EXIT => SyscallResult::Terminate(param[0] as i32),

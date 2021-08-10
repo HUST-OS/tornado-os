@@ -1,16 +1,17 @@
-use crate::memory::VirtualAddress;
-use crate::task::Process;
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use core::fmt;
-use core::future::Future;
-use core::ops::Range;
-use core::pin::Pin;
-use core::sync::atomic::{AtomicUsize, Ordering};
+use crate::{memory::VirtualAddress, task::Process};
+use alloc::{boxed::Box, sync::Arc};
+use core::{
+    fmt,
+    future::Future,
+    ops::Range,
+    pin::Pin,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 use spin::Mutex;
 
 /// 任务的信息
-// 如果要运行用户的进程，首先切换到用户的地址空间，其中包含一个初始化好的栈和剩余空间，然后在里面增加用户的任务
+///
+/// 如果要运行用户的进程，首先切换到用户的地址空间，其中包含一个初始化好的栈和剩余空间，然后在里面增加用户的任务
 pub struct KernelTask {
     /// 任务的编号
     pub id: TaskId,

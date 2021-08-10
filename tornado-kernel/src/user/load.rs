@@ -4,7 +4,7 @@ use super::space::USER_SPACE;
 use crate::{
     fs::FS,
     hart::KernelHartInfo,
-    memory::{AddressSpaceId, MemorySet, PhysicalAddress, PhysicalPageNumber}
+    memory::{AddressSpaceId, MemorySet, PhysicalAddress, PhysicalPageNumber},
 };
 use alloc::string::String;
 use core::ptr::copy;

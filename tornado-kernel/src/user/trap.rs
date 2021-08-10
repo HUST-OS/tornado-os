@@ -1,16 +1,31 @@
 use super::load::load_user;
-use crate::hart::{self, KernelHartInfo};
-use crate::memory::{
-    swap_contex_va, AddressSpaceId, Flags, MemorySet, Satp, VirtualAddress, VirtualPageNumber,
-    KERNEL_MAP_OFFSET, STACK_SIZE,
+use crate::{
+    hart::{self, KernelHartInfo},
+    memory::{
+        swap_contex_va, AddressSpaceId, Flags, MemorySet, Satp, VirtualAddress, VirtualPageNumber,
+        KERNEL_MAP_OFFSET, STACK_SIZE,
+    },
+    syscall::{get_swap_cx, user_trap_handler},
+    task, trap,
 };
-use crate::syscall::{get_swap_cx, user_trap_handler};
-use crate::task;
-use crate::trap;
 use alloc::string::String;
 use riscv::register::satp;
 
 /// 准备用户地址空间映射
+///
+/// 通常作为内核异步任务在内核执行器中运行
+///
+/// example:
+/// ```Rust
+/// # let kernel_memory = memory::MemorySet::new_kernel().unwrap();
+/// # let process = task::Process::new(kernel_memory).unwrap();
+///
+/// let kernel_stack = process.alloc_task().unwrap();
+///
+/// async {
+///     prepare_user("alloc-test.bin", kernel_stack.end.0).await;
+/// }
+/// ```
 pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
     // 创建一个用户态映射
     let mut user_memory = load_user(user).await;
@@ -36,14 +51,14 @@ pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
             .unwrap()
     };
 
-    // 获取用户的 satp 寄存器
+    // 获取用户的`satp`寄存器
     let user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
 
     // 用户态栈
     let user_stack_handle = user_memory
         .alloc_page_range(STACK_SIZE, Flags::READABLE | Flags::WRITABLE | Flags::USER)
         .expect("alloc user stack");
-    // 这里减 4 是因为映射的时候虚拟地址的右半边是不包含的
+    // 这里减4是因为映射的时候虚拟地址的右半边是不包含的
     let user_stack_top = user_stack_handle.end.0 - 4;
 
     // 将用户地址空间映射注册到 [`KernelHartInfo`]
@@ -57,7 +72,7 @@ pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
 
     let tp = hart::read_tp();
     // 往 [`SwapContext`] 中写入初始数据
-    // 目前通过 tp 寄存器把地址空间编号传给用户，后面可能会修改
+    // 目前通过tp寄存器把地址空间编号传给用户，后面可能会修改
     *swap_cx = trap::SwapContext::new_to_user(
         kernel_satp,
         0,
@@ -67,12 +82,14 @@ pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
         user_trap_handler as usize,
     );
 
-    // 在这里把共享运行时中 raw_table 的地址通过 gp 寄存器传给用户
+    // 在这里把共享调度器中`raw_table`的地址通过`gp`寄存器传给用户
     swap_cx.set_gp(crate::SHAREDPAYLOAD_BASE);
     swap_cx.set_tp(user_asid);
 }
 
-/// 进入地址空间为 `asid` 的用户态空间
+/// 进入地址空间为`asid`的用户态空间
+///
+/// 通常用于第一次从内核态进入用户态
 pub fn enter_user(asid: usize) -> ! {
     let satp = KernelHartInfo::user_satp(asid).expect("get satp with asid");
     let swap_context = unsafe { get_swap_cx(&satp, asid) };

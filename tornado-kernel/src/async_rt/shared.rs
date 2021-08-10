@@ -1,8 +1,5 @@
-use super::TaskResult;
-use crate::hart::KernelHartInfo;
-use crate::memory::AddressSpaceId;
-use core::mem;
-use core::ptr::NonNull;
+use crate::{hart::KernelHartInfo, memory::AddressSpaceId, task::TaskResult};
+use core::{mem, ptr::NonNull};
 
 /// 任务当前的状态
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -17,7 +14,7 @@ pub extern "C" fn kernel_should_switch(address_space_id: AddressSpaceId) -> bool
     KernelHartInfo::current_address_space_id() != address_space_id
 }
 
-/// 共享载荷
+/// 共享调度器
 #[repr(C)]
 pub struct SharedPayload {
     pub(crate) shared_scheduler: NonNull<()>,
@@ -44,6 +41,13 @@ type SharedPayloadRaw = (
 );
 
 impl SharedPayload {
+    /// 根据基地址加载共享调度器
+    ///
+    /// example:
+    /// ```Rust
+    /// # const BASE: usize = 0x8600_000;
+    /// let shared_load = unsafe { SharedPayload::load(BASE); }
+    /// ```
     pub unsafe fn load(base: usize) -> Self {
         let mut payload_usize = *(base as *const SharedPayloadAsUsize);
         // println!(
@@ -77,6 +81,16 @@ impl SharedPayload {
     }
 
     /// 往共享调度器中添加任务
+    ///
+    /// example:
+    /// ```Rust
+    /// # const BASE: usize = 0x8600_000;
+    /// unsafe {
+    ///     let shared_load = SharedPayload::new(BASE);
+    ///     let asid = AddressSpaceId::from_raw(0);
+    ///     shared_load.add_task(0, asid, task.task_repr());
+    /// }
+    /// ```
     pub unsafe fn add_task(
         &self,
         hart_id: usize,
@@ -89,6 +103,11 @@ impl SharedPayload {
     }
 
     /// 从共享调度器中得到下一个任务
+    ///
+    /// example:
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub unsafe fn peek_task(
         &self,
         should_yield: extern "C" fn(AddressSpaceId) -> bool,
@@ -98,12 +117,23 @@ impl SharedPayload {
     }
 
     /// 从共享调度器中删除任务
+    ///
+    /// ```Rust
+    /// unsafe{
+    ///     assert!(shared_load.delete_task(task.task_repr()));        
+    /// }
+    /// ```
     pub unsafe fn delete_task(&self, task_repr: usize) -> bool {
         let f = self.shared_delete_task;
         f(self.shared_scheduler, task_repr)
     }
 
     /// 设置一个任务的状态
+    ///
+    /// example:
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub unsafe fn set_task_state(&self, task_repr: usize, new_state: TaskState) {
         let f = self.shared_set_task_state;
         f(self.shared_scheduler, task_repr, new_state)
