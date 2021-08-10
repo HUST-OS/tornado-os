@@ -23,8 +23,10 @@
 //!
 //! 许多的指令集架构存在也是名为“地址空间”的优化方法，来提高页表缓存的访问效率，我们可以用它们实现软件上的地址空间。
 //! 如果具体的处理核上没有实现这种硬件优化，我们只用软件给出“地址空间”的概念，而不在硬件上利用它们。
-use crate::algorithm::{RingFifoScheduler, Scheduler};
-use crate::mm::AddressSpaceId;
+use crate::{
+    algorithm::{RingFifoScheduler, Scheduler},
+    mm::AddressSpaceId,
+};
 use core::ptr::NonNull;
 use spin::Mutex;
 

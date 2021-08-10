@@ -3,7 +3,7 @@ mod kernel_task;
 mod process;
 mod shared;
 
-pub use executor::{run_one, run_until_idle, ext_intr_off, ext_intr_on};
+pub use executor::{ext_intr_off, ext_intr_on, run_one, run_until_idle};
 pub use kernel_task::{KernelTask, TaskId};
 pub use process::{Process, ProcessId};
 pub use rv_lock::{Lock, LockGuard};

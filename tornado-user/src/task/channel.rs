@@ -1,17 +1,17 @@
 //! 任务间通信通道(channel)实现
 //!
 //! 目前只考虑一对一的场景
+use alloc::sync::Arc;
+use async_mutex::AsyncMutex;
 use core::mem::MaybeUninit;
 use core::ptr;
-use async_mutex::AsyncMutex;
-use alloc::sync::Arc;
 use event::Event;
 
 /// 缓冲区
 struct ChannelBuf<T, const N: usize> {
     data: [MaybeUninit<T>; N],
     head: usize,
-    tail: usize
+    tail: usize,
 }
 
 impl<T, const N: usize> ChannelBuf<T, N> {
@@ -19,10 +19,10 @@ impl<T, const N: usize> ChannelBuf<T, N> {
         Self {
             data: MaybeUninit::uninit_array(),
             head: 0,
-            tail: 0
+            tail: 0,
         }
     }
-    pub const fn len(&self)  -> usize {
+    pub const fn len(&self) -> usize {
         self.tail.wrapping_sub(self.head) % N
     }
     #[inline]
@@ -57,12 +57,11 @@ impl<T, const N: usize> ChannelBuf<T, N> {
     }
 }
 
-
 /// 接收者
 pub struct Receiver<T, const N: usize> {
     buf: Arc<AsyncMutex<ChannelBuf<T, N>>>,
     rx_event: Arc<Event>,
-    tx_event: Arc<Event>
+    tx_event: Arc<Event>,
 }
 
 impl<T, const N: usize> Receiver<T, N> {
@@ -91,10 +90,10 @@ impl<T, const N: usize> Receiver<T, N> {
 pub struct Sender<T, const N: usize> {
     buf: Arc<AsyncMutex<ChannelBuf<T, N>>>,
     rx_event: Arc<Event>,
-    tx_event: Arc<Event>
+    tx_event: Arc<Event>,
 }
 
-impl<T, const N: usize>  Sender<T, N> {
+impl<T, const N: usize> Sender<T, N> {
     pub async fn send(&self, t: T) {
         let tx_listener = self.tx_event.listen();
         let should_yield;
@@ -122,12 +121,12 @@ pub fn bounded<T, const N: usize>() -> (Sender<T, N>, Receiver<T, N>) {
     let sender = Sender {
         buf: Arc::clone(&buf),
         rx_event: Arc::clone(&rx_event),
-        tx_event: Arc::clone(&tx_event)
+        tx_event: Arc::clone(&tx_event),
     };
     let receiver = Receiver {
         buf: Arc::clone(&buf),
         rx_event: Arc::clone(&rx_event),
-        tx_event: Arc::clone(&tx_event)
+        tx_event: Arc::clone(&tx_event),
     };
     (sender, receiver)
 }

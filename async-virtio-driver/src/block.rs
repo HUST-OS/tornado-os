@@ -401,13 +401,13 @@ impl<const N: usize> VirtIOBlock<N> {
 
         q.add_buf(&[req.as_buf()], &[buf, resp.as_buf_mut()])
             .expect("[virtio] virtual queue add buf error");
-        
+
         h.notify(0);
 
         listener.await;
-        
+
         q.pop_used()?;
-        
+
         match resp.status {
             BlockRespStatus::Ok => Ok(()),
             _ => Err(VirtIOError::IOError),

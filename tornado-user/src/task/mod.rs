@@ -4,9 +4,9 @@ use core::ptr::NonNull;
 use shared::TaskState;
 use user_task::UserTask;
 
+pub mod channel;
 pub mod shared;
 pub mod user_task;
-pub mod channel;
 
 /// 共享调度器返回的结果
 #[derive(Debug)]

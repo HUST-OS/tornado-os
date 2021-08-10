@@ -24,12 +24,10 @@ use core::ptr::{self, NonNull};
 use core::sync::atomic::{self, AtomicPtr, AtomicUsize, Ordering};
 use core::task::{Context, Poll, Waker};
 use core::usize;
-#[cfg(any(not(feature = "kernel")))]
-use spin::{Mutex, MutexGuard};
 #[cfg(feature = "kernel")]
 use rv_lock::{Lock, LockGuard};
-
-
+#[cfg(any(not(feature = "kernel")))]
+use spin::{Mutex, MutexGuard};
 
 /// [`Event`] 的内部数据
 struct Inner {

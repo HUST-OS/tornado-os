@@ -10,9 +10,9 @@ extern crate alloc;
 
 #[macro_use]
 pub mod console;
-pub mod task;
-pub mod syscall;
 pub mod io;
+pub mod syscall;
+pub mod task;
 pub use console::{stdin, Stdin};
 
 use buddy_system_allocator::LockedHeap;

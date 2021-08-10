@@ -224,12 +224,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    
 
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_10.task_repr());
     }
-    
+
     // 进入地址空间编号为 1 的用户态空间
     user::enter_user(1)
     // end()

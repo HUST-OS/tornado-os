@@ -9,25 +9,21 @@ extern crate tornado_user;
 
 use alloc::sync::Arc;
 
-use tornado_user::{execute_async_main, spawn, task::channel::bounded,};
+use tornado_user::{execute_async_main, spawn, task::channel::bounded};
 async fn async_main() -> i32 {
     println!("[user] channel test");
-    let (tx, rx) =  bounded::<u8, 20>();
-    spawn(
-        async move {
-            let receiver = Arc::new(rx);
-            println!("[user] start receive from channel");
-            let ret = receiver.receive().await;
-            println!("[user] received {} from channel", ret);
-        }
-    );
-    spawn(
-        async move {
-            let sender = Arc::new(tx);
-            println!("[user] send 0 to channel");
-            sender.send(0).await;
-        }
-    );
+    let (tx, rx) = bounded::<u8, 20>();
+    spawn(async move {
+        let receiver = Arc::new(rx);
+        println!("[user] start receive from channel");
+        let ret = receiver.receive().await;
+        println!("[user] received {} from channel", ret);
+    });
+    spawn(async move {
+        let sender = Arc::new(tx);
+        println!("[user] send 0 to channel");
+        sender.send(0).await;
+    });
     0
 }
 

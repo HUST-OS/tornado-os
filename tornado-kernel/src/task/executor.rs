@@ -1,15 +1,15 @@
-use crate::task::{KernelTaskRepr, TaskResult, TaskState};
+use super::{KernelTask, Process};
 use crate::hart::KernelHartInfo;
 use crate::syscall::get_swap_cx;
+use crate::task::{KernelTaskRepr, TaskResult, TaskState};
 use crate::trap::switch_to_user;
 use alloc::{boxed::Box, sync::Arc};
 use core::{
     mem,
     task::{Context, Poll},
 };
+use riscv::register::{sie, sstatus};
 use woke::waker_ref;
-use riscv::register::{sstatus, sie};
-use super::{KernelTask, Process};
 
 /*
 如果是当前上下文，就解释运行，如果不是，就切换上下文

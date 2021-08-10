@@ -12,11 +12,21 @@ pub use user_syscall::user_trap_handler;
 pub use user_syscall::WAKE_NUM;
 
 pub enum SyscallResult {
-    Procceed { code: usize, extra: usize },
+    Procceed {
+        code: usize,
+        extra: usize,
+    },
     Retry,
-    NextASID { asid: usize, satp: Satp },
+    NextASID {
+        asid: usize,
+        satp: Satp,
+    },
     KernelTask,
-    IOTask { block_id: usize, buf_ptr: usize, write: bool},
+    IOTask {
+        block_id: usize,
+        buf_ptr: usize,
+        write: bool,
+    },
     Check,
     Terminate(i32),
 }
@@ -64,12 +74,16 @@ fn switch_next_task(next_asid: usize) -> SyscallResult {
 fn do_io_task(io_type: usize, block_id: usize, buf_ptr: usize) -> SyscallResult {
     match io_type {
         0 => SyscallResult::IOTask {
-            block_id, buf_ptr, write: false
+            block_id,
+            buf_ptr,
+            write: false,
         },
         1 => SyscallResult::IOTask {
-            block_id, buf_ptr, write: true
+            block_id,
+            buf_ptr,
+            write: true,
         },
-        _ => panic!("unknown io type")
+        _ => panic!("unknown io type"),
     }
 }
 
@@ -123,7 +137,8 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
                 extra: buf_len,
             }
         }
-        FUNC_TEST_WRITE_ONE => { // 写一个字符
+        FUNC_TEST_WRITE_ONE => {
+            // 写一个字符
             let (_iface, value) = (param[0], param[1]); // 调试接口编号
             crate::sbi::console_putchar(value);
             SyscallResult::Procceed {
@@ -131,7 +146,8 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
                 extra: 1, // 写了一个字符
             }
         }
-        FUNC_TEST_READ_ONE => { // 读一个字符
+        FUNC_TEST_READ_ONE => {
+            // 读一个字符
             let _iface = param[0]; // 调试接口编号
             let input = crate::sbi::console_getchar();
             SyscallResult::Procceed {
@@ -141,7 +157,10 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
         }
         FUNC_TEST_READ_LINE => {
             // 读入len个字符，如果遇到换行符，或者缓冲区满，就停止
-            println!("[kernel syscall] Read line {} {:x} {}", param[0], param[1], param[2]);
+            println!(
+                "[kernel syscall] Read line {} {:x} {}",
+                param[0], param[1], param[2]
+            );
             let (_iface, buf_ptr, buf_len) = (param[0], param[1], param[2]); // 调试接口编号，输出缓冲区指针，输出缓冲区长度
             let slice = unsafe { get_user_buf_mut(user_satp, buf_ptr, buf_len) };
             for i in 0..buf_len {

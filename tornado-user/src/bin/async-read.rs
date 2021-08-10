@@ -7,7 +7,7 @@ extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
 
-use tornado_user::{spawn, execute_async, io::read_block, do_yield};
+use tornado_user::{do_yield, execute_async, io::read_block, spawn};
 async fn async_main() {
     println!("[user] start async read block");
     let mut buf = [0; 512];

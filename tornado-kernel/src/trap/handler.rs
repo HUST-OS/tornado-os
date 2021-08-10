@@ -1,8 +1,8 @@
 use super::timer;
+use crate::syscall::WAKE_NUM;
 use crate::syscall::{syscall as do_syscall, SyscallResult};
 use crate::task::KernelTaskRepr;
 use crate::{hart::KernelHartInfo, plic, println};
-use crate::syscall::WAKE_NUM;
 use alloc::sync::Arc;
 use core::fmt;
 use riscv::register::{

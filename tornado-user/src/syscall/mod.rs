@@ -165,12 +165,7 @@ pub fn sys_exit(exit_code: i32) -> SyscallResult {
     syscall_1(MODULE_PROCESS, FUNC_PROCESS_EXIT, exit_code as usize)
 }
 
-pub fn sys_panic(
-    file_name: Option<&str>,
-    line: u32,
-    col: u32,
-    msg: Option<&str>,
-) -> SyscallResult {
+pub fn sys_panic(file_name: Option<&str>, line: u32, col: u32, msg: Option<&str>) -> SyscallResult {
     let (f_buf, f_len) = file_name
         .map(|s| (s.as_ptr() as usize, s.len()))
         .unwrap_or((0, 0));
@@ -197,19 +192,11 @@ pub fn sys_test_write(buf: &[u8]) -> SyscallResult {
 }
 
 pub fn sys_test_write_one(data: usize) -> SyscallResult {
-    syscall_2(
-        MODULE_TEST_INTERFACE,
-        FUNC_TEST_WRITE_ONE,
-        [0, data],
-    )
+    syscall_2(MODULE_TEST_INTERFACE, FUNC_TEST_WRITE_ONE, [0, data])
 }
 
 pub fn sys_test_read_one() -> SyscallResult {
-    syscall_1(
-        MODULE_TEST_INTERFACE,
-        FUNC_TEST_READ_ONE,
-        0,
-    )
+    syscall_1(MODULE_TEST_INTERFACE, FUNC_TEST_READ_ONE, 0)
 }
 
 pub fn sys_test_read_line(buf: &mut [u8]) -> SyscallResult {
@@ -224,14 +211,22 @@ pub fn sys_test_read_line(buf: &mut [u8]) -> SyscallResult {
 pub fn sys_enroll_read(block_id: usize, buf: &mut [u8]) -> SyscallResult {
     assert!(buf.len() == BLOCK_SIZE);
     // 第一个参数 0 表示读块设备
-    syscall_3(MODULE_TASK, FUNC_IO_TASK, [0, block_id, buf.as_ptr() as usize])
+    syscall_3(
+        MODULE_TASK,
+        FUNC_IO_TASK,
+        [0, block_id, buf.as_ptr() as usize],
+    )
 }
 
 /// 往内核注册一个块设备写任务
 pub fn sys_enroll_write(block_id: usize, buf: &[u8]) -> SyscallResult {
     assert!(buf.len() == BLOCK_SIZE);
     // 第一个参数 1 表示写块设备
-    syscall_3(MODULE_TASK, FUNC_IO_TASK, [1, block_id, buf.as_ptr() as usize])
+    syscall_3(
+        MODULE_TASK,
+        FUNC_IO_TASK,
+        [1, block_id, buf.as_ptr() as usize],
+    )
 }
 
 /// 进行内核检查
