@@ -14,13 +14,14 @@ lazy_static! {
 
 /// 用户内存管理器
 ///
-/// N: 最大 N 页内存
-/// B: 用户空间起始地址
+/// 常量泛型参数N: 最大N页内存
+/// 常量泛型参数B: 用户空间起始地址
 pub struct UserSpaceManager<const N: usize, const B: usize> {
     /// 已用链表
     used: ListNode<AddressSpaceId>, // 头结点是哑结点
     /// 空闲链表
     free: ListNode<AddressSpaceId>, // 头结点是哑结点
+    /// 长度
     len: usize,
 }
 

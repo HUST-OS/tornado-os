@@ -1,17 +1,23 @@
 use super::timer;
-use crate::syscall::WAKE_NUM;
-use crate::syscall::{syscall as do_syscall, SyscallResult};
-use crate::task::KernelTaskRepr;
-use crate::{hart::KernelHartInfo, plic, println};
+use crate::{
+    syscall::{
+        WAKE_NUM,
+        syscall as do_syscall,
+        SyscallResult
+    },
+    task::KernelTaskRepr,
+    hart::KernelHartInfo,
+    plic
+};
 use alloc::sync::Arc;
 use core::fmt;
 use riscv::register::{
     scause::{self, Exception, Trap},
-    sepc,
     sstatus::{self, Sstatus, SPP},
-    stval, stvec,
+    sepc, stval, stvec,
 };
 
+// todo: doc
 macro_rules! save_non_switch {
     () => {
         "addi   sp, sp, -16 * {REGBYTES}
@@ -34,6 +40,7 @@ macro_rules! save_non_switch {
     };
 }
 
+// todo: doc
 macro_rules! restore_non_switch {
     () => {
         "LOAD    ra, 0
@@ -56,6 +63,7 @@ macro_rules! restore_non_switch {
     };
 }
 
+// todo: doc
 macro_rules! save_switch {
     () => {
         "addi	sp, sp, -34 * {REGBYTES}
@@ -98,6 +106,7 @@ macro_rules! save_switch {
     };
 }
 
+// todo: doc
 macro_rules! restore_switch {
     () => {
         "
@@ -140,7 +149,7 @@ macro_rules! restore_switch {
 }
 
 impl TrapFrame {
-    // 新建任务时，构建它的上下文
+    /// 新建任务时，构建它的上下文
     pub fn new_task_context(is_user: bool, pc: usize, tp: usize, stack_top: usize) -> TrapFrame {
         // 设置sstatus的特权级
         if is_user {
@@ -164,6 +173,9 @@ impl TrapFrame {
     }
 }
 
+/// 中断/异常向量表
+///
+/// 内核态中发生中断/异常首先跳转到这个地址
 #[naked]
 #[link_section = ".text"]
 pub unsafe extern "C" fn trap_vector() {
@@ -203,12 +215,15 @@ pub unsafe extern "C" fn interrupt_reserved() -> ! {
     asm!("1: j 1b", options(noreturn))
 }
 
+/// 初始化中断
 pub fn init() {
     unsafe {
+        /// 将`trap_vector`的地址以[`Vectored`]形式写入到`stvec`寄存器
         stvec::write(trap_vector as usize, stvec::TrapMode::Vectored);
     }
 }
 
+/// S态时钟中断
 #[naked]
 #[link_section = ".text"]
 pub unsafe extern "C" fn supervisor_timer() {
@@ -225,23 +240,25 @@ pub unsafe extern "C" fn supervisor_timer() {
     )
 }
 
+/// S态时钟中断处理函数
 pub extern "C" fn rust_supervisor_timer(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
-    // panic!("Supervisor timer: {:08x}", sepc::read());
     timer::tick(); // 设置下一个时钟中断时间
-                   // 保存当前任务的上下文
-                   // todo
+    // todo: 保存当前任务的上下文，恢复下一个任务的上下文
     trap_frame
 }
 
+/// S态软件中断
+///
+/// unimplemented
 pub fn supervisor_software() {
     panic!("Supervisor software: {:08x}", sepc::read());
 }
 
+/// S态外部中断
 #[naked]
 #[link_section = ".text"]
 pub unsafe extern "C" fn supervisor_external() {
     asm!(
-        // define_load_store!(),
         save_non_switch!(),
         "mv     a0, sp",
         "call   {supervisor_external}",
@@ -253,6 +270,9 @@ pub unsafe extern "C" fn supervisor_external() {
     )
 }
 
+/// S态外部中断处理函数
+///
+/// note: 目前只处理virtio中断
 pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     let irq = plic::plic_claim();
     if irq == 1 {
@@ -273,6 +293,7 @@ pub unsafe extern "C" fn rust_supervisor_external(trap_frame: &mut TrapFrame) ->
     }
 }
 
+/// S态异常
 #[naked]
 #[link_section = ".text"]
 pub unsafe extern "C" fn trap_exception() {
@@ -288,6 +309,7 @@ pub unsafe extern "C" fn trap_exception() {
     )
 }
 
+/// S态异常处理函数
 pub extern "C" fn rust_trap_exception(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     match scause::read().cause() {
         Trap::Exception(Exception::Breakpoint) => breakpoint(trap_frame),
@@ -328,7 +350,9 @@ fn syscall(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
     }
 }
 
-/// 强制陷入内核时需要保存的上下文
+/// 内核发生中断/异常时需要保存的上下文
+///
+/// 保存32个通用寄存器，`sstatus`寄存器和`sepc`寄存器
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct TrapFrame {
