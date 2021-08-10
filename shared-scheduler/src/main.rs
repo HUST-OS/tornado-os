@@ -1,6 +1,12 @@
-//! 为协程内核设计的共享调度器载荷
+//! 为飓风内核设计的共享调度器
 //! 以二进制包的形式编译
-
+//!
+//! 使用方法：将本项目编译出的二进制文件直接烧录到内存中，
+//! 然后在内核和用户代码中以基地址实例化共享调度器。
+//!
+//! 基地址在链接脚本`src/linker-xxx.ld`中指定。同时在烧写的时候也需要指定。
+//!
+//! 实例化方法：请参考`tornado-kernel/src/task/shared.rs`
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -57,15 +63,15 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("shared scheduler alloc error: {:?}", layout)
 }
 
-/// 共享载荷虚函数表
+/// 共享调度器虚函数表
 #[link_section = ".meta"] // 虚函数表只读
 #[no_mangle]
 pub static SHARED_RAW_TABLE: (
-    &'static u8,                        // 载荷编译时的基地址
+    &'static u8,                        // 共享调度器编译时的基地址
     unsafe extern "C" fn() -> PageList, // 初始化函数，执行完之后，内核将函数指针置空
     &'static SharedScheduler,           // 共享调度器的地址
     unsafe extern "C" fn(NonNull<()>, usize, AddressSpaceId, TaskRepr) -> bool, // 添加任务
-    unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务
+    unsafe extern "C" fn(NonNull<()>, extern "C" fn(AddressSpaceId) -> bool) -> TaskResult, // 弹出任务引用
     unsafe extern "C" fn(NonNull<()>, TaskRepr) -> bool, // 删除任务
     unsafe extern "C" fn(NonNull<()>, TaskRepr, TaskState), // 改变任务的状态
 ) = (
@@ -95,7 +101,7 @@ extern "C" {
     static mut ebss: u32;
 }
 
-/// 初始化载荷环境，只能由内核运行，只能运行一次
+/// 初始化共享调度器环境，只能由内核运行，只能运行一次
 unsafe extern "C" fn init_payload_environment() -> PageList {
     // 初始化零初始段，每次写入一个u32类型的零内存
     r0::zero_bss(&mut sbss, &mut ebss);

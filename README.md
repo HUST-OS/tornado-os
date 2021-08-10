@@ -41,7 +41,7 @@ pub extern "C" fn kernel_main() {
 
 首先需要准备构建工具：  
 * Rust 环境(nightly-2021-03-01或以上)
-* [qemu-system-riscv64](https://github.com/qemu/qemu)(建议使用 5.2.0 版本)
+* [qemu-system-riscv64](https://github.com/qemu/qemu)(请使用 5.2.0 版本)
 * `riscv64-linux-gnu-`系列或`riscv64-unknown-elf-`系列两种常用的RISC-V工具链，或Rust嵌入式社区的[cargo-binutils](https://github.com/rust-embedded/cargo-binutils)工具链
 * 调试工具(可选)：RISC-V 指令集支持的 [gdb](https://mirrors.tuna.tsinghua.edu.cn/gnu/gdb/?C=M&O=D)
 

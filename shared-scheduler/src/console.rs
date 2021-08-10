@@ -3,7 +3,6 @@ use core::fmt::{self, Write};
 
 struct Stdout;
 
-// 暂时不用关中断的锁lock::Lock，考虑多个硬件线程的情况
 static STDOUT_LOCK: spin::Mutex<()> = spin::Mutex::new(());
 
 impl Write for Stdout {
