@@ -119,11 +119,7 @@ pub unsafe extern "C" fn shared_add_task(
 
 #[inline]
 /// 用于将一些数据打包成[`TaskMeta`]
-unsafe fn prepare_handle(
-    hart_id: usize,
-    asid: AddressSpaceId,
-    task_repr: TaskRepr,
-) -> TaskMeta {
+unsafe fn prepare_handle(hart_id: usize, asid: AddressSpaceId, task_repr: TaskRepr) -> TaskMeta {
     TaskMeta {
         hart_id,
         address_space_id: asid,
@@ -133,7 +129,7 @@ unsafe fn prepare_handle(
 }
 
 /// 从共享调度器中找到下一个任务
-/// 
+///
 /// 如果拿出的任务处于睡眠状态则重新放入调度队列尾部
 ///
 /// * shared_scheduler: 共享调度器的[`NonNull`]指针
@@ -145,7 +141,7 @@ pub unsafe extern "C" fn shared_peek_task(
     should_switch: extern "C" fn(AddressSpaceId) -> bool,
 ) -> TaskResult {
     print!(""); // 很奇怪的 bug，需要在这里输出点东西运行才会正常
-    // 得到共享调度器的引用
+                // 得到共享调度器的引用
     let mut s: NonNull<SharedScheduler> = shared_scheduler.cast();
     let mut scheduler = s.as_mut().lock();
     let mut ret_task;

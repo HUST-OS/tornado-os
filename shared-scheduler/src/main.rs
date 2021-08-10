@@ -25,10 +25,12 @@ mod mm;
 mod syscall;
 mod task;
 
-use crate::mm::AddressSpaceId;
-use crate::task::{
-    shared_add_task, shared_delete_task, shared_peek_task, shared_set_task_state, SharedScheduler,
-    TaskRepr, TaskResult, TaskState, SHARED_SCHEDULER,
+use crate::{
+    mm::AddressSpaceId,
+    task::{
+        shared_add_task, shared_delete_task, shared_peek_task, shared_set_task_state,
+        SharedScheduler, TaskRepr, TaskResult, TaskState, SHARED_SCHEDULER,
+    },
 };
 use buddy_system_allocator::LockedHeap;
 use core::{mem::MaybeUninit, ptr::NonNull};
@@ -86,7 +88,7 @@ pub static SHARED_RAW_TABLE: (
 
 #[allow(non_upper_case_globals)]
 extern "C" {
-    // 载荷编译时的起始地址，可用于内核加载时计算偏移量
+    // 共享调度器编译时的起始地址，可用于内核加载时计算偏移量
     static payload_compiled_start: u8;
     // 每个页的开始都对齐到4K，结束并无对齐要求，结束位置应当向上取整到4K
     static srodata_page: u8;
@@ -116,7 +118,7 @@ unsafe extern "C" fn init_payload_environment() -> PageList {
     }
 }
 
-/// 共享载荷各个段的范围，方便内存管理的权限设置
+/// 共享调度器各个段的范围，方便内存管理的权限设置
 ///
 /// 有虚拟内存，用特殊的链接器脚本，以确保对齐到4K，如果没有虚拟内存，可以使用更低的对齐方法
 #[repr(C)]

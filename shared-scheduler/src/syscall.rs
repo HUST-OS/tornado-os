@@ -1,4 +1,4 @@
-//! ignored
+//! 系统调用，用于调试
 const MODULE_TEST_INTERFACE: usize = 0x233666;
 const MODULE_PROCESS: usize = 0x114514;
 

@@ -1,5 +1,4 @@
 //! 循环先进先出队列调度器实现
-//!
 
 use super::Scheduler;
 use core::mem::MaybeUninit;
