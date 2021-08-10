@@ -1,3 +1,14 @@
+//! 飓风内核：一种基于共享调度器的异步内核设计
+//!
+//! 操作系统内核经历了几个主要的发展阶段，从裸机应用，批处理系统到多道任务系统，
+//! 演变为至今主流的线程操作系统。这种系统基于线程的切换来调度任务。
+//! 为了进一步提升性能，一些现代编程语言在应用层服用线程资源，提出了`协程`的概念，
+//! 旨在节省任务调度的开销。
+//!
+//! 在本项目中我们提出一种新的内核开发思路：由不同资源共享调度器，在操作系统层面提供协程。
+//!
+//! 我们希望这种全新设计的内核在满足传统内核的易用性的同时，拥有着专用内核的高性能特点，
+//! “像风一样快”，因此取名**飓风内核**--**tornado-os**。
 #![no_std]
 #![no_main]
 #![feature(global_asm, llvm_asm, asm, alloc_error_handler)]
@@ -29,9 +40,11 @@ mod virtio;
 #[cfg(not(test))]
 global_asm!(include_str!("entry.asm"));
 
+/// qemu平台下共享调度器的基地址
 #[cfg(feature = "qemu")]
 const SHAREDPAYLOAD_BASE: usize = 0x8600_0000;
 
+/// k210平台下共享调度器的基地址
 #[cfg(feature = "k210")]
 const SHAREDPAYLOAD_BASE: usize = 0x8040_0000;
 
@@ -56,7 +69,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         r0::init_data(&mut _sdata, &mut _edata, &_sidata);
     }
 
-    println!("hart {} booted", hart_id);
+    println!("[kernel] hart {} booted", hart_id);
 
     memory::init();
     trap::init();
@@ -80,8 +93,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         assert_eq!(value, i);
     }
 
-    println!("heap test passed");
-    println!("Max asid = {:?}", memory::max_asid());
+    println!("[kernel] heap test passed");
+    
+    println!("[kernel] max asid = {:?}", memory::max_asid());
 
     // 物理页分配
     for i in 0..2 {
@@ -94,22 +108,22 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
             None => panic!("frame allocation failed"),
         };
         println!(
-            "Test #{}: {:?} and {:?}",
+            "[kernel] test #{}: {:?} and {:?}",
             i,
             frame_0.start_address(),
             frame_1.start_address()
         );
     }
 
-    println!("_swap_frame: {:#x}", _swap_frame as usize);
-    println!("_user_to_supervisor: {:#x}", _user_to_supervisor as usize);
-    println!("_supervisor_to_user: {:#x}", _supervisor_to_user as usize);
+    println!("[kernel] _swap_frame: {:#x}", _swap_frame as usize);
+    println!("[kernel] _user_to_supervisor: {:#x}", _user_to_supervisor as usize);
+    println!("[kernel] _supervisor_to_user: {:#x}", _supervisor_to_user as usize);
 
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };
     // 这之后就可以分配地址空间了，这之前只能用内核的地址空间
 
-    println!("Current hart: {}", hart::KernelHartInfo::hart_id());
+    println!("[kernel] current hart: {}", hart::KernelHartInfo::hart_id());
 
     // todo: 这里要有个地方往tp里写东西，否则目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
@@ -122,11 +136,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     let shared_payload = unsafe { task::SharedPayload::load(SHAREDPAYLOAD_BASE) };
 
+    // 创建一个内核进程
     let process = task::Process::new(kernel_memory).expect("create process 1");
     let hart_id = crate::hart::KernelHartInfo::hart_id();
     let address_space_id = process.address_space_id();
+    // 分配一个内核栈
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
 
+    // 创建一些测试任务
     let task_1 = task::new_kernel(
         task_1(),
         process.clone(),
@@ -159,7 +176,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    // 初始化文件系统任务
+
+    // 创建一个初始化文件系统的任务
     let task_5 = task::new_kernel(
         fs::fs_init(),
         process.clone(),
@@ -174,12 +192,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
     }
 
+    // 运行任务
     task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
+    // 通过一些任务从文件系统中加载用户的二进制文件和准备用户的上下文
     let task_6 = task::new_kernel(
         user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
         process.clone(),
@@ -212,12 +232,14 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
     }
 
+    // 运行执行器
     task::run_until_idle(
         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
+    // 创建一个内核任务，用于测试
     let task_10 = task::new_kernel(
         yield_kernel(),
         process.clone(),
@@ -234,6 +256,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // end()
 }
 
+#[allow(unused)]
 fn end() -> ! {
     // 关机之前，卸载当前的核。虽然关机后内存已经清空，不是必要，预留未来热加载热卸载处理核的情况
     unsafe { hart::KernelHartInfo::unload_hart() };

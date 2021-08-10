@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use async_mutex::AsyncMutex;
 use lazy_static::lazy_static;
 
+/// 分配给用户程序的物理空间的起始地址
 const BASE: usize = 0x8700_0000;
 
 lazy_static! {
@@ -24,6 +25,7 @@ pub struct UserSpaceManager<const N: usize, const B: usize> {
 }
 
 impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
+    /// 创建一个空的[`UserSpaceManager`]
     pub fn new() -> Self {
         let used = ListNode {
             id: 0,
@@ -46,6 +48,17 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     /// 分配一个空间，需要物理页的数量为 `pages`
     ///
     /// 分配成功返回起始物理页号
+    ///
+    /// example:
+    /// ```Rust
+    /// let mut user_space = UserSpaceManager::new();
+    /// 
+    /// // 分配100帧物理内存给地址空间1
+    /// let asid = unsafe { AddressSpaceId::from_raw(1) };
+    /// let ppn = user_space.alloc(100, asid).expect("alloc user space");
+    /// 
+    /// println!("alloc ppn {:?}", ppn);
+    /// ```
     pub fn alloc(&mut self, pages: usize, asid: AddressSpaceId) -> Option<PhysicalPageNumber> {
         assert!(PAGE_SIZE % 2 == 0);
         if pages > N - self.len {
@@ -66,7 +79,9 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
         }
     }
 
-    // todo: 测试这个函数
+    /// 释放一个地址空间占用的物理内存
+    ///
+    /// note: 还没测试
     pub fn dealloc(&mut self, asid: AddressSpaceId) -> Option<(PhysicalPageNumber, usize)> {
         let mut prev = &mut self.used;
         loop {
@@ -96,6 +111,7 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     }
 }
 
+/// 链表结点
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ListNode<T> {
     pub id: usize,

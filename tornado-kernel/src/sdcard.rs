@@ -1,4 +1,6 @@
 //! 异步 SD 卡驱动
+//!
+//! todo: 使用`DMAC`进行数据传输，传输完成发生外部中断，在外部中断中唤醒SD卡读写任务
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use async_sd::SDCardWrapper;

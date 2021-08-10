@@ -1,3 +1,4 @@
+//! 控制台输出
 use super::task::Lock;
 use crate::sbi::*;
 use core::fmt::{self, Write};

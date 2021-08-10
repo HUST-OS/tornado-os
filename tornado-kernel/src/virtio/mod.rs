@@ -1,5 +1,4 @@
 //! qemu virtio 前端驱动
-
 use crate::memory::{
     frame_alloc, FrameTracker, PhysicalAddress, PhysicalPageNumber, Satp, VirtualAddress,
     VirtualPageNumber, VIRTIO0,
@@ -19,6 +18,7 @@ lazy_static! {
     pub static ref VIRTIO_BLOCK: Arc<VirtIOAsyncBlock> = Arc::new(VirtIOAsyncBlock::new());
 }
 
+// 提供给`async-virtio-driver`的函数
 #[no_mangle]
 pub extern "C" fn virtio_dma_alloc(pages: usize) -> PhysicalAddress {
     let mut ppn_base = 0;
@@ -34,6 +34,7 @@ pub extern "C" fn virtio_dma_alloc(pages: usize) -> PhysicalAddress {
     PhysicalPageNumber::from(ppn_base).start_address()
 }
 
+// 提供给`async-virtio-driver`的函数
 // todo: 检查这里
 #[no_mangle]
 pub extern "C" fn virtio_dma_dealloc(pa: PhysicalAddress, pages: usize) -> i32 {
@@ -57,12 +58,14 @@ pub extern "C" fn virtio_dma_dealloc(pa: PhysicalAddress, pages: usize) -> i32 {
     0
 }
 
+// 提供给`async-virtio-driver`的函数
 // 这里可以直接使用线性映射的关系
 #[no_mangle]
 pub extern "C" fn virtio_phys_to_virt(paddr: PhysicalAddress) -> VirtualAddress {
     paddr.virtual_address_linear()
 }
 
+// 提供给`async-virtio-driver`的函数
 // 这里需要查页表
 #[no_mangle]
 pub extern "C" fn virtio_virt_to_phys(vaddr: VirtualAddress) -> PhysicalAddress {
@@ -75,6 +78,7 @@ pub extern "C" fn virtio_virt_to_phys(vaddr: VirtualAddress) -> PhysicalAddress 
     ppn.start_address().add(offset)
 }
 
+/// 异步virtio块设备驱动测试
 pub async fn async_virtio_blk_test() {
     let mut read_buf = [0u8; 512];
     let mut write_buf = [0u8; 512];

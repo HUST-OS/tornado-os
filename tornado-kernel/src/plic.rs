@@ -1,5 +1,8 @@
 //! RISC-V 平台级中断控制器逻辑
-
+//!
+//! [关于plic](https://github.com/riscv/riscv-plic-spec)
+//!
+//! [关于context](https://github.com/riscv/riscv-plic-spec/pull/18)
 use crate::hart;
 use crate::memory::{PLIC_BASE, VIRTIO0_IRQ};
 use core::convert::TryFrom;
