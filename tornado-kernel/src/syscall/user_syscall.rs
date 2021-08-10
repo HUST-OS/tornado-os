@@ -1,30 +1,32 @@
 //! 从用户过来的系统调用在这里处理
 use super::{syscall, SyscallResult};
-use crate::hart::KernelHartInfo;
-use crate::memory::{AddressSpaceId, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET};
-use crate::plic;
-use crate::task;
-use crate::async_rt::{self, ext_intr_off, ext_intr_on, TaskState};
-use crate::trap;
-use crate::virtio::VIRTIO_BLOCK;
-use crate::SHAREDPAYLOAD_BASE;
 use crate::{
+    hart::KernelHartInfo,
+    memory::{AddressSpaceId, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET},
+    plic,
+    task,
+    trap::{self, SwapContext},
+    async_rt::{self, ext_intr_off, ext_intr_on, TaskState},
+    virtio::VIRTIO_BLOCK,
+    SHAREDPAYLOAD_BASE,
     memory::{self, Satp},
-    trap::SwapContext,
 };
-use riscv::register::scause::{self, Interrupt, Trap};
-use riscv::register::{sepc, sie, stval, stvec};
+use riscv::register::{
+    scause::{self, Interrupt, Trap},
+    sepc, sie, stval, stvec
+};
 
 const BLOCK_SIZE: usize = 512;
 pub static mut WAKE_NUM: usize = 1;
-/// 测试用的中断处理函数，用户态发生中断会陷入到这里
+
+/// 中断/异常/系统调用处理函数，用户态发生中断/异常/系统调用会陷入到这里
 pub extern "C" fn user_trap_handler() {
-    // 从 [`KernelHartInfo`] 中获取用户地址空间的 [`Satp`] 结构
+    // 从[`KernelHartInfo`]中获取用户地址空间的 [`Satp`] 结构
     let user_satp = KernelHartInfo::prev_satp().expect("get prev user satp");
-    // 从 [`KernelHartInfo`] 中获取用户地址空间编号
+    // 从[`KernelHartInfo`]中获取用户地址空间编号
     let asid = KernelHartInfo::get_prev_asid();
     let swap_cx = unsafe { get_swap_cx(&user_satp, asid) };
-    // 从 SwapContext 中读东西
+    // 从SwapContext中获取用户传给内核的参数
     let mut param = [0usize; 6];
     for (idx, x) in swap_cx.x[9..15].iter().enumerate() {
         param[idx] = *x;
@@ -33,15 +35,17 @@ pub extern "C" fn user_trap_handler() {
     let a7 = swap_cx.x[16];
     match scause::read().cause() {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            // 时钟中断，还未实现
             println!("s mode timer!");
-            // 目前遇到时钟中断先让系统退出，等把内核完善好了再来处理
-            crate::sbi::shutdown();
+            unimplemented!() // todo
         }
         Trap::Exception(scause::Exception::Breakpoint) => {
+            // 用户目前通过断点异常通知内核发生了错误，这时候直接退出
             println!("user mode panic!");
             crate::sbi::shutdown();
         }
         Trap::Exception(scause::Exception::UserEnvCall) => {
+            // 用户系统调用
             match syscall(param, user_satp.inner(), a6, a7) {
                 SyscallResult::Procceed { code, extra } => {
                     swap_cx.x[9] = code;
@@ -53,15 +57,15 @@ pub extern "C" fn user_trap_handler() {
                     // 不跳过指令，继续运行
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::NextASID { asid, satp } => {
-                    // 跳过 `do_yield` 指令
+                SyscallResult::NextASID { asid, satp } => { // 需要切换地址空间
+                    // 跳过`do_yield`指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     // 需要转到目标地址空间去运行
                     println!("[syscall] yield: {}", asid);
                     let next_swap_contex = unsafe { get_swap_cx(&satp, asid) };
                     trap::switch_to_user(next_swap_contex, satp.inner(), asid)
                 }
-                SyscallResult::KernelTask => {
+                SyscallResult::KernelTask => { // 需要运行内核任务
                     // 跳过 `do_yield` 指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     println!("[syscall] yield kernel");
@@ -77,7 +81,7 @@ pub extern "C" fn user_trap_handler() {
                     );
                     crate::end()
                 }
-                SyscallResult::IOTask {
+                SyscallResult::IOTask { // 需要注册IO任务
                     block_id,
                     buf_ptr,
                     write,
@@ -121,7 +125,7 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::Check => {
+                SyscallResult::Check => { // 内核检查
                     // 如果有未唤醒的块设备读写任务，将其唤醒
                     unsafe {
                         if WAKE_NUM > 1 {
@@ -133,13 +137,13 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::Terminate(exit_code) => {
+                SyscallResult::Terminate(exit_code) => { // 用户执行器认为可以退出系统了
                     println!("User exit!");
                     crate::sbi::shutdown();
                 }
             }
         }
-        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+        Trap::Interrupt(Interrupt::SupervisorExternal) => { // 用户态被外部中断打断
             // 用户态被外部中断打断
             //
             // todo: 这里有个问题，就是最后一次外部中断的时候程序运行在共享调度器里面的时候
@@ -183,8 +187,11 @@ pub extern "C" fn user_trap_handler() {
     }
 }
 
-// 给定 satp 寄存器，获取 [`SwapContext`] 的裸指针
-// todo: 需要根据地址空间编号来得到 [`SwapContext`]
+/// 获取[`SwapContext`]的可变引用
+///
+/// 给定 satp 寄存器，获取 [`SwapContext`] 的裸指针
+///
+/// todo: 需要根据地址空间编号来得到 [`SwapContext`]
 pub unsafe fn get_swap_cx<'cx>(satp: &'cx Satp, asid: usize) -> &'cx mut SwapContext {
     let swap_cx_va = VirtualAddress(memory::swap_contex_va(asid));
     let swap_cx_vpn = VirtualPageNumber::floor(swap_cx_va);
@@ -198,6 +205,7 @@ pub unsafe fn get_swap_cx<'cx>(satp: &'cx Satp, asid: usize) -> &'cx mut SwapCon
         .unwrap()
 }
 
+#[allow(missing_docs)]
 async fn read_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake_task_repr: usize) {
     let buf = unsafe { super::get_user_buf_mut(user_satp, buf_ptr, BLOCK_SIZE) };
     VIRTIO_BLOCK.read_block(block_id, buf).await;
@@ -209,6 +217,7 @@ async fn read_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake
     }
 }
 
+#[allow(missing_docs)]
 async fn write_block_task(
     block_id: usize,
     buf_ptr: usize,
@@ -245,6 +254,7 @@ extern "C" fn should_switch(asid: AddressSpaceId) -> bool {
 }
 
 /// 读取当前 PC 值
+#[allow(unused)]
 #[inline]
 fn read_pc() -> usize {
     let pc: usize;
