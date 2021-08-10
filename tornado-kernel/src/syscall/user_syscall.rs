@@ -1,24 +1,23 @@
 //! 从用户过来的系统调用在这里处理
 use super::{syscall, SyscallResult};
 use crate::hart::KernelHartInfo;
-use crate::memory::{VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET, AddressSpaceId};
-use crate::trap;
+use crate::memory::{AddressSpaceId, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET};
+use crate::plic;
 use crate::task::{self, ext_intr_off, ext_intr_on};
+use crate::trap;
+use crate::virtio::VIRTIO_BLOCK;
+use crate::SHAREDPAYLOAD_BASE;
 use crate::{
     memory::{self, Satp},
     trap::SwapContext,
 };
-use crate::virtio::VIRTIO_BLOCK;
-use crate::plic;
-use crate::SHAREDPAYLOAD_BASE;
 use riscv::register::scause::{self, Interrupt, Trap};
-use riscv::register::{sepc, stval, sie, stvec};
+use riscv::register::{sepc, sie, stval, stvec};
 
 const BLOCK_SIZE: usize = 512;
 pub static mut WAKE_NUM: usize = 1;
 /// 测试用的中断处理函数，用户态发生中断会陷入到这里
 pub extern "C" fn user_trap_handler() {
-    
     // 从 [`KernelHartInfo`] 中获取用户地址空间的 [`Satp`] 结构
     let user_satp = KernelHartInfo::prev_satp().expect("get prev user satp");
     // 从 [`KernelHartInfo`] 中获取用户地址空间编号
@@ -65,33 +64,50 @@ pub extern "C" fn user_trap_handler() {
                     // 跳过 `do_yield` 指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     println!("[syscall] yield kernel");
-                    let shared_payload = unsafe { task::SharedPayload::load(crate::SHAREDPAYLOAD_BASE) };
+                    let shared_payload =
+                        unsafe { task::SharedPayload::load(crate::SHAREDPAYLOAD_BASE) };
                     trap::init();
                     task::run_until_idle(
                         || unsafe { shared_payload.peek_task(task::kernel_should_switch) },
                         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
-                        |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
+                        |task_repr, new_state| unsafe {
+                            shared_payload.set_task_state(task_repr, new_state)
+                        },
                     );
                     crate::end()
                 }
-                SyscallResult::IOTask { block_id, buf_ptr, write  } => {
+                SyscallResult::IOTask {
+                    block_id,
+                    buf_ptr,
+                    write,
+                } => {
                     let wake_task_repr = unsafe { next_task_repr() };
                     let process = KernelHartInfo::current_process().expect("get kernel process");
                     unsafe {
                         let shared_payload = task::SharedPayload::load(SHAREDPAYLOAD_BASE);
                         let task = if write {
                             task::new_kernel(
-                                write_block_task(block_id, buf_ptr, user_satp.inner(), wake_task_repr),
+                                write_block_task(
+                                    block_id,
+                                    buf_ptr,
+                                    user_satp.inner(),
+                                    wake_task_repr,
+                                ),
                                 process,
                                 shared_payload.shared_scheduler,
-                                shared_payload.shared_set_task_state
+                                shared_payload.shared_set_task_state,
                             )
                         } else {
                             task::new_kernel(
-                                read_block_task(block_id, buf_ptr, user_satp.inner(), wake_task_repr),
+                                read_block_task(
+                                    block_id,
+                                    buf_ptr,
+                                    user_satp.inner(),
+                                    wake_task_repr,
+                                ),
                                 process,
                                 shared_payload.shared_scheduler,
-                                shared_payload.shared_set_task_state
+                                shared_payload.shared_set_task_state,
                             )
                         };
                         let task_repr = task.task_repr();
@@ -192,7 +208,12 @@ async fn read_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake
     }
 }
 
-async fn write_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake_task_repr: usize) {
+async fn write_block_task(
+    block_id: usize,
+    buf_ptr: usize,
+    user_satp: usize,
+    wake_task_repr: usize,
+) {
     let buf = unsafe { super::get_user_buf_mut(user_satp, buf_ptr, BLOCK_SIZE) };
     VIRTIO_BLOCK.write_block(block_id, buf).await;
     unsafe {
@@ -214,7 +235,7 @@ unsafe fn next_task_repr() -> usize {
     ext_intr_on();
     match next_task {
         task::TaskResult::Task(task_repr) => task_repr,
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 

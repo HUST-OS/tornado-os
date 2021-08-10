@@ -180,21 +180,20 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
-    // 准备两个用户态任务
-    // let task_6 = task::new_kernel(
-    //     user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
-    //     process.clone(),
-    //     shared_payload.shared_scheduler,
-    //     shared_payload.shared_set_task_state,
-    // );
-    // let task_7 = task::new_kernel(
-    //     user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
-    //     process.clone(),
-    //     shared_payload.shared_scheduler,
-    //     shared_payload.shared_set_task_state,
-    // );
+    let task_6 = task::new_kernel(
+        user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
+    let task_7 = task::new_kernel(
+        user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
     let task_8 = task::new_kernel(
-        user::prepare_user("database.bin", stack_handle.end.0 - 4),
+        user::prepare_user("async-read.bin", stack_handle.end.0 - 4),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
@@ -207,8 +206,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     unsafe {
-        // shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
-        // shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
     }
@@ -225,12 +224,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
-    
 
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_10.task_repr());
     }
-    
+
     // 进入地址空间编号为 1 的用户态空间
     user::enter_user(1)
     // end()

@@ -14,4 +14,3 @@ pub const FUNC_SWITCH_TASK: usize = 0x666666;
 pub const FUNC_IO_TASK: usize = 0x55555;
 
 pub const FUNC_CHECK: usize = 0x4444;
-

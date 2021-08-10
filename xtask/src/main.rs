@@ -495,7 +495,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         // 不使用ctrl+c来退出
         ctrlc::set_handler(|| {
             // 什么也不做，这样就不能退出了，必须使用qemu的ctrl+a和x来退出
-        }).expect("set Ctrl-C handler");
+        })
+        .expect("set Ctrl-C handler");
         if let Ok(status) = qemu.status() {
             if status.success() {
                 Ok(())

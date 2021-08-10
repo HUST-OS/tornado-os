@@ -7,7 +7,7 @@ extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
 
-use tornado_user::{execute_async, do_yield, spawn};
+use tornado_user::{do_yield, execute_async, spawn};
 async fn async_main() {
     println!("[user] yield test task 1");
 }
