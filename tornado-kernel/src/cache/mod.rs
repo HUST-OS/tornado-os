@@ -7,16 +7,20 @@
 
 mod lfu;
 
-use crate::sdcard::{AsyncSDCard, SD_CARD};
-use crate::virtio::{async_blk::VirtIOAsyncBlock, VIRTIO_BLOCK};
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use crate::{
+    sdcard::{AsyncSDCard, SD_CARD},
+    virtio::{async_blk::VirtIOAsyncBlock, VIRTIO_BLOCK},
+};
+use alloc::{sync::Arc, vec::Vec};
 use async_mutex::AsyncMutex;
 use core::mem::MaybeUninit;
 use lazy_static::lazy_static;
 use lfu::LFUCache;
 
+/// 块大小
 const BLOCK_SIZE: usize = 512;
+
+/// Cache项数目
 const CACHE_SIZE: usize = 4;
 
 pub type BlockCache =
@@ -71,6 +75,12 @@ pub struct AsyncBlockCache<
 
 impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, CACHE_SIZE> {
     /// 初始化异步块缓存
+    ///
+    /// # Example:
+    ///
+    /// ```
+    /// let cache = AsyncBlockCache::init();
+    /// ```
     pub fn init(device: AsyncBlockDevice) -> Self {
         let mut data: [MaybeUninit<Node<usize, [u8; BLOCK_SIZE]>>; CACHE_SIZE] =
             unsafe { MaybeUninit::uninit().assume_init() };
@@ -86,8 +96,17 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
             device,
         }
     }
-
     /// 异步方式从块缓存中读取一个块
+    ///
+    /// # Example:
+    ///
+    /// ```
+    /// async {
+    ///     let cache = AsyncBlockCache::init();
+    ///     let block = cache.read_block(0).await;
+    /// }
+    /// 
+    /// ```
     pub async fn read_block(&self, block_id: usize) -> [u8; BLOCK_SIZE] {
         {
             // 申请锁
@@ -110,8 +129,22 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
         }
         data
     }
-
-    /// 异步方式往块缓冲中写入一个块
+    /// 异步方式往块缓存中写入一个块
+    ///
+    /// note: 需要夺取缓冲区的所有权
+    ///
+    /// # Example:
+    ///
+    /// ```
+    /// # const BLOCK_SIZE: usize = 512;
+    /// async {
+    ///     let cache = AsyncBlockCache::init();
+    ///     let buf = [1u8; BLOCK_SIZE];
+    ///
+    ///     cache.write_block(0, buf).await;
+    /// }
+    /// 
+    /// ```
     pub async fn write_block(&self, block_id: usize, buf: [u8; BLOCK_SIZE]) {
         let mut s = self.cache.lock().await; // 申请锁
         let write_back = s.put(&block_id, buf);
@@ -120,14 +153,38 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
             self.device.write_block(id, &mut block).await;
         }
     }
-
     /// 异步，写穿方式往缓冲区中写入一个块
+    ///
+    /// # Example:
+    ///
+    /// ```
+    /// # const BLOCK_SIZE: usize = 512;
+    /// async {
+    ///     let cache = AsyncBlockCache::init();
+    ///     let buf = [1u8; BLOCK_SIZE];
+    ///
+    ///     cache.write_sync(0, buf).await;
+    /// }
+    /// 
+    /// ```
     pub async fn write_sync(&self, block_id: usize, buf: [u8; BLOCK_SIZE]) {
         self.write_block(block_id, buf.clone()).await;
         self.device.write_block(block_id, &buf).await
     }
-
     /// 将缓冲层中的所有数据写回到块设备
+    ///
+    /// 用于同步内存和块设备中的数据
+    ///
+    /// # Example:
+    ///
+    /// ```
+    /// async {
+    ///     let cache = AsyncBlockCache::init();
+    ///     
+    ///     cache.sync().await;
+    /// }
+    /// 
+    /// ```
     pub async fn sync(&self) {
         let mut s = self.cache.lock().await;
         for (id, block) in s.all() {
