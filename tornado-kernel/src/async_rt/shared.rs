@@ -45,7 +45,7 @@ impl SharedPayload {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// # const BASE: usize = 0x8600_000;
     /// let shared_load = unsafe { SharedPayload::load(BASE); }
     /// ```
@@ -85,7 +85,7 @@ impl SharedPayload {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// # const BASE: usize = 0x8600_000;
     /// unsafe {
     ///     let shared_load = SharedPayload::new(BASE);
@@ -108,7 +108,7 @@ impl SharedPayload {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub unsafe fn peek_task(
@@ -121,7 +121,7 @@ impl SharedPayload {
 
     /// 从共享调度器中删除任务
     ///
-    /// ```Rust
+    /// ```
     /// unsafe{
     ///     assert!(shared_load.delete_task(task.task_repr()));        
     /// }
@@ -135,7 +135,7 @@ impl SharedPayload {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub unsafe fn set_task_state(&self, task_repr: usize, new_state: TaskState) {

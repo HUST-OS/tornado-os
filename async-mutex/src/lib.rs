@@ -309,23 +309,3 @@ impl<F: Fn()> Drop for CallOnDrop<F> {
         (self.0)();
     }
 }
-
-// // Simple test for async mutex
-// extern crate alloc;
-// use alloc::sync::Arc;
-// pub async fn async_mutex_test0<T>(mutex: Arc<AsyncMutex<T>>, event: Arc<Event>) {
-//     let listener = event.listen();
-//     println!("[async_mutex_test0]: try acquire mutex!");
-//     let _s = mutex.lock().await;
-//     println!("[async_mutex_test0]: acquire mutex!");
-//     listener.await;
-//     println!("[async_mutex_test0]: release the mutex!");
-// }
-
-// pub async fn async_mutex_test1<T>(mutex: Arc<AsyncMutex<T>>, event: Arc<Event>) {
-//     event.notify(1);
-//     println!("[async_mutex_test1]: try acquire mutex!");
-//     let _s = mutex.lock().await;
-//     println!("[async_mutex_test1]: acquire mutex!");
-//     println!("[async_mutex_test1]: release the mutex!");
-// }

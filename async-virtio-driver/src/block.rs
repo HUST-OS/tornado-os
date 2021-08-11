@@ -166,7 +166,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     let virtio_block = VirtIOBlock::async_new().await.unwrap();   
     /// }
@@ -225,7 +225,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// let virtio_block = VirtIOBlock::new().await.unwrap();
     /// ```
     pub fn new(header: &'static mut VirtIOHeader) -> Result<Self> {
@@ -287,7 +287,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub fn async_read_sector(&self, sector_id: usize, buf: &mut [u8]) -> BlockFuture {
@@ -336,7 +336,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub fn async_write_sector(&self, sector_id: usize, buf: &[u8]) -> BlockFuture {
@@ -385,7 +385,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub async fn async_read_block(&self, block_id: usize, buf: &mut [u8]) -> Result<()> {
@@ -408,7 +408,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub async fn async_write_block(&self, block_id: usize, buf: &[u8]) -> Result<()> {
@@ -431,7 +431,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     # let virtio_block = VirtIOBlock::new();
     ///     # const SECTOR_SIZE: usize = 512;
@@ -480,7 +480,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     # let virtio_block = VirtIOBlock::new();
     ///     # const SECTOR_SIZE: usize = 512;
@@ -528,7 +528,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     # let virtio_block = VirtIOBlock::new();
     ///     # const BLOCK_SIZE: usize = 512;
@@ -558,7 +558,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     # let virtio_block = VirtIOBlock::new();
     ///     # const BLOCK_SIZE: usize = 512;
@@ -587,7 +587,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub fn read_sector(&self, block_id: usize, buf: &mut [u8]) -> Result<()> {
@@ -626,7 +626,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub fn write_sector(&self, block_id: usize, buf: &[u8]) -> Result<()> {
@@ -667,7 +667,7 @@ impl<const N: usize> VirtIOBlock<N> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// # static VIRTIO_BLOCK: VirtIOBlock;
     /// extern "C" fn external_interrupt() {
     ///     let intr_ret = VIRTIO_BLOCK.handle_interrupt().unwrap();  

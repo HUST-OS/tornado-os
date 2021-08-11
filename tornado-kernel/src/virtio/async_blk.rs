@@ -28,7 +28,7 @@ impl VirtIOAsyncBlock {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// # const BLOCK_SIZE: usize = 512;
     /// async {
     ///     let mut buf = [0u8; BLOCK_SIZE];
@@ -49,7 +49,7 @@ impl VirtIOAsyncBlock {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// # const BLOCK_SIZE: usize = 512;
     /// async {
     ///     let buf = [1u8; BLOCK_SIZE];
@@ -68,7 +68,7 @@ impl VirtIOAsyncBlock {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// unsafe extern "C" fn supervisor_external() {
     ///     let irq = plic::plic_claim();
     ///     if irq == 1 {
