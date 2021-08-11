@@ -1,36 +1,37 @@
-use super::config::*;
-use super::mmio::VirtIOHeader;
-use super::queue::VirtQueue;
-use super::util::AsBuf;
-use super::*;
+//! 虚拟块设备前端驱动
+//! ref: https://github.com/rcore-os/virtio-drivers/blob/master/src/blk.rs
+//! thanks!
+//!
+//! BlockFuture 的 Send 和 Sync：
+//! + inner 成员是 Send 和 Sync 的，_req_type 和 response 成员暂时不会用到，因此从成员变量看来是 Send 和 Sync 的
+//! + poll 方法借助了 Mutex 实现内部可变性，在并发场景下多个 poll 操作一起运行的时候，有锁机制保证操作的原子性，因此是 Sync 的
+//! 因此个人觉得 BLockFuture 是 Send 和 Sync 的
+//!
+//! VirtioBlock 设计需求分析：
+//! + 需要在并发场景下执行 async_read 或 async_write 或 ack_interrupt 操作，
+//! 因此这三个方法都必须是 &self 而不能是 &mut self，因此通过 Mutex 提供内部可变性，并保证并发安全
+//! + 需要想清楚哪些操作必须是原子的，必须按顺序来，否则会出问题
+//! + 比如多个协程都需要执行 async_read，这时候需要往虚拟队列中添加描述符，然后通知设备，
+//! 如果添加描述符和通知设备两个操作不是原子的话，可能会出问题。（这里可能两个操作不应该是原子的，只是举个例子，说明系统里面可能会有这样的情况）
+//!
+//! todo: 弄清楚哪些操作需要同步，哪些部分需要加锁
+use super::{config::*, mmio::VirtIOHeader, queue::VirtQueue, util::AsBuf, *};
 use alloc::sync::Arc;
-/// 虚拟块设备前端驱动
-/// ref: https://github.com/rcore-os/virtio-drivers/blob/master/src/blk.rs
-/// thanks!
-///
-/// BlockFuture 的 Send 和 Sync：
-/// + inner 成员是 Send 和 Sync 的，_req_type 和 response 成员暂时不会用到，因此从成员变量看来是 Send 和 Sync 的
-/// + poll 方法借助了 Mutex 实现内部可变性，在并发场景下多个 poll 操作一起运行的时候，有锁机制保证操作的原子性，因此是 Sync 的
-/// 因此个人觉得 BLockFuture 是 Send 和 Sync 的
-///
-/// VirtioBlock 设计需求分析：
-/// + 需要在并发场景下执行 async_read 或 async_write 或 ack_interrupt 操作，
-/// 因此这三个方法都必须是 &self 而不能是 &mut self，因此通过 Mutex 提供内部可变性，并保证并发安全
-/// + 需要想清楚哪些操作必须是原子的，必须按顺序来，否则会出问题
-/// + 比如多个协程都需要执行 async_read，这时候需要往虚拟队列中添加描述符，然后通知设备，
-/// 如果添加描述符和通知设备两个操作不是原子的话，可能会出问题。（这里可能两个操作不应该是原子的，只是举个例子，说明系统里面可能会有这样的情况）
-///
-/// todo: 弄清楚哪些操作需要同步，哪些部分需要加锁
 use bitflags::bitflags;
-use core::cell::RefCell;
-use core::future::Future;
-use core::pin::Pin;
-use core::ptr::NonNull;
-use core::task::{Context, Poll};
+use core::{
+    cell::RefCell,
+    future::Future,
+    pin::Pin,
+    ptr::NonNull,
+    task::{Context, Poll},
+};
 use event::Event;
 use spin::Mutex;
 use volatile::Volatile;
 
+/// 块设备读写返回的`Future`
+///
+/// 目前飓风内核没有用到这个结构，但先留着
 pub struct BlockFuture {
     /// 该块设备的内部结构，用于 poll 操作的时候判断请求是否完成
     /// 如果完成了也会对这里的值做相关处理
@@ -38,6 +39,7 @@ pub struct BlockFuture {
     /// IO 请求的描述符链头部
     head: u16,
     /// IO 请求缓冲区
+    #[allow(unused)]
     req: NonNull<BlockReq>,
     /// IO 回应缓冲区
     resp: NonNull<BlockResp>,
@@ -49,7 +51,7 @@ impl Future for BlockFuture {
     type Output = Result<()>;
     // warn: 这里需要仔细考虑操作的原子性
     // 这里可能有外部中断进入
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut inner = self.inner.lock();
         let (h, q) = inner.header_and_queue_mut();
         unsafe {
@@ -104,9 +106,11 @@ pub struct VirtIOBlock<const N: usize> {
     /// todo: 不要通过 NonNull 所有权和生命周期机制，采用更加 Rust 的写法
     unlock_queue: NonNull<VirtQueue>,
     /// 容量
+    #[allow(unused)]
     capacity: usize,
     /// 扇区大小
     pub sector_size: u32,
+    /// 添加一个[`Event`]成员后，完美实现块设备驱动
     pub wake_ops: Event,
 }
 
@@ -159,6 +163,14 @@ impl VirtIOBlockInner {
 
 impl<const N: usize> VirtIOBlock<N> {
     /// 以异步方式创建虚拟块设备驱动
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     let virtio_block = VirtIOBlock::async_new().await.unwrap();   
+    /// }
+    /// ```
     pub async fn async_new(header: &'static mut VirtIOHeader) -> Result<VirtIOBlock<N>> {
         if !header.verify() {
             return Err(VirtIOError::HeaderVerifyError);
@@ -207,7 +219,15 @@ impl<const N: usize> VirtIOBlock<N> {
             wake_ops: Event::new(),
         })
     }
-
+    /// 同步方式创建异步块设备驱动
+    ///
+    /// 飓风内核目前使用这种方式
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// let virtio_block = VirtIOBlock::new().await.unwrap();
+    /// ```
     pub fn new(header: &'static mut VirtIOHeader) -> Result<Self> {
         if !header.verify() {
             return Err(VirtIOError::HeaderVerifyError);
@@ -255,14 +275,21 @@ impl<const N: usize> VirtIOBlock<N> {
             wake_ops: Event::new(),
         })
     }
-
     /// 通知设备 virtio 外部中断已经处理完成
+    ///
+    /// 目前飓风内核没有用到这个函数
     pub fn ack_interrupt(&self) -> bool {
         self.lock_inner.lock().header.ack_interrupt()
     }
-
     /// 以异步方式读取一个扇区
-    /// todo: 仔细考虑这里的操作原子性
+    ///
+    /// 目前飓风内核没有用到这个接口(旧的设计)
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub fn async_read_sector(&self, sector_id: usize, buf: &mut [u8]) -> BlockFuture {
         // 缓冲区大小必须等于扇区大小
         if buf.len() != self.sector_size as usize {
@@ -303,9 +330,15 @@ impl<const N: usize> VirtIOBlock<N> {
             first_poll: RefCell::new(true),
         }
     }
-
     /// 以异步方式写入一个扇区
-    /// todo: 仔细考虑这里的操作原子性
+    ///
+    /// 目前飓风内核没有用到这个接口(旧的设计)
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub fn async_write_sector(&self, sector_id: usize, buf: &[u8]) -> BlockFuture {
         if buf.len() != self.sector_size as usize {
             panic!(
@@ -346,8 +379,15 @@ impl<const N: usize> VirtIOBlock<N> {
             first_poll: RefCell::new(true),
         }
     }
-
     /// 异步方式读取一个块
+    ///
+    /// unused
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub async fn async_read_block(&self, block_id: usize, buf: &mut [u8]) -> Result<()> {
         // 块大小 = 一个块中的扇区数 * 扇区大小
         let block_size = self.sector_size as usize * N;
@@ -362,8 +402,15 @@ impl<const N: usize> VirtIOBlock<N> {
         }
         Ok(())
     }
-
     /// 异步方式写入一个块
+    ///
+    /// unused
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub async fn async_write_block(&self, block_id: usize, buf: &[u8]) -> Result<()> {
         // 块大小 = 一个块中的扇区数 * 扇区大小
         let block_size = self.sector_size as usize * N;
@@ -378,7 +425,21 @@ impl<const N: usize> VirtIOBlock<N> {
         }
         Ok(())
     }
-
+    /// 异步方式读取一个扇区
+    ///
+    /// 飓风内核通过这个接口实现块设备的异步读取
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     # let virtio_block = VirtIOBlock::new();
+    ///     # const SECTOR_SIZE: usize = 512;
+    ///
+    ///     let mut buf = [0u8; SECTOR_SIZE];
+    ///     virtio_block.read_sector_event(0, &mut buf).await.unwrap();       
+    /// }
+    /// ```
     pub async fn read_sector_event(&self, sector_id: usize, buf: &mut [u8]) -> Result<()> {
         // 开始监听
         let listener = self.wake_ops.listen();
@@ -413,7 +474,21 @@ impl<const N: usize> VirtIOBlock<N> {
             _ => Err(VirtIOError::IOError),
         }
     }
-
+    /// 异步方式写入一个扇区
+    ///
+    /// 飓风内核通过这个接口实现块设备的异步写入
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     # let virtio_block = VirtIOBlock::new();
+    ///     # const SECTOR_SIZE: usize = 512;
+    ///
+    ///     let buf = [1u8; SECTOR_SIZE];
+    ///     virtio_block.write_sector_event(0, &buf).await.unwrap();       
+    /// }
+    /// ```
     pub async fn write_serctor_event(&self, sector_id: usize, buf: &[u8]) -> Result<()> {
         // 开始监听
         let listener = self.wake_ops.listen();
@@ -447,7 +522,21 @@ impl<const N: usize> VirtIOBlock<N> {
             _ => Err(VirtIOError::IOError),
         }
     }
-
+    /// 异步方式读取一个块
+    ///
+    /// 飓风内核通过这个接口实现块设备的异步读取
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     # let virtio_block = VirtIOBlock::new();
+    ///     # const BLOCK_SIZE: usize = 512;
+    ///
+    ///     let mut buf = [0u8; BLOCK_SIZE];
+    ///     virtio_block.read_block_event(0, &mut buf).await.unwrap();       
+    /// }
+    /// ```
     pub async fn read_block_event(&self, block_id: usize, buf: &mut [u8]) -> Result<()> {
         // 块大小 = 一个块中的扇区数 * 扇区大小
         let block_size = self.sector_size as usize * N;
@@ -463,7 +552,21 @@ impl<const N: usize> VirtIOBlock<N> {
         }
         Ok(())
     }
-
+    /// 异步方式写入一个块
+    ///
+    /// 飓风内核通过这个接口实现块设备的异步写入
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     # let virtio_block = VirtIOBlock::new();
+    ///     # const BLOCK_SIZE: usize = 512;
+    ///
+    ///     let buf = [1u8; BLOCK_SIZE];
+    ///     virtio_block.write_block_event(0, &buf).await.unwrap();       
+    /// }
+    /// ```
     pub async fn write_block_event(&self, block_id: usize, buf: &[u8]) -> Result<()> {
         // 块大小 = 一个块中的扇区数 * 扇区大小
         let block_size = self.sector_size as usize * N;
@@ -478,8 +581,15 @@ impl<const N: usize> VirtIOBlock<N> {
         }
         Ok(())
     }
-
+    /// 同步方式读取一个扇区
+    ///
     /// unused
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub fn read_sector(&self, block_id: usize, buf: &mut [u8]) -> Result<()> {
         // 缓冲区大小必须等于扇区大小
         if buf.len() != self.sector_size as usize {
@@ -510,8 +620,15 @@ impl<const N: usize> VirtIOBlock<N> {
             _ => Err(VirtIOError::IOError),
         }
     }
-
+    /// 同步方式写入一个扇区
+    ///
     /// unused
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub fn write_sector(&self, block_id: usize, buf: &[u8]) -> Result<()> {
         // 缓冲区大小必须等于扇区大小
         if buf.len() != self.sector_size as usize {
@@ -542,9 +659,20 @@ impl<const N: usize> VirtIOBlock<N> {
             _ => Err(VirtIOError::IOError),
         }
     }
-
     /// 处理 virtio 外部中断
+    ///
+    /// 在飓风内核的外部中断处理函数里面被调用
+    ///
     /// todo: 仔细考虑这里的操作原子性
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// # static VIRTIO_BLOCK: VirtIOBlock;
+    /// extern "C" fn external_interrupt() {
+    ///     let intr_ret = VIRTIO_BLOCK.handle_interrupt().unwrap();  
+    /// }
+    /// ```
     pub unsafe fn handle_interrupt(&self) -> Result<InterruptRet> {
         // 这里使用获取不加锁的 inner
         let q = self.unlock_queue.as_ref();
@@ -655,8 +783,10 @@ pub struct BlockResp {
 enum BlockReqType {
     In = 0,
     Out = 1,
+    #[allow(unused)]
     Flush = 4,
     Discard = 11,
+    #[allow(unused)]
     WriteZeroes = 13,
 }
 
@@ -664,8 +794,11 @@ enum BlockReqType {
 #[repr(u8)]
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 enum BlockRespStatus {
+    #[allow(unused)]
     Ok = 0,
+    #[allow(unused)]
     IoErr = 1,
+    #[allow(unused)]
     Unsupported = 2,
     NotReady = 3,
 }
