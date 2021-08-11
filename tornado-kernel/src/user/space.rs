@@ -52,7 +52,7 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// let mut user_space = UserSpaceManager::new();
     ///
     /// // 分配100帧物理内存给地址空间1

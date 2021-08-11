@@ -13,7 +13,13 @@ pub struct LFUCache<K: Eq + PartialEq + Copy, V: Clone, const N: usize> {
 }
 
 impl<K: Eq + PartialEq + Copy, V: Clone, const N: usize> LFUCache<K, V, N> {
-    /// 初始化
+    /// 初始化一个[`LFUCache`]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// todo!()
+    /// ```
     pub fn init(data: [Node<K, V>; N]) -> Self {
         Self {
             data,
@@ -21,7 +27,13 @@ impl<K: Eq + PartialEq + Copy, V: Clone, const N: usize> LFUCache<K, V, N> {
             time: 0,
         }
     }
-
+    /// 创建空的[`LFUCache`]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// todo!()
+    /// ```
     pub fn empty(data: [Node<K, V>; N]) -> Self {
         Self {
             data,

@@ -15,7 +15,7 @@ use core::ptr::copy;
 ///
 /// # Example:
 ///
-/// ```Rust
+/// ```
 /// async {
 ///     let mm_set = load_user("alloc-test.bin").await;    
 /// }

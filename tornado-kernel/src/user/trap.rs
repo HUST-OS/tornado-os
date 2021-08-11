@@ -17,7 +17,7 @@ use riscv::register::satp;
 ///
 /// # Example:
 ///
-/// ```Rust
+/// ```
 /// # let kernel_memory = memory::MemorySet::new_kernel().unwrap();
 /// # let process = task::Process::new(kernel_memory).unwrap();
 ///

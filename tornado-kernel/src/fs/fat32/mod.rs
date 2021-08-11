@@ -7,7 +7,7 @@
 //! * 写入文件数据，但文件大小需要在创建的时候指定
 //!
 //! # Example: 列出根目录下的所有文件和目录
-//! ```Rust
+//! ```
 //! async {
 //!     let fs = FAT32::init().await;
 //!     let files = fs.list("/");
@@ -54,7 +54,7 @@ impl FAT32 {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     let fs = FAT32::init().await;       
     /// }
@@ -173,7 +173,7 @@ impl FAT32 {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     let fs = FAT32::init().await;
     ///     let files = fs.list("/").await;       
@@ -193,7 +193,7 @@ impl FAT32 {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     let fs = FAT32::init().await;
     ///     let files = fs.list("/").await;
@@ -217,7 +217,7 @@ impl FAT32 {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// async {
     ///     let mut fs = FAT32::init().await;
     ///     fs.create("/", "test.rs", 500).unwrap();       
@@ -343,7 +343,7 @@ impl FAT32 {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     pub async fn store_binary<S: Into<String>>(&mut self, file: S, src: &[u8]) -> Result<()> {
@@ -393,7 +393,7 @@ impl FAT32 {
     ///
     /// # Example:
     ///
-    /// ```Rust
+    /// ```
     /// todo!()
     /// ```
     fn is_long<S: AsRef<str>>(s: &S) -> bool {
