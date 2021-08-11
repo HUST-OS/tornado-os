@@ -1,3 +1,4 @@
+//! 物理地址和虚拟地址相关
 use super::config::{KERNEL_MAP_OFFSET, PAGE_SIZE};
 use bit_field::BitField;
 
@@ -11,7 +12,7 @@ impl PhysicalAddress {
     pub unsafe fn deref_linear_static<T>(self) -> &'static mut T {
         self.virtual_address_linear().deref_virtual()
     }
-    // 线性映射下，得到物理地址对应的虚拟地址
+    /// 线性映射下，得到物理地址对应的虚拟地址
     pub fn virtual_address_linear(self) -> VirtualAddress {
         let va = self.0.wrapping_add(KERNEL_MAP_OFFSET);
         VirtualAddress(va)

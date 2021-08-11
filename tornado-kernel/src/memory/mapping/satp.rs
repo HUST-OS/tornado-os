@@ -1,9 +1,10 @@
+//! satp寄存器抽象，可用于地址转换
 use super::{page_table::PageTable, page_table_entry::PageTableEntry};
 use crate::memory::{PhysicalPageNumber, VirtualPageNumber};
 use bit_field::BitField;
 use riscv::register::satp::Mode;
 
-/// Satp 寄存器，用于用户陷入内核态的时候提供地址映射帮助
+/// satp寄存器，用于用户陷入内核态的时候提供地址映射帮助
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Satp(pub usize);
 
@@ -48,6 +49,7 @@ impl Satp {
     pub fn translate(&self, vpn: VirtualPageNumber) -> Option<PhysicalPageNumber> {
         self.find_pte(vpn).map(|pte| pte.page_number())
     }
+    /// 获取内部值
     pub fn inner(&self) -> usize {
         self.0
     }

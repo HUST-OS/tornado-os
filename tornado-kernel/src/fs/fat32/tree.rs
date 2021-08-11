@@ -1,10 +1,12 @@
 //! N-Tree 实现
-
-use alloc::boxed::Box;
-use alloc::vec::Vec;
+//!
+//! 用于在内存中维护文件系统的目录树
+use alloc::{boxed::Box, vec::Vec};
 use async_trait::async_trait;
-use core::borrow::{Borrow, BorrowMut};
-use core::fmt::Debug;
+use core::{
+    borrow::{Borrow, BorrowMut},
+    fmt::Debug,
+};
 
 #[async_trait]
 pub trait AsNode: Send + Sync {

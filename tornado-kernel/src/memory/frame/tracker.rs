@@ -6,10 +6,11 @@ use crate::memory::{config::PAGE_SIZE, PhysicalAddress, PhysicalPageNumber};
 pub struct FrameTracker(pub(super) PhysicalPageNumber);
 
 impl FrameTracker {
+    #[allow(missing_docs)]
     pub fn start_address(&self) -> PhysicalAddress {
         self.0.start_address()
     }
-
+    #[allow(missing_docs)]
     pub fn page_number(&self) -> PhysicalPageNumber {
         self.0
     }

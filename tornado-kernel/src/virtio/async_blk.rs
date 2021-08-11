@@ -26,7 +26,8 @@ impl VirtIOAsyncBlock {
     /// 该async函数在执行器中第一次被`poll`的时候返回`Pending`，
     /// virtio外部中断来了会在中断处理函数里面唤醒
     ///
-    /// example:
+    /// # Example:
+    ///
     /// ```Rust
     /// # const BLOCK_SIZE: usize = 512;
     /// async {
@@ -46,7 +47,8 @@ impl VirtIOAsyncBlock {
     /// 该async函数在执行器中第一次被`poll`的时候返回`Pending`，
     /// virtio外部中断来了会在中断处理函数里面唤醒
     ///
-    /// example:
+    /// # Example:
+    ///
     /// ```Rust
     /// # const BLOCK_SIZE: usize = 512;
     /// async {
@@ -64,7 +66,8 @@ impl VirtIOAsyncBlock {
     }
     /// 处理virtio外部中断，通常在外部中断处理函数里面使用
     ///
-    /// example:
+    /// # Example:
+    ///
     /// ```Rust
     /// unsafe extern "C" fn supervisor_external() {
     ///     let irq = plic::plic_claim();

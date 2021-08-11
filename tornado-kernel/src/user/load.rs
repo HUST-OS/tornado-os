@@ -13,7 +13,8 @@ use core::ptr::copy;
 ///
 /// note: 调用这个函数之前文件系统必须已经初始化
 ///
-/// example:
+/// # Example:
+///
 /// ```Rust
 /// async {
 ///     let mm_set = load_user("alloc-test.bin").await;    

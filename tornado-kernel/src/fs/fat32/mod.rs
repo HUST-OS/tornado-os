@@ -1,4 +1,21 @@
-//! 异步 FAT32 文件系统
+//! 异步FAT32文件系统
+//!
+//! 目前支持的功能：
+//! * 初始化fat32文件系统
+//! * 读取文件
+//! * 创建短文件名文件
+//! * 写入文件数据，但文件大小需要在创建的时候指定
+//!
+//! # Example: 列出根目录下的所有文件和目录
+//! ```Rust
+//! async {
+//!     let fs = FAT32::init().await;
+//!     let files = fs.list("/");
+//!
+//!     // 读取第一个文件的数据
+//!     let content = fs.load_binary(files[0]).await.unwrap();
+//! }
+//! ```
 mod bs_bpb;
 mod dir_file;
 mod entry;
@@ -34,6 +51,14 @@ pub struct FAT32 {
 
 impl FAT32 {
     /// 初始化文件系统
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     let fs = FAT32::init().await;       
+    /// }
+    /// ```
     pub async fn init() -> Self {
         let bpb = CACHE.read_block(0usize).await;
         // 根据第一个扇区获取 [`FAT`]
@@ -145,6 +170,15 @@ impl FAT32 {
         }
     }
     /// 列出某个子目录下的所有文件和目录
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     let fs = FAT32::init().await;
+    ///     let files = fs.list("/").await;       
+    /// }
+    /// ```
     pub fn list<S: Into<String>>(&self, dir: S) -> Vec<String> {
         match self.tree.find(dir) {
             Some(node) => node
@@ -156,6 +190,17 @@ impl FAT32 {
         }
     }
     /// 加载某个文件或目录的二进制数据
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     let fs = FAT32::init().await;
+    ///     let files = fs.list("/").await;
+    ///
+    ///     let content = fs.load_binary(files[0]).await.unwrap();       
+    /// }
+    /// ```
     pub async fn load_binary<S: Into<String>>(&self, file: S) -> Result<Vec<u8>> {
         match self.tree.find(file) {
             Some(node) => Ok(node.inner().content().await),
@@ -169,6 +214,15 @@ impl FAT32 {
     /// 另外一个任务在读写这个 `FAT` 表项。
     ///
     /// 一种解决办法：在内存里创建一个数据结构来对 `FAT` 表进行管理
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// async {
+    ///     let mut fs = FAT32::init().await;
+    ///     fs.create("/", "test.rs", 500).unwrap();       
+    /// }
+    /// ```
     pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) -> Result<()> {
         let node = self.tree.find_mut(dir);
         if node.is_none() {
@@ -283,7 +337,15 @@ impl FAT32 {
             }
         }
     }
+    /// 写入文件
+    ///
     /// note: 这里语法上不需要可变引用，语义上需要
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// todo!()
+    /// ```
     pub async fn store_binary<S: Into<String>>(&mut self, file: S, src: &[u8]) -> Result<()> {
         if let Some(node) = self.tree.find(file) {
             // 需要的块数
@@ -326,13 +388,14 @@ impl FAT32 {
             Err(FAT32Error::NotFound)
         }
     }
-    /*
-    /// 同步快缓存中的数据到块设备
-    pub async fn sync(&self) {
-        self.device.sync().await
-    }*/
 
     /// 判断是否是长文件名
+    ///
+    /// # Example:
+    ///
+    /// ```Rust
+    /// todo!()
+    /// ```
     fn is_long<S: AsRef<str>>(s: &S) -> bool {
         let s = s.as_ref();
         match s.len() {
