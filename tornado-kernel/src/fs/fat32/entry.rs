@@ -1,11 +1,10 @@
-use super::bs_bpb::cluster_offset_sectors;
-use super::{fat::FAT, BLOCK_SIZE};
+use super::{
+    bs_bpb::{cluster_offset_bytes, cluster_offset_sectors},
+    fat::FAT,
+    BLOCK_SIZE,
+};
 use crate::cache::CACHE;
-use crate::fs::fat32::bs_bpb::cluster_offset_bytes;
-use alloc::format;
-use alloc::string::String;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{format, string::String, sync::Arc, vec::Vec};
 use bit_field::BitField;
 use core::convert::TryInto;
 
@@ -157,7 +156,7 @@ impl DirectoryEntry {
     /// 校验和，用于长目录项
     ///
     /// 文档里面计算校验和的伪代码：
-    /// ```
+    /// ```C
     /// unsigned char ChkSum (unsigned char *pFcbName)
     /// {
     ///     short FcbNameLen;

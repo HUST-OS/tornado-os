@@ -50,7 +50,8 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     ///
     /// 分配成功返回起始物理页号
     ///
-    /// example:
+    /// # Example:
+    ///
     /// ```Rust
     /// let mut user_space = UserSpaceManager::new();
     ///

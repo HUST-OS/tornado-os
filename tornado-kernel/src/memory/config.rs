@@ -1,8 +1,11 @@
+//!  内存相关的一些配置
 use crate::memory::{PhysicalAddress, VirtualAddress};
 use lazy_static::lazy_static;
 
+/// 内核堆大小
 pub const KERNEL_HEAP_SIZE: usize = 0x20_0000;
 
+/// 内核中最高物理地址
 pub const MEMORY_END_ADDRESS: PhysicalAddress = PhysicalAddress(0x8800_0000);
 
 lazy_static! {
@@ -14,8 +17,10 @@ lazy_static! {
     };
 }
 
+/// 页大小
 pub const PAGE_SIZE: usize = 4096;
 
+/// 内核映射偏移
 pub const KERNEL_MAP_OFFSET: usize = 0xffff_ffff_4000_0000;
 
 /// 每个线程的运行栈大小 512 KB
@@ -33,11 +38,14 @@ pub const fn swap_contex_va(asid: usize) -> usize {
     SWAP_FRAME_VA - PAGE_SIZE * asid
 }
 
-// ref: https://github.com/kaist-cp/rv6/blob/riscv/kernel-rs/src/arch/memlayout.rs
-// thanks!
 /// qemu puts platform-level interrupt controller (PLIC) here.
+///
+/// ref: https://github.com/kaist-cp/rv6/blob/riscv/kernel-rs/src/arch/memlayout.rs
+/// thanks!
 pub const PLIC_BASE: usize = 0xc000000 + KERNEL_MAP_OFFSET;
 
-// qemu virtio disk mmio
+/// qemu virtio disk mmio
 pub const VIRTIO0: usize = 0x10001000 + KERNEL_MAP_OFFSET;
+
+/// qemu virtio irq
 pub const VIRTIO0_IRQ: usize = 1;

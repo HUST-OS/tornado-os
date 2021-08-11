@@ -1,7 +1,7 @@
-use core::ops::{Deref, DerefMut};
-
+//! 页表实现
 use super::page_table_entry::PageTableEntry;
 use crate::memory::{config::PAGE_SIZE, frame::FrameTracker, PhysicalPageNumber};
+use core::ops::{Deref, DerefMut};
 
 // repr(C)：保证内存对齐等设置，和RISC-V标准相同
 #[repr(C)]
@@ -19,6 +19,7 @@ impl PageTable {
 pub struct PageTableTracker(pub FrameTracker);
 
 impl PageTableTracker {
+    /// 创建空页表
     pub fn new_zeroed(frame_tracker: FrameTracker) -> Self {
         let mut page_table = Self(frame_tracker);
         page_table.clear(); // PageTableTracker (deref_mut->) PageTable

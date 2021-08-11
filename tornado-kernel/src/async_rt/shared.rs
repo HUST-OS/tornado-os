@@ -43,7 +43,8 @@ type SharedPayloadRaw = (
 impl SharedPayload {
     /// 根据基地址加载共享调度器
     ///
-    /// example:
+    /// # Example:
+    ///
     /// ```Rust
     /// # const BASE: usize = 0x8600_000;
     /// let shared_load = unsafe { SharedPayload::load(BASE); }
@@ -82,7 +83,8 @@ impl SharedPayload {
 
     /// 往共享调度器中添加任务
     ///
-    /// example:
+    /// # Example:
+    ///
     /// ```Rust
     /// # const BASE: usize = 0x8600_000;
     /// unsafe {
@@ -104,7 +106,8 @@ impl SharedPayload {
 
     /// 从共享调度器中得到下一个任务
     ///
-    /// example:
+    /// # Example:
+    ///
     /// ```Rust
     /// todo!()
     /// ```
@@ -130,7 +133,8 @@ impl SharedPayload {
 
     /// 设置一个任务的状态
     ///
-    /// example:
+    /// # Example:
+    ///
     /// ```Rust
     /// todo!()
     /// ```

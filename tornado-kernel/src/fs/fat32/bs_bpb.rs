@@ -29,6 +29,7 @@ enum BootSectorOffset {
 }
 
 impl BootSectorOffset {
+    #[allow(missing_docs)]
     pub fn jmp_boot(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::JmpBoot, Self::OEMName, sector)
@@ -36,9 +37,11 @@ impl BootSectorOffset {
                 .unwrap(),
         )
     }
+    #[allow(missing_docs)]
     pub fn oem_name(sector: &[u8]) -> String {
         String::from_utf8(Self::split(Self::OEMName, Self::DrvNum, sector).to_vec()).unwrap()
     }
+    #[allow(missing_docs)]
     pub fn drv_num(sector: &[u8]) -> u8 {
         u8::from_le_bytes(
             Self::split(Self::DrvNum, Self::Reserved1, sector)
@@ -46,6 +49,7 @@ impl BootSectorOffset {
                 .unwrap(),
         )
     }
+    #[allow(missing_docs)]
     pub fn boot_sig(sector: &[u8]) -> u8 {
         u8::from_le_bytes(
             Self::split(Self::BootSig, Self::VolID, sector)
@@ -53,6 +57,7 @@ impl BootSectorOffset {
                 .unwrap(),
         )
     }
+    #[allow(missing_docs)]
     pub fn vol_id(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::VolID, Self::VolLab, sector)
@@ -60,6 +65,7 @@ impl BootSectorOffset {
                 .unwrap(),
         )
     }
+    #[allow(missing_docs)]
     fn split(start: Self, end: Self, buf: &[u8]) -> &[u8] {
         &buf[start as usize..end as usize]
     }
@@ -193,6 +199,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    #[allow(missing_docs)]
     pub fn extern_flags(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::ExtFlags, Self::FSVer, sector)
@@ -200,6 +207,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    #[allow(missing_docs)]
     pub fn root_cluster(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::RootClus, Self::FSInfo, sector)
@@ -207,6 +215,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    #[allow(missing_docs)]
     pub fn fs_info(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::FSInfo, Self::BkBootSec, sector)
@@ -214,6 +223,7 @@ impl BPBOffset {
                 .unwrap(),
         )
     }
+    #[allow(missing_docs)]
     fn split(start: Self, end: Self, sector: &[u8]) -> &[u8] {
         &sector[start as usize..end as usize]
     }

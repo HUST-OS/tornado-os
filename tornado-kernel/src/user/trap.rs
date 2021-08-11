@@ -15,7 +15,8 @@ use riscv::register::satp;
 ///
 /// 通常作为内核异步任务在内核执行器中运行
 ///
-/// example:
+/// # Example:
+///
 /// ```Rust
 /// # let kernel_memory = memory::MemorySet::new_kernel().unwrap();
 /// # let process = task::Process::new(kernel_memory).unwrap();

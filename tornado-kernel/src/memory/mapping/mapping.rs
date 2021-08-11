@@ -1,3 +1,4 @@
+//! 内存映射具体实现
 use super::{
     page_table::{PageTable, PageTableTracker},
     page_table_entry::PageTableEntry,
@@ -9,9 +10,7 @@ use crate::memory::{
 };
 use alloc::{collections::VecDeque, vec::Vec};
 use bit_field::BitField;
-use core::ops::Range;
-use core::ptr::slice_from_raw_parts_mut;
-
+use core::{ops::Range, ptr::slice_from_raw_parts_mut};
 /// 一个上下文的内存映射关系
 #[derive(Debug)]
 pub struct Mapping {
@@ -248,11 +247,11 @@ fn range_vpn_contains_pa(src: Range<PhysicalAddress>) -> Range<PhysicalPageNumbe
     PhysicalPageNumber::floor(src.start)..PhysicalPageNumber::ceil(src.end)
 }
 
-// 一个虚拟页号段区间的迭代器
+/// 一个虚拟页号段区间的迭代器
 struct VpnRangeIter {
-    // 区间结束，不包含
+    /// 区间结束，不包含
     end_addr: usize,
-    // 区间开始，包含
+    /// 区间开始，包含
     current_addr: usize,
 }
 

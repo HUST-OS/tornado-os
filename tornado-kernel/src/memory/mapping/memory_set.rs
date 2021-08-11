@@ -1,10 +1,8 @@
 use crate::memory::{
     config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
-    swap_contex_va, PhysicalPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE, VIRTIO0,
-};
-use crate::memory::{
-    AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress, Segment,
-    VirtualAddress, VirtualPageNumber,
+    swap_contex_va, AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress,
+    PhysicalPageNumber, Segment, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE,
+    VIRTIO0,
 };
 use crate::SHAREDPAYLOAD_BASE;
 use alloc::{sync::Arc, vec::Vec};
@@ -110,7 +108,6 @@ impl MemorySet {
 
         map_mmio(&mut mapping);
 
-        // 映射共享载荷，目前地址是写死的
         let va_range =
             VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
         let pa_range =
@@ -133,7 +130,7 @@ impl MemorySet {
         )?;
 
         let address_space_id = crate::hart::KernelHartInfo::alloc_address_space_id()?;
-        println!("Kernel new asid = {:?}", address_space_id);
+        println!("[kernel] kernel new asid = {:?}", address_space_id);
 
         Some(MemorySet {
             mapping,
@@ -142,8 +139,7 @@ impl MemorySet {
             address_space_id,
         })
     }
-
-    /// 通过一个 bin 文件创建用户态映射
+    /// 通过一个二进制文件创建用户态映射
     pub fn new_bin(base: usize, pages: usize, asid: AddressSpaceId) -> Option<MemorySet> {
         extern "C" {
             fn _swap_frame();
@@ -170,7 +166,7 @@ impl MemorySet {
             Flags::EXECUTABLE | Flags::READABLE | Flags::WRITABLE,
         );
 
-        // 映射 SwapContext
+        // 映射[`SwapContext`]
         let swap_cx_va = VirtualAddress(swap_contex_va(asid.into_inner()));
         mapping.map_segment(
             &Segment {
@@ -181,11 +177,11 @@ impl MemorySet {
             None,
         )?;
 
-        // 映射共享负荷
+        // 映射共享调度器
         let va_range =
-            VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
+            VirtualAddress(SHAREDPAYLOAD_BASE)..VirtualAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
         let pa_range =
-            PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x80_0000);
+            PhysicalAddress(SHAREDPAYLOAD_BASE)..PhysicalAddress(SHAREDPAYLOAD_BASE + 0x40_0000);
         mapping.map_defined(
             &va_range,
             &pa_range,
@@ -221,7 +217,6 @@ impl MemorySet {
         self.segments.push(segment);
         Some(())
     }
-
     /// 分配一定数量的连续虚拟空间
     ///
     /// 在本映射中，找到一段给定长度的未占用虚拟地址空间，分配物理页面并建立映射。返回对应的页面区间。
@@ -248,7 +243,6 @@ impl MemorySet {
         // 返回地址区间（使用参数 size，而非向上取整的 alloc_size）
         Some(range.start..(range.start + size))
     }
-
     /// 替换 `satp` 以激活页表
     ///
     /// 如果当前页表就是自身，则不会替换，但仍然会刷新 TLB。
@@ -256,7 +250,6 @@ impl MemorySet {
         println!("Activating memory set in asid {:?}", self.address_space_id);
         self.mapping.activate_on(self.address_space_id)
     }
-
     /// 获得当前映射的 [`Satp`]
     pub fn satp(&self) -> Satp {
         Satp(self.mapping.get_satp(self.address_space_id))

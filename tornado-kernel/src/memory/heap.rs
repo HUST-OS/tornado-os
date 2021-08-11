@@ -1,3 +1,6 @@
+//! 堆管理
+//!
+//! 分配一块内存空间用作堆空间使用
 use super::config::KERNEL_HEAP_SIZE;
 use alloc::alloc::Layout;
 use buddy_system_allocator::LockedHeap;
@@ -14,6 +17,7 @@ fn alloc_error_handler(layout: Layout) -> ! {
     panic!("alloc error for layout {:?}", layout)
 }
 
+/// 初始化堆
 pub fn init() {
     unsafe {
         HEAP.lock()

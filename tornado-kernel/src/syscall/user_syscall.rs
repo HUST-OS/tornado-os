@@ -241,8 +241,9 @@ async fn write_block_task(
 
 /// 从共享调度器中拿出下一个任务的指针，不弹出
 ///
-/// note: 这个函数需要保证调用时共享调度器 `peek_task` 的返回值是任务指针
-/// 一般只用于 `enroll_read` 或 `enroll_write` 系统调用
+/// note: 这个函数需要保证调用时共享调度器`peek_task`的返回值是[`TaskResult::Task`]
+///
+/// 一般只用于`enroll_read`或`enroll_write`系统调用
 unsafe fn next_task_repr() -> usize {
     let shared_payload = unsafe { async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE) };
     ext_intr_off();

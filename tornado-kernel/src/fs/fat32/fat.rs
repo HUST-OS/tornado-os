@@ -1,7 +1,7 @@
+//! FAT表相关
 use super::BLOCK_SIZE;
 use crate::cache::CACHE;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
 use core::convert::TryInto;
 
 /// `FAT` 数据结构
