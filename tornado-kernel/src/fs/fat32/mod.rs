@@ -81,7 +81,7 @@ impl FAT32 {
             Box<dyn AsNode<Ident = String, Content = Vec<u8>, ContentRef = Vec<u32>> + Send + Sync>,
         > = Vec::new();
         dirs.push(Box::new(root));
-        // 利用栈 `dirs` 遍历 `FAT32` 文件系统中所有子目录
+        // 利用栈`dirs`遍历`FAT32`文件系统中所有子目录
         while let Some(dir) = dirs.pop() {
             let data = dir.content().await;
             let node = tree.find_mut(dir.ident()).expect("can not found node");
@@ -157,8 +157,8 @@ impl FAT32 {
                     0x00 => {
                         break;
                     }
-                    _ => {
-                        panic!("unknown dir attribute!")
+                    x => {
+                        panic!("unknown dir attribute: {}!", x)
                     }
                 }
             }

@@ -65,7 +65,7 @@ impl MemorySet {
         );
 
         // 建立字段
-        let segments = vec![
+        let mut segments = vec![
             // .text 段，r-x
             Segment {
                 map_type: MapType::Linear,
@@ -97,6 +97,16 @@ impl MemorySet {
                 flags: Flags::READABLE | Flags::WRITABLE,
             },
         ];
+
+        #[cfg(feature = "k210")]
+        segments.push(
+            Segment {
+                map_type: MapType::Linear,
+                range: VirtualAddress(0x40000000 + KERNEL_MAP_OFFSET)..VirtualAddress(0x405FFFFF + KERNEL_MAP_OFFSET),
+                flags: Flags::READABLE | Flags::WRITABLE,
+            },
+        );
+
         let mut mapping = Mapping::new_alloc()?;
         // 准备保存所有新分配的物理页面
         let allocated_pairs = Vec::new();
@@ -207,7 +217,7 @@ impl MemorySet {
         }
         false
     }
-    /// 添加一个 [`Segment`] 的内存映射
+    /// 添加一个[`Segment`]的内存映射
     pub fn add_segment(&mut self, segment: Segment, init_data: Option<&[u8]>) -> Option<()> {
         // 检测 segment 没有重合
         assert!(!self.overlap_with(segment.page_range()));
@@ -226,7 +236,10 @@ impl MemorySet {
         // memory_set 只能按页分配，所以让 size 向上取整页
         let alloc_size = (size + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
         // 从 memory_set 中找一段不会发生重叠的空间
+        #[cfg(feature = "qemu")]
         let mut range = VirtualAddress(0x1000000)..VirtualAddress(0x1000000 + alloc_size);
+        #[cfg(feature = "k210")]
+        let mut range = VirtualAddress(0x400000)..VirtualAddress(0x400000 + alloc_size);
         while self.overlap_with(range_vpn_from_range_va(&range)) {
             range.start += alloc_size;
             range.end += alloc_size;
@@ -248,7 +261,7 @@ impl MemorySet {
     /// 如果当前页表就是自身，则不会替换，但仍然会刷新 TLB。
     pub fn activate(&self) {
         println!("Activating memory set in asid {:?}", self.address_space_id);
-        self.mapping.activate_on(self.address_space_id)
+        self.mapping.activate_on(self.address_space_id);
     }
     /// 获得当前映射的 [`Satp`]
     pub fn satp(&self) -> Satp {

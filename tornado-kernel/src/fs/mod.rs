@@ -55,13 +55,14 @@ impl Fs {
 ///
 /// 在初始化过程中，将得到的数据结构写入到全局变量中
 pub async fn fs_init() {
+    println!("[debug] start init fs");
     let fs = Fs::init().await;
     let mut s = FS.lock().await;
     let ptr = s.as_mut_ptr();
     unsafe {
         ptr.write(fs);
     }
-    println!("fs init");
+    println!("[kernel] fs init");
     let children = unsafe { s.assume_init_ref().list("/") };
     print!("[/]: ");
     for child in children {

@@ -26,6 +26,7 @@ pub fn read_tp() -> usize {
 ///
 /// 在内核层中，tp指向一个结构体，说明当前的硬件线程编号，
 /// 以及已经分配的地址空间和对应的用户上下文
+#[repr(C)]
 pub struct KernelHartInfo {
     hart_id: usize,
     current_address_space_id: AddressSpaceId, // currently unused

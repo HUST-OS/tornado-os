@@ -31,7 +31,7 @@ pub fn run_until_idle(
         ext_intr_off();
         let task = peek_task();
         ext_intr_on();
-        // println!(">>> kernel executor: next task = {:x?}", task);
+        println!(">>> kernel executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的（内核）地址空间里面
@@ -126,6 +126,7 @@ impl woke::Woke for KernelTaskRepr {
 
 /// 打开外部中断
 pub fn ext_intr_on() {
+    #[cfg(feature = "qemu")]
     unsafe {
         sie::set_sext();
     }
@@ -133,6 +134,7 @@ pub fn ext_intr_on() {
 
 /// 关闭外部中断
 pub fn ext_intr_off() {
+    #[cfg(feature = "qemu")]
     unsafe {
         sie::clear_sext();
     }
