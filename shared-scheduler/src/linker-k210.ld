@@ -2,7 +2,7 @@
 
 OUTPUT_ARCH(riscv)
 ENTRY(SHARED_RAW_TABLE) /* Hack: keep raw table at entry address */
-BASE_ADDRESS = 0x80300000;
+BASE_ADDRESS = 0x80400000;
 
 SECTIONS
 {

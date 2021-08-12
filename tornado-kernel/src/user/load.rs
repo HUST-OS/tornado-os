@@ -32,7 +32,7 @@ pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
     #[cfg(feature = "qemu")]
     let pages = 300;
     #[cfg(feature = "k210")]
-    let pages = 200;
+    let pages = 100;
     let base = {
         let mut s = USER_SPACE.lock().await;
         s.alloc(pages, asid)

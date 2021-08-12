@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 #[cfg(feature = "qemu")]
 const BASE: usize = 0x8400_0000;
 #[cfg(feature = "k210")]
-const BASE: usize = 0x8040_0000;
+const BASE: usize = 0x8050_0000;
 
 lazy_static! {
     pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<2000, BASE>> =

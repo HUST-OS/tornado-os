@@ -11,7 +11,6 @@ use alloc::sync::Arc;
 
 use tornado_user::{execute_async_main, spawn, task::channel::bounded};
 async fn async_main() -> i32 {
-    println!("[user] channel test");
     let (tx, rx) = bounded::<u8, 20>();
     spawn(async move {
         let receiver = Arc::new(rx);

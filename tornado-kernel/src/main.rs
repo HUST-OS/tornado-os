@@ -48,7 +48,7 @@ const SHAREDPAYLOAD_BASE: usize = 0x8600_0000;
 
 /// k210平台下共享调度器的基地址
 #[cfg(feature = "k210")]
-const SHAREDPAYLOAD_BASE: usize = 0x8030_0000;
+const SHAREDPAYLOAD_BASE: usize = 0x8040_0000;
 
 #[no_mangle]
 pub extern "C" fn rust_main(hart_id: usize) -> ! {
@@ -234,7 +234,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     unsafe {
-        #[cfg(feature = "qemu")]
+        // #[cfg(feature = "qemu")]
         {
             shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
             shared_payload.add_task(hart_id, address_space_id, task_7.task_repr()); 
