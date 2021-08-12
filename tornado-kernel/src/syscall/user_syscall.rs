@@ -190,7 +190,7 @@ pub extern "C" fn user_trap_handler() {
             let ppn = user_satp.translate(vpn).unwrap();
             let ptr = ppn.start_address().virtual_address_linear().0 as *const usize;
             let ins: usize = unsafe { core::ptr::read_volatile(ptr) };
-            panic!("[exception] invalid instruction, sepc: {:016x?}, instruction: {:016x?}, swap_cx: {:016x?}", sepc, ins, swap_cx);
+            panic!("[exception] invalid instruction, sepc: {:016x?}, instruction: {:016x?}, swap_cx: {:x?}", sepc, ins, swap_cx);
         }
         _ => todo!(
             "scause: {:?}, sepc: {:#x}, stval: {:#x}, {:x?}",
@@ -204,9 +204,9 @@ pub extern "C" fn user_trap_handler() {
 
 /// 获取[`SwapContext`]的可变引用
 ///
-/// 给定 satp 寄存器，获取 [`SwapContext`] 的裸指针
+/// 给定satp寄存器，获取[`SwapContext`]的裸指针
 ///
-/// todo: 需要根据地址空间编号来得到 [`SwapContext`]
+/// todo: 需要根据地址空间编号来得到[`SwapContext`]
 pub unsafe fn get_swap_cx<'cx>(satp: &'cx Satp, asid: usize) -> &'cx mut SwapContext {
     let swap_cx_va = VirtualAddress(memory::swap_contex_va(asid));
     let swap_cx_vpn = VirtualPageNumber::floor(swap_cx_va);

@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 clap = "2"
+serialport = "4"
 
 [dependencies.ctrlc]
 version  = "3.1"

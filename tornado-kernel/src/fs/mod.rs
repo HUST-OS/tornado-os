@@ -55,7 +55,6 @@ impl Fs {
 ///
 /// 在初始化过程中，将得到的数据结构写入到全局变量中
 pub async fn fs_init() {
-    println!("[debug] start init fs");
     let fs = Fs::init().await;
     let mut s = FS.lock().await;
     let ptr = s.as_mut_ptr();

@@ -7,11 +7,12 @@ use std::{
     process::{Command, Stdio},
 };
 
+mod port;
+
 #[macro_use]
 extern crate clap;
 
 const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
-const SERIAL_PORT: &'static str = "COM4";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
@@ -58,6 +59,7 @@ enum XTaskError {
     QemuExecuteError,
     K210ExecuteError,
     QemuDebugError,
+    NoPort,
     GDBError,
     AsmError,
     SizeError,
@@ -518,6 +520,12 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
     }
     /// 运行 k210
     fn execute_k210(&self) -> Result {
+        let serial_port = port::detect_serial_ports();
+        if serial_port.is_none() {
+            return Err(XTaskError::NoPort);
+        }
+        let (port, info) = serial_port.unwrap();
+        println!("[xtask] delete serial port: {:?}", info);
         let sbi_k210 = PathBuf::from("SBI/rustsbi-k210.bin");
         let kernel = self.target_dir().join("tornado-kernel.bin");
         let shared_scheduler = self.target_dir().join("shared-scheduler.bin");
@@ -540,7 +548,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         let mut py = Command::new("python");
         py.current_dir(&self.root);
         py.arg("ktool.py")
-            .args(&["--port", SERIAL_PORT])
+            .args(&["--port", port.as_str()])
             .args(&["--baudrate", "1500000"])
             .arg("--terminal")
             .arg(k210_bin)

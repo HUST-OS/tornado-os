@@ -50,7 +50,7 @@ pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
     let user_stack_handle = user_memory
         .alloc_page_range(STACK_SIZE, Flags::READABLE | Flags::WRITABLE | Flags::USER)
         .expect("alloc user stack");
-    // 这里减4是因为映射的时候虚拟地址的右半边是不包含的
+
     let user_stack_top = user_stack_handle.end.0;
     // 将用户地址空间映射注册到 [`KernelHartInfo`]
     assert!(
@@ -73,7 +73,6 @@ pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
     // 在这里把共享调度器中`raw_table`的地址通过`gp`寄存器传给用户
     swap_cx.set_gp(crate::SHAREDPAYLOAD_BASE);
     swap_cx.set_tp(user_asid);
-    println!("[debug] prepare user {} done", user);
 }
 
 /// 进入地址空间为`asid`的用户态空间
