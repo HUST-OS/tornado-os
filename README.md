@@ -37,7 +37,7 @@ pub extern "C" fn kernel_main() {
 
 
 ## 如何执行异步任务
-<img src="assets/异步任务执行.png" alt="异步任务执行" align=center />  
+<img src="assets/异步任务执行.png" alt="异步任务执行" width = "80%" height = "80%" align=center />  
 
 
 ## 如何运行
