@@ -8,6 +8,7 @@ use crate::{
     plic, task,
     trap::{self, SwapContext},
     virtio::VIRTIO_BLOCK,
+    sdcard::SD_CARD,
     SHAREDPAYLOAD_BASE,
 };
 use riscv::register::{
@@ -222,7 +223,10 @@ pub unsafe fn get_swap_cx<'cx>(satp: &'cx Satp, asid: usize) -> &'cx mut SwapCon
 #[allow(missing_docs)]
 async fn read_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake_task_repr: usize) {
     let buf = unsafe { super::get_user_buf_mut(user_satp, buf_ptr, BLOCK_SIZE) };
+    #[cfg(feature = "qemu")]
     VIRTIO_BLOCK.read_block(block_id, buf).await;
+    #[cfg(feature = "k210")]
+    SD_CARD.read_block(block_id, buf).await;
     unsafe {
         let shared_payload = async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE);
         ext_intr_off();

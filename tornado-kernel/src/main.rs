@@ -234,13 +234,10 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     unsafe {
-        // #[cfg(feature = "qemu")]
-        {
-            shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
-            shared_payload.add_task(hart_id, address_space_id, task_7.task_repr()); 
-            shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
-        }
-        shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr()); 
+        // shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
     }
 
     // 运行执行器
@@ -259,7 +256,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     unsafe {
-        // shared_payload.add_task(hart_id, address_space_id, task_10.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_10.task_repr());
     }
 
     // 进入地址空间编号为 1 的用户态空间
