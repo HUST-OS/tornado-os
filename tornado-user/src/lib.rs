@@ -18,7 +18,7 @@ pub use console::{stdin, Stdin};
 use buddy_system_allocator::LockedHeap;
 use core::future::Future;
 
-const USER_HEAP_SIZE: usize = 1024 * 1024; // 1M
+const USER_HEAP_SIZE: usize = 128 * 1024; // 1M
 
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 

@@ -50,7 +50,6 @@ pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
         copy(src, dst, binary.len());
         #[cfg(feature = "k210")]
         volatile_copy_memory(dst, src, binary.len());
-        
     }
     MemorySet::new_bin(base.0, pages, asid).expect("create user memory set")
 }

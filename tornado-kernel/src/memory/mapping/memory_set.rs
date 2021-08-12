@@ -102,7 +102,7 @@ impl MemorySet {
         segments.push(
             Segment {
                 map_type: MapType::Linear,
-                range: VirtualAddress(0x40000000 + KERNEL_MAP_OFFSET)..VirtualAddress(0x405FFFFF + KERNEL_MAP_OFFSET),
+                range: VirtualAddress(0x40000000 + KERNEL_MAP_OFFSET)..VirtualAddress(0x40600000 + KERNEL_MAP_OFFSET),
                 flags: Flags::READABLE | Flags::WRITABLE,
             },
         );
