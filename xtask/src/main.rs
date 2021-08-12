@@ -114,8 +114,11 @@ fn main() -> Result {
         let platform = matches.args.get("platform").unwrap();
         let platform = platform.vals[0].to_str().unwrap();
         xtask.build_kernel(platform)?;
+        xtask.kernel_binary()?;
         xtask.build_shared_scheduler(platform)?;
+        xtask.shared_scheduler_binary()?;
         xtask.build_all_user_app()?;
+        xtask.all_user_app_binary()?;
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
         // let app = matches.args.get("user").unwrap();
         if matches.is_present("release") {
