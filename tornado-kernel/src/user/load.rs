@@ -29,11 +29,10 @@ pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
         let fs = unsafe { fs.assume_init_ref() };
         fs.load_binary(user).await
     };
-    println!("[debug] binary size: {:x}", binary.len());
     #[cfg(feature = "qemu")]
     let pages = 300;
     #[cfg(feature = "k210")]
-    let pages = 300;
+    let pages = 200;
     let base = {
         let mut s = USER_SPACE.lock().await;
         s.alloc(pages, asid)
