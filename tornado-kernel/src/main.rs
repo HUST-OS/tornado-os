@@ -17,6 +17,7 @@
 #![feature(naked_functions)]
 #![feature(maybe_uninit_ref)]
 #![feature(linked_list_remove)]
+#![feature(core_intrinsics)]
 #[macro_use]
 extern crate alloc;
 
@@ -208,25 +209,25 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     // 通过一些任务从文件系统中加载用户的二进制文件和准备用户的上下文
     let task_6 = task::new_kernel(
-        user::prepare_user("yield-task0.bin", stack_handle.end.0 - 4),
+        user::prepare_user("yield-task0.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
     let task_7 = task::new_kernel(
-        user::prepare_user("yield-task1.bin", stack_handle.end.0 - 4),
+        user::prepare_user("yield-task1.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
     let task_8 = task::new_kernel(
-        user::prepare_user("async-read.bin", stack_handle.end.0 - 4),
+        user::prepare_user("async-read.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
     let task_9 = task::new_kernel(
-        user::prepare_user("channel.bin", stack_handle.end.0 - 4),
+        user::prepare_user("channel.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
@@ -234,9 +235,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
     unsafe {
         shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr()); 
+        // shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
     }
 
     // 运行执行器

@@ -15,14 +15,13 @@ const SERIAL_PORT: &'static str = "COM4";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
-const USER_APPS: [&'static str; 7] = [
+const USER_APPS: [&'static str; 6] = [
     "user_task",
     "alloc-test",
     "yield-task0",
     "yield-task1",
     "async-read",
     "channel",
-    "database",
 ];
 const PASSWORD: &'static str = "xxx";
 
@@ -87,10 +86,12 @@ fn main() -> Result {
         (@subcommand asm =>
             (about: "Dump asm code")
             (@arg elf: +required "Select elf to dump")
+            (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand size =>
             (about: "Size")
             (@arg elf: +required "Select elf to size")
+            (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand debug =>
             (about: "Debug with qemu and gdb stub")
@@ -113,8 +114,11 @@ fn main() -> Result {
         let platform = matches.args.get("platform").unwrap();
         let platform = platform.vals[0].to_str().unwrap();
         xtask.build_kernel(platform)?;
+        xtask.kernel_binary()?;
         xtask.build_shared_scheduler(platform)?;
+        xtask.shared_scheduler_binary()?;
         xtask.build_all_user_app()?;
+        xtask.all_user_app_binary()?;
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
         // let app = matches.args.get("user").unwrap();
         if matches.is_present("release") {
@@ -127,16 +131,17 @@ fn main() -> Result {
         xtask.shared_scheduler_binary()?;
         // xtask.user_app_binary(app.vals[0].to_str().unwrap())?;
         xtask.execute_qemu(1)?;
-    } else if let Some(matches) = matches.subcommand_matches("k210") {
-        if matches.is_present("release") {
-            xtask.set_release();
-        }
+    } else if let Some(_matches) = matches.subcommand_matches("k210") {
+        xtask.set_release();
         xtask.build_kernel("k210")?;
         xtask.build_shared_scheduler("k210")?;
         xtask.kernel_binary()?;
         xtask.shared_scheduler_binary()?;
         xtask.execute_k210()?;
     } else if let Some(matches) = matches.subcommand_matches("asm") {
+        if matches.is_present("release") {
+            xtask.set_release();
+        }
         let elf = matches.args.get("elf").unwrap().vals[0].to_str().unwrap();
         match elf {
             "kernel" => xtask.kernel_asm()?,
@@ -144,6 +149,9 @@ fn main() -> Result {
             app => xtask.user_app_asm(app)?,
         };
     } else if let Some(matches) = matches.subcommand_matches("size") {
+        if matches.is_present("release") {
+            xtask.set_release();
+        }
         let elf = matches.args.get("elf").unwrap().vals[0].to_str().unwrap();
         match elf {
             "kernel" => xtask.kernel_size()?,
@@ -162,6 +170,7 @@ fn main() -> Result {
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
     } else if let Some(matches) = matches.subcommand_matches("mkfs") {
+        xtask.set_release();
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
         if matches.is_present("sdcard") {
@@ -743,7 +752,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             sudo.current_dir(self.target_dir())
                 .args(&["-S", "cp"])
                 .arg(app)
-                .arg("/dev/sdb");
+                .arg("/mnt");
             s(sudo)?;
         }
         Ok(())

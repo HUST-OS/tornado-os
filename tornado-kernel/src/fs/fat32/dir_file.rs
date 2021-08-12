@@ -271,8 +271,15 @@ impl AsNode for LongFile {
     fn ident(&self) -> Self::Ident {
         self.name()
     }
+    #[cfg(feature = "qemu")]
     async fn content(&self) -> Self::Content {
         self.data().await[..self.inner.entry.file_size as usize].to_vec()
+        
+    }
+    #[cfg(feature = "k210")]
+    async fn content(&self) -> Self::Content {
+        self.data().await
+        
     }
     async fn content_ref(&self) -> Self::ContentRef {
         self.inner.entry.clusters(&self.inner.fat).await

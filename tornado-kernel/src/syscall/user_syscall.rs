@@ -8,6 +8,7 @@ use crate::{
     plic, task,
     trap::{self, SwapContext},
     virtio::VIRTIO_BLOCK,
+    sdcard::SD_CARD,
     SHAREDPAYLOAD_BASE,
 };
 use riscv::register::{
@@ -19,6 +20,7 @@ const BLOCK_SIZE: usize = 512;
 pub static mut WAKE_NUM: usize = 1;
 
 /// 中断/异常/系统调用处理函数，用户态发生中断/异常/系统调用会陷入到这里
+#[no_mangle]
 pub extern "C" fn user_trap_handler() {
     // 从[`KernelHartInfo`]中获取用户地址空间的 [`Satp`] 结构
     let user_satp = KernelHartInfo::prev_satp().expect("get prev user satp");
@@ -182,6 +184,14 @@ pub extern "C" fn user_trap_handler() {
                 }
             }
         }
+        Trap::Exception(scause::Exception::IllegalInstruction) => {
+            let sepc = sepc::read();
+            let vpn = VirtualPageNumber::ceil(VirtualAddress(sepc));
+            let ppn = user_satp.translate(vpn).unwrap();
+            let ptr = ppn.start_address().virtual_address_linear().0 as *const usize;
+            let ins: usize = unsafe { core::ptr::read_volatile(ptr) };
+            panic!("[exception] invalid instruction, sepc: {:016x?}, instruction: {:016x?}, swap_cx: {:016x?}", sepc, ins, swap_cx);
+        }
         _ => todo!(
             "scause: {:?}, sepc: {:#x}, stval: {:#x}, {:x?}",
             scause::read().cause(),
@@ -213,7 +223,10 @@ pub unsafe fn get_swap_cx<'cx>(satp: &'cx Satp, asid: usize) -> &'cx mut SwapCon
 #[allow(missing_docs)]
 async fn read_block_task(block_id: usize, buf_ptr: usize, user_satp: usize, wake_task_repr: usize) {
     let buf = unsafe { super::get_user_buf_mut(user_satp, buf_ptr, BLOCK_SIZE) };
+    #[cfg(feature = "qemu")]
     VIRTIO_BLOCK.read_block(block_id, buf).await;
+    #[cfg(feature = "k210")]
+    SD_CARD.read_block(block_id, buf).await;
     unsafe {
         let shared_payload = async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE);
         ext_intr_off();

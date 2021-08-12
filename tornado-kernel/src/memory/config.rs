@@ -3,7 +3,10 @@ use crate::memory::{PhysicalAddress, VirtualAddress};
 use lazy_static::lazy_static;
 
 /// 内核堆大小
+#[cfg(feature = "qemu")]
 pub const KERNEL_HEAP_SIZE: usize = 0x20_0000;
+#[cfg(feature = "k210")]
+pub const KERNEL_HEAP_SIZE: usize = 0x8_0000;
 
 /// 内核中最高物理地址
 pub const MEMORY_END_ADDRESS: PhysicalAddress = PhysicalAddress(0x8800_0000);

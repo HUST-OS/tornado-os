@@ -5,7 +5,10 @@ use async_mutex::AsyncMutex;
 use lazy_static::lazy_static;
 
 /// 分配给用户程序的物理空间的起始地址
-const BASE: usize = 0x8700_0000;
+#[cfg(feature = "qemu")]
+const BASE: usize = 0x8400_0000;
+#[cfg(feature = "k210")]
+const BASE: usize = 0x8050_0000;
 
 lazy_static! {
     pub static ref USER_SPACE: AsyncMutex<UserSpaceManager<2000, BASE>> =

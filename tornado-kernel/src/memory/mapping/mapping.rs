@@ -214,7 +214,10 @@ impl Mapping {
         unsafe {
             // 将新的 ppn 和 asid 值写到 satp 寄存器
             // note: k210 平台上最大地址空间编号为 0，这样写可能会触发异常
+            #[cfg(feature = "qemu")]
             satp::set(Mode::Sv39, asid, self.root_ppn.into());
+            #[cfg(feature = "k210")]
+            satp::set(Mode::Sv39, 0, self.root_ppn.into());
             // 刷新页表。rs1=x0、rs2=asid，说明刷新与这个地址空间有关的所有地址
             asm!("sfence.vma x0, {asid}", asid = in(reg) asid);
         }

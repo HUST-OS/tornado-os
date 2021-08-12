@@ -67,7 +67,7 @@ pub struct Receiver<T, const N: usize> {
 impl<T, const N: usize> Receiver<T, N> {
     pub async fn receive(&self) -> T {
         let rx_listener = self.rx_event.listen();
-        let mut should_yield = false;
+        let should_yield;
         {
             let s = self.buf.lock().await;
             should_yield = s.is_empty();
