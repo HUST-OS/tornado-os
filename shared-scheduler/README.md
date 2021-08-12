@@ -5,7 +5,7 @@
 ### 使用方法
 * 第一步，在链接脚本`src/linker-xxx.ld`中指定一个基地址，然后将本项目编译出来的二进制文件烧写到基地址上
 * 第二步，在内核中根据指定的基地址初始化共享调度器
-* 第三步，内核态和用户态根据指定的基地址分别实例化共享调度器，具体请参考[shared.rs](../tornado-kernel/src/task/shared.rs)
+* 第三步，内核态和用户态根据指定的基地址分别实例化共享调度器，具体请参考[shared.rs](../tornado-kernel/src/async_rt/shared.rs)
 
 
 
