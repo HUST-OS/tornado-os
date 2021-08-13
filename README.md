@@ -128,11 +128,6 @@ note: k210模式下按`Ctrl + ]`退出。
 飓风内核中与共享调度器通过 API 兼容方式进行交互，具体参考[代码](tornado-kernel/src/task/shared.rs)，用户态代码同上，具体请参考[代码](tornado-user/src/task/shared.rs)。  
 
 ## 开发文档
-+ [无相之风战队官方网站](https://qf.rs/)
-    - [异步内核的设计与实现](https://qf.rs/2021/04/23/%E5%BC%82%E6%AD%A5%E5%86%85%E6%A0%B8%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0.html)
-    - [地址空间与进程](https://qf.rs/2021/05/01/%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E4%B8%8E%E8%BF%9B%E7%A8%8B.html)
-    - [执行器与生成语义](https://qf.rs/2021/05/01/%E6%89%A7%E8%A1%8C%E5%99%A8%E4%B8%8E%E7%94%9F%E6%88%90%E8%AF%AD%E4%B9%89.html)
-    - [异步virtio之块设备驱动实现](https://qf.rs/2021/05/26/%E5%BC%82%E6%AD%A5%E7%89%88virtio%E5%9D%97%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E5%AE%9E%E7%8E%B0.html)
 + [doc](doc)目录
 + 代码注释，项目代码中有着充分的文档注释，包括一些实现思路
 
@@ -154,3 +149,7 @@ note: k210模式下按`Ctrl + ]`退出。
 本项目使用双开源协议：  
 * [木兰许可证](./LICENSE-MULAN)
 * [Apache](./LICENSE-Apache)
+
+## **无相之风战队出品**
+欢迎浏览[无相之风战队官方网站](https://qf.rs/)！
+
