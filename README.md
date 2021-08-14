@@ -125,7 +125,7 @@ note: k210模式下按`Ctrl + ]`退出。
 |rv-lock|RISC-V指令集关中断的锁|
 
 其中共享调度器以二进制包的形式编译，集成一些接口提供给内核和用户，具体实现参考[代码](shared-scheduler/src/main.rs)。  
-飓风内核中与共享调度器通过 API 兼容方式进行交互，具体参考[代码](tornado-kernel/src/task/shared.rs)，用户态代码同上，具体请参考[代码](tornado-user/src/task/shared.rs)。  
+飓风内核中与共享调度器通过 API 兼容方式进行交互，具体参考[代码](tornado-kernel/src/async_rt/shared.rs)，用户态代码同上，具体请参考[代码](tornado-user/src/task/shared.rs)。  
 
 ## 开发文档
 + [doc](doc)目录
@@ -141,7 +141,6 @@ note: k210模式下按`Ctrl + ]`退出。
 项目开发过程中，我们经常会有一些想法和思路，在完整的项目中不是很好实现，因此衍生出一些其他的项目：  
 + [洛佳的异步内核实验室](https://github.com/HUST-OS/luojia-os-labs)
 + [洛佳的异步内核实验室第二版](https://github.com/HUST-OS/luojia-os-labs-v2)
-+ [异步virtio块设备驱动](https://github.com/HUST-OS/async-virtio-driver)
 
 其中，`洛佳的异步内核实验室`中实现了一个**内核中的生成器语法**，非常有研究价值，欢迎访问博客[执行器与生成语义](https://qf.rs/2021/05/01/%E6%89%A7%E8%A1%8C%E5%99%A8%E4%B8%8E%E7%94%9F%E6%88%90%E8%AF%AD%E4%B9%89.html)  
 
