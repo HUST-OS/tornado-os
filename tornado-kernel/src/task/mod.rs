@@ -49,7 +49,7 @@ pub struct KernelTaskRepr(
 );
 
 impl KernelTaskRepr {
-    /// 转换到共享的任务编号
+    /// 转换到共享的任务指针
     ///
     /// note(unsafe): 创建了一个没有边界的生命周期
     pub unsafe fn task_repr(self: Arc<Self>) -> usize {

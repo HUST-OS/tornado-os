@@ -176,7 +176,7 @@ impl FAT32 {
     /// ```
     /// async {
     ///     let fs = FAT32::init().await;
-    ///     let files = fs.list("/").await;       
+    ///     let files = fs.list("/");       
     /// }
     /// ```
     pub fn list<S: Into<String>>(&self, dir: S) -> Vec<String> {
