@@ -11,6 +11,18 @@ extern crate alloc;
 #[macro_use]
 pub mod console;
 pub mod io;
+pub mod fs;
+pub mod net;
+pub mod future;
+pub mod option;
+pub mod path;
+pub mod result;
+pub mod stream;
+pub mod string;
+pub mod sync;
+pub mod rt;
+pub mod unit;
+pub mod vec;
 pub mod syscall;
 pub mod task;
 pub use console::{stdin, Stdin};
