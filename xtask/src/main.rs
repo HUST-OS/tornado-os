@@ -109,6 +109,9 @@ fn main() -> Result {
             (about: "Make FAT32 file system image")
             (@arg sdcard: --sdcard "Make FAT32 file system on sdcard")
         )
+        (@subcommand detect =>
+            (about: "detect the k210 port")
+        )
     )
     .get_matches();
     let mut xtask = Xtask::debug();
@@ -182,6 +185,12 @@ fn main() -> Result {
             xtask.mkfs_fat_sdcard()?;
         } else {
             xtask.mkfs_fat()?;
+        }
+    } else if let Some(_matches) = matches.subcommand_matches("detect") {
+        if let Some(port) = port::detect_serial_ports() {
+            println!("[xtask] k210 serial port: {}", port.0);
+        } else {
+            println!("[xtask] no k210 serial port found");
         }
     } else {
         todo!()

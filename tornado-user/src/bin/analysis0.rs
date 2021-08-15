@@ -17,7 +17,7 @@ async fn a(_x: usize) {
 // 异步main函数，由entry调用execute_async_main
 #[no_mangle]
 fn main() -> i32 {
-    for i in 0..100 {
+    for i in 0..200 {
         spawn(a(i));
     }
     reset_timer();
