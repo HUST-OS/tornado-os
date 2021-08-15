@@ -10,6 +10,7 @@ pub const FUNC_TEST_WRITE_ONE: usize = 0x444555;
 pub const FUNC_TEST_READ_ONE: usize = 0x999888;
 pub const FUNC_TEST_READ_LINE: usize = 0x11117777;
 pub const FUNC_TEST_RESET_TIMER: usize = 0x333;
+pub const FUNC_TEST_READ_TIMER: usize = 0x22;
 
 pub const FUNC_SWITCH_TASK: usize = 0x666666;
 pub const FUNC_IO_TASK: usize = 0x55555;

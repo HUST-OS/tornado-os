@@ -160,7 +160,9 @@ pub fn do_yield(next_asid: usize) -> SyscallResult {
 pub fn test_write(buf: &[u8]) -> SyscallResult {
     sys_test_write(buf)
 }
-
 pub fn reset_timer() -> SyscallResult {
     sys_test_reset_timer()
+}
+pub fn read_timer() -> usize {
+    sys_read_timer().code
 }

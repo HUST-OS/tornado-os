@@ -202,6 +202,12 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
                 extra: 0,
             }
         }
+        FUNC_TEST_READ_TIMER => {
+            SyscallResult::Procceed {
+                code: unsafe { timer::TICKS },
+                extra: 0
+            }
+        }
         _ => panic!("Unknown syscall test, func: {}, param: {:?}", func, param),
     }
 }
