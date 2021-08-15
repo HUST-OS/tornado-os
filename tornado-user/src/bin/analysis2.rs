@@ -8,16 +8,12 @@ extern crate alloc;
 extern crate tornado_user;
 
 
-use tornado_user::{execute_async_main, spawn};
+use tornado_user::{execute_async_main, do_yield};
 async fn async_main(n: usize) -> i32 {
-    for i in 0..n {
-        spawn(a(i));
+    for _ in 0..n {
+        do_yield(1);
     }
     0
-}
-
-async fn a(x: usize) {
-    println!("[analysis] task: {}", x);
 }
 
 // 异步main函数，由entry调用execute_async_main

@@ -10,6 +10,7 @@ use crate::{
     virtio::VIRTIO_BLOCK,
     sdcard::SD_CARD,
     SHAREDPAYLOAD_BASE,
+    trap::timer,
 };
 use riscv::register::{
     scause::{self, Interrupt, Trap},
@@ -39,6 +40,7 @@ pub extern "C" fn user_trap_handler() {
             // todo: 切换地址空间
             //
             // 不跳过指令，继续运行
+            timer::tick();
             trap::switch_to_user(swap_cx, user_satp.inner(), asid)
         }
         Trap::Exception(scause::Exception::Breakpoint) => {
