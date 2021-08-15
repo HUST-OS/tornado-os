@@ -36,9 +36,10 @@ pub extern "C" fn user_trap_handler() {
     let a7 = swap_cx.x[16];
     match scause::read().cause() {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            // 时钟中断，还未实现
-            println!("s mode timer!");
-            unimplemented!() // todo
+            // todo: 切换地址空间
+            //
+            // 不跳过指令，继续运行
+            trap::switch_to_user(swap_cx, user_satp.inner(), asid)
         }
         Trap::Exception(scause::Exception::Breakpoint) => {
             // 用户目前通过断点异常通知内核发生了错误，这时候直接退出
