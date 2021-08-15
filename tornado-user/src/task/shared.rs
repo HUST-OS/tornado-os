@@ -73,7 +73,6 @@ pub fn run_until_ready_analysis(
 ) {
     loop {
         let task = peek_task();
-        // println!(">>> user executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 // 性能测试使用，直接删除任务
