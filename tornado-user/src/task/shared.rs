@@ -1,5 +1,4 @@
 use crate::do_yield;
-use crate::println;
 use crate::sys_kernel_check;
 use crate::task::UserTaskRepr;
 use crate::ADDRESS_SPACE_ID;
@@ -40,7 +39,7 @@ pub fn run_until_ready(
             threshold = 0;
         }
         let task = peek_task();
-        println!(">>> user executor: next task = {:x?}", task);
+        // println!(">>> user executor: next task = {:x?}", task);
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的地址空间里面

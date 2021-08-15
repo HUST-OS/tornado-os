@@ -8,7 +8,7 @@ use crate::{
 use alloc::sync::Arc;
 use core::fmt;
 use riscv::register::{
-    scause::{self, Exception, Trap},
+    scause::{self, Exception, Trap, Interrupt},
     sepc,
     sstatus::{self, Sstatus, SPP},
     stval, stvec,
@@ -318,7 +318,11 @@ pub extern "C" fn rust_trap_exception(trap_frame: &mut TrapFrame) -> *mut TrapFr
             stval::read(),
             trap_frame
         ),
-        Trap::Interrupt(_) => unreachable!("SBI or CPU design fault"),
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            timer::tick();
+            trap_frame
+        },
+        _ => unimplemented!()
     }
 }
 

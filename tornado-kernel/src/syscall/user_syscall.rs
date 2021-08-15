@@ -10,6 +10,7 @@ use crate::{
     virtio::VIRTIO_BLOCK,
     sdcard::SD_CARD,
     SHAREDPAYLOAD_BASE,
+    trap::timer,
 };
 use riscv::register::{
     scause::{self, Interrupt, Trap},
@@ -36,9 +37,11 @@ pub extern "C" fn user_trap_handler() {
     let a7 = swap_cx.x[16];
     match scause::read().cause() {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            // 时钟中断，还未实现
-            println!("s mode timer!");
-            unimplemented!() // todo
+            // todo: 切换地址空间
+            //
+            // 不跳过指令，继续运行
+            timer::tick();
+            trap::switch_to_user(swap_cx, user_satp.inner(), asid)
         }
         Trap::Exception(scause::Exception::Breakpoint) => {
             // 用户目前通过断点异常通知内核发生了错误，这时候直接退出
@@ -63,7 +66,7 @@ pub extern "C" fn user_trap_handler() {
                     // 跳过`do_yield`指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     // 需要转到目标地址空间去运行
-                    println!("[syscall] yield: {}", asid);
+                    // println!("[syscall] yield: {}", asid);
                     let next_swap_contex = unsafe { get_swap_cx(&satp, asid) };
                     trap::switch_to_user(next_swap_contex, satp.inner(), asid)
                 }
@@ -71,7 +74,7 @@ pub extern "C" fn user_trap_handler() {
                     // 需要运行内核任务
                     // 跳过 `do_yield` 指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
-                    println!("[syscall] yield kernel");
+                    // println!("[syscall] yield kernel");
                     let shared_payload =
                         unsafe { async_rt::SharedPayload::load(crate::SHAREDPAYLOAD_BASE) };
                     trap::init();

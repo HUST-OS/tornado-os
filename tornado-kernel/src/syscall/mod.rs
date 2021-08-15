@@ -6,6 +6,7 @@ mod user_syscall;
 use crate::{
     hart::KernelHartInfo,
     memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber},
+    trap::timer
 };
 use bit_field::BitField;
 use config::*;
@@ -191,6 +192,20 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
             SyscallResult::Procceed {
                 code: 0,
                 extra: buf_len,
+            }
+        }
+        FUNC_TEST_RESET_TIMER => {
+            unsafe { timer::TICKS = 0 }
+            timer::tick();
+            SyscallResult::Procceed {
+                code: 0,
+                extra: 0,
+            }
+        }
+        FUNC_TEST_READ_TIMER => {
+            SyscallResult::Procceed {
+                code: unsafe { timer::TICKS },
+                extra: 0
             }
         }
         _ => panic!("Unknown syscall test, func: {}, param: {:?}", func, param),

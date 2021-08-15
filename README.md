@@ -74,10 +74,18 @@ cargo qemu能在任何的操作系统下运行。
 
 ```bash
 cargo mkfs # 生成文件镜像
-dd if=fs.img of=/dev/sdb count=1440k # 将文件镜像写入到sd卡中
+sudo dd if=fs.img of=/dev/sdb count=1440k # 将文件镜像写入到sd卡中
 ```
-然后将sd卡从读卡器中拔出来插入到k210板子上，将k210板子连接到PC端，运行以下命令：
 
+然后将sd卡从读卡器中拔出来插入到k210板子上，将k210板子连接到PC端。
+接下来检查您的USB串口，运行命令：  
+```bash
+cargo detect
+```
+
+终端会打印出当前您的k210板子对应的USB串口。
+
+最后运行命令：  
 ```bash
 cargo k210 # 将内核二进制文件烧写到k210中运行
 ```

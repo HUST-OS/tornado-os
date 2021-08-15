@@ -23,7 +23,7 @@ macro_rules! define_load_store {
 
 mod handler;
 mod switch;
-mod timer;
+pub mod timer;
 
 pub use handler::{trap_vector, TrapFrame};
 pub use switch::*;
