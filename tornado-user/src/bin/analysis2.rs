@@ -8,7 +8,7 @@ extern crate alloc;
 extern crate tornado_user;
 
 
-use tornado_user::{ADDRESS_SPACE_ID, do_yield, execute_async, spawn};
+use tornado_user::{ADDRESS_SPACE_ID, do_yield, execute_async, spawn, read_timer};
 async unsafe fn analysis_task(n: usize) {
     // println!("[analysis] task {} in address space {}", n, ADDRESS_SPACE_ID);
 }
@@ -23,5 +23,6 @@ fn main() -> i32 {
         }
     }
     execute_async();
+    println!("[analysis] timer: {}", read_timer());
     0
 }

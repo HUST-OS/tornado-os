@@ -8,7 +8,7 @@ extern crate alloc;
 extern crate tornado_user;
 
 
-use tornado_user::{execute_async, spawn};
+use tornado_user::{execute_async, spawn, reset_timer, read_timer};
 
 async fn a(_x: usize) {
     // println!("[analysis] task: {}", x);
@@ -20,6 +20,7 @@ fn main() -> i32 {
     for i in 0..100 {
         spawn(a(i));
     }
+    println!("[analysis] timer: {}", read_timer());
     execute_async();
     0
 }
