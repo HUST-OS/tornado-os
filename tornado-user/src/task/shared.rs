@@ -77,6 +77,9 @@ pub fn run_until_ready_analysis(
         match task {
             TaskResult::Task(task_repr) => {
                 // 性能测试使用，直接删除任务
+                let task: Arc<UserTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
+                let waker = waker_ref(&task);
+                let _context = Context::from_waker(&*waker);
                 delete_task(task_repr);
             }
             TaskResult::ShouldYield(next_asid) => {
