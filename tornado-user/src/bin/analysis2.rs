@@ -10,19 +10,17 @@ extern crate tornado_user;
 
 
 use tornado_user::{do_yield, execute_async_analysis, spawn, read_timer};
-async unsafe fn analysis_task(_n: usize) {
+async fn analysis_task(_n: usize) {
 }
 
 // 异步main函数，由entry调用execute_async_main
 #[no_mangle]
 fn main() -> i32 {
-    unsafe {
-        for i in 0..100 {
-            spawn(analysis_task(i));
-            do_yield(1);
-        }
+    for i in 0..100 {
+        spawn(analysis_task(i));
+        do_yield(2);
     }
     execute_async_analysis();
-    println!("[analysis] timer: {}", read_timer());
+    println!("[analysis] process timer: {}", read_timer());
     0
 }
