@@ -318,7 +318,7 @@ pub extern "C" fn rust_trap_exception(trap_frame: &mut TrapFrame) -> *mut TrapFr
             stval::read(),
             trap_frame
         ),
-        Trap::Interrupt(_) => unreachable!("SBI or CPU design fault"),
+        Trap::Interrupt(intr) => unreachable!("intr: {:?}", intr),
     }
 }
 
