@@ -8,16 +8,20 @@ extern crate alloc;
 extern crate tornado_user;
 
 
-use tornado_user::{execute_async_main, do_yield};
-async fn async_main(n: usize) -> i32 {
-    for _ in 0..n {
-        do_yield(2);
-    }
-    0
+use tornado_user::{ADDRESS_SPACE_ID, do_yield, execute_async, spawn};
+async unsafe fn analysis_task(n: usize) {
+    println!("[analysis] task {} in address space {}", n, ADDRESS_SPACE_ID);
 }
 
 // 异步main函数，由entry调用execute_async_main
 #[no_mangle]
 fn main() -> i32 {
-    execute_async_main(async_main(10))
+    unsafe {
+        for i in 0..25 {
+            spawn(analysis_task(i));
+            do_yield(2);
+        }
+    }
+    execute_async();
+    0
 }

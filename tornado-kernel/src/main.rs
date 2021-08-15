@@ -247,18 +247,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
-    // 创建一个内核任务，用于测试
-    let task_10 = task::new_kernel(
-        yield_kernel(),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
-
-    unsafe {
-        shared_payload.add_task(hart_id, address_space_id, task_10.task_repr());
-    }
-
     // 进入地址空间编号为 1 的用户态空间
     user::enter_user(1)
     // end()
