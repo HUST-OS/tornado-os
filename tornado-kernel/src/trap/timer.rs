@@ -10,7 +10,7 @@ pub fn init() {
     set_next_timeout(); // 设置下一次时钟中断
 }
 
-static INTERVAL: usize = 100000;
+static INTERVAL: usize = 10000;
 
 /// 设置下一次时钟中断
 fn set_next_timeout() {

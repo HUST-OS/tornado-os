@@ -66,7 +66,7 @@ pub extern "C" fn user_trap_handler() {
                     // 跳过`do_yield`指令
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     // 需要转到目标地址空间去运行
-                    println!("[syscall] yield: {}", asid);
+                    // println!("[syscall] yield: {}", asid);
                     let next_swap_contex = unsafe { get_swap_cx(&satp, asid) };
                     trap::switch_to_user(next_swap_contex, satp.inner(), asid)
                 }
