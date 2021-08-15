@@ -252,11 +252,11 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
     unsafe {
         // yield系统调用演示
-        // shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
-        // shared_payload.add_task(hart_id, address_space_id, task_7.task_repr()); 
+        shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
+        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr()); 
         
         // 异步IO系统调用演示
-        shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
         
         // 任务间通信演示
         // shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
@@ -283,7 +283,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     unsafe {
-        shared_payload.add_task(hart_id, address_space_id, task_13.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_13.task_repr());
     }
 
     // 进入地址空间编号为 1 的用户态空间

@@ -178,7 +178,7 @@ fn main() -> Result {
     } else if let Some(_matches) = matches.subcommand_matches("gdb") {
         xtask.gdb()?;
     } else if let Some(matches) = matches.subcommand_matches("mkfs") {
-        xtask.set_release();
+        // xtask.set_release(); // 这行会导致地址空间参数非常大的bug
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
         if matches.is_present("sdcard") {
