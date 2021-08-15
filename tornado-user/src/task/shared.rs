@@ -43,7 +43,6 @@ pub fn run_until_ready(
         match task {
             TaskResult::Task(task_repr) => {
                 // 在相同的地址空间里面
-                // set_task_state(task_repr, TaskState::Sleeping);
                 let task: Arc<UserTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
                 let waker = waker_ref(&task);
                 let mut context = Context::from_waker(&*waker);
@@ -56,8 +55,8 @@ pub fn run_until_ready(
                 }
             }
             TaskResult::ShouldYield(next_asid) => {
-                // 不释放这个任务的内存，执行切换地址空间的系统调用
-                mem::forget(task);
+                // // 不释放这个任务的内存，执行切换地址空间的系统调用
+                // mem::forget(task);
                 do_yield(next_asid);
             }
             TaskResult::NoWakeTask => threshold += 1,
@@ -67,6 +66,34 @@ pub fn run_until_ready(
         }
     }
 }
+
+pub fn run_until_ready_analysis(
+    peek_task: impl Fn() -> TaskResult,
+    delete_task: impl Fn(usize) -> bool,
+) {
+    loop {
+        let task = peek_task();
+        match task {
+            TaskResult::Task(task_repr) => {
+                // 性能测试使用，直接删除任务
+                let task: Arc<UserTaskRepr> = unsafe { Arc::from_raw(task_repr as *mut _) };
+                let waker = waker_ref(&task);
+                let _context = Context::from_waker(&*waker);
+                delete_task(task_repr);
+            }
+            TaskResult::ShouldYield(next_asid) => {
+                // // 不释放这个任务的内存，执行切换地址空间的系统调用
+                // mem::forget(task);
+                do_yield(next_asid);
+            }
+            TaskResult::NoWakeTask => unreachable!(),
+            TaskResult::Finished => {
+                break;
+            }
+        }
+    }
+}
+
 
 /// 任务当前的状态
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

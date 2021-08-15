@@ -35,7 +35,7 @@ const USER_HEAP_SIZE: usize = 128 * 1024; // 1M
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 
 static mut SHARED_PAYLOAD_BASE: usize = 0;
-pub static mut ADDRESS_SPACE_ID: usize = 0;
+static mut ADDRESS_SPACE_ID: usize = 0;
 
 #[global_allocator]
 static HEAP: LockedHeap = LockedHeap::empty();
@@ -146,6 +146,15 @@ pub fn execute_async() {
         || unsafe { shared_payload.peek_task(task::shared::user_should_switch) },
         |task_repr| unsafe { shared_payload.delete_task(task_repr) },
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
+    );
+}
+
+// 性能测试使用
+pub fn execute_async_analysis() {
+    let shared_payload = unsafe { task::shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
+    task::shared::run_until_ready_analysis(
+        || unsafe { shared_payload.peek_task(task::shared::user_should_switch) },
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
     );
 }
 

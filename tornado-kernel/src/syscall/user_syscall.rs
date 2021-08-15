@@ -123,7 +123,7 @@ pub extern "C" fn user_trap_handler() {
                             )
                         };
                         let task_repr = task.task_repr();
-                        println!("[syscall] new kernel task: {:x}", task_repr);
+                        // println!("[syscall] new kernel task: {:x}", task_repr);
                         ext_intr_off();
                         shared_payload.add_task(0, AddressSpaceId::from_raw(0), task_repr);
                         ext_intr_on();
