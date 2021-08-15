@@ -8,16 +8,21 @@ extern crate alloc;
 extern crate tornado_user;
 
 
-use tornado_user::{do_yield, reset_timer, read_timer};
-
+use tornado_user::{do_yield, execute_async_analysis, spawn, reset_timer, read_timer};
+async unsafe fn analysis_task(_n: usize) {
+}
 
 // 异步main函数，由entry调用execute_async_main
 #[no_mangle]
 fn main() -> i32 {
-    reset_timer();
-    for _ in 0..100 {
-        do_yield(2);
+    unsafe {
+        for i in 0..100 {
+            spawn(analysis_task(i));
+            do_yield(2);
+        }
     }
+    reset_timer();
+    execute_async_analysis();
     println!("[analysis] timer: {}", read_timer());
     0
 }

@@ -68,6 +68,32 @@ pub fn run_until_ready(
     }
 }
 
+pub fn run_until_ready_analysis(
+    peek_task: impl Fn() -> TaskResult,
+    delete_task: impl Fn(usize) -> bool,
+) {
+    loop {
+        let task = peek_task();
+        // println!(">>> user executor: next task = {:x?}", task);
+        match task {
+            TaskResult::Task(task_repr) => {
+                // 性能测试使用，直接删除任务
+                delete_task(task_repr);
+            }
+            TaskResult::ShouldYield(next_asid) => {
+                // 不释放这个任务的内存，执行切换地址空间的系统调用
+                mem::forget(task);
+                do_yield(next_asid);
+            }
+            TaskResult::NoWakeTask => unreachable!(),
+            TaskResult::Finished => {
+                break;
+            }
+        }
+    }
+}
+
+
 /// 任务当前的状态
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]

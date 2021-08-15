@@ -149,6 +149,15 @@ pub fn execute_async() {
     );
 }
 
+// 性能测试使用
+pub fn execute_async_analysis() {
+    let shared_payload = unsafe { task::shared::SharedPayload::new(SHARED_PAYLOAD_BASE) };
+    task::shared::run_until_ready_analysis(
+        || unsafe { shared_payload.peek_task(task::shared::user_should_switch) },
+        |task_repr| unsafe { shared_payload.delete_task(task_repr) },
+    );
+}
+
 use syscall::*;
 
 pub fn exit(exit_code: i32) -> SyscallResult {
