@@ -11,6 +11,7 @@ const FUNC_TEST_WRITE: usize = 0x666233;
 const FUNC_TEST_WRITE_ONE: usize = 0x444555;
 const FUNC_TEST_READ_ONE: usize = 0x999888;
 const FUNC_TEST_READ_LINE: usize = 0x11117777;
+const FUNC_TEST_RESET_TIMER: usize = 0x333;
 
 const FUNC_SWITCH_TASK: usize = 0x666666;
 const FUNC_IO_TASK: usize = 0x55555;
@@ -205,6 +206,10 @@ pub fn sys_test_read_line(buf: &mut [u8]) -> SyscallResult {
         FUNC_TEST_READ_LINE,
         [0, buf.as_ptr() as usize, buf.len()],
     )
+}
+
+pub fn sys_test_reset_timer() -> SyscallResult {
+    syscall_0(MODULE_TEST_INTERFACE, FUNC_TEST_RESET_TIMER)
 }
 
 /// 往内核注册一个块设备读任务

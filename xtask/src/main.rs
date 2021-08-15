@@ -16,13 +16,16 @@ const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
-const USER_APPS: [&'static str; 6] = [
+const USER_APPS: [&'static str; 9] = [
     "user_task",
     "alloc-test",
     "yield-task0",
     "yield-task1",
     "async-read",
     "channel",
+    "analysis0",
+    "analysis1",
+    "analysis2",
 ];
 const PASSWORD: &'static str = "xxx";
 
