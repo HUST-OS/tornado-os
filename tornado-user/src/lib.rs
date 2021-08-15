@@ -35,7 +35,7 @@ const USER_HEAP_SIZE: usize = 128 * 1024; // 1M
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 
 static mut SHARED_PAYLOAD_BASE: usize = 0;
-pub static mut ADDRESS_SPACE_ID: usize = 0;
+static mut ADDRESS_SPACE_ID: usize = 0;
 
 #[global_allocator]
 static HEAP: LockedHeap = LockedHeap::empty();
