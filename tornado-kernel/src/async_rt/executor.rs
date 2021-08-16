@@ -3,15 +3,16 @@ use super::shared::TaskState;
 use crate::{
     hart::KernelHartInfo,
     syscall::get_swap_cx,
-    task::{KernelTask, KernelTaskRepr, Process, TaskResult},
+    task::{KernelTaskRepr, TaskResult},
     trap::switch_to_user,
 };
-use alloc::{boxed::Box, sync::Arc};
+use alloc::sync::Arc;
 use core::{
     mem,
     task::{Context, Poll},
 };
-use riscv::register::{sie, sstatus};
+#[allow(unused)]
+use riscv::register::sie;
 use woke::waker_ref;
 
 /// 内核执行器实现

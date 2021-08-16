@@ -94,7 +94,6 @@ pub fn run_until_ready_analysis(
     }
 }
 
-
 /// 任务当前的状态
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]

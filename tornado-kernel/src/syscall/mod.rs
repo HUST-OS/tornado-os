@@ -5,8 +5,8 @@ mod user_syscall;
 
 use crate::{
     hart::KernelHartInfo,
-    memory::{AddressSpaceId, Satp, VirtualAddress, VirtualPageNumber},
-    trap::timer
+    memory::{Satp, VirtualAddress, VirtualPageNumber},
+    trap::timer,
 };
 use bit_field::BitField;
 use config::*;
@@ -18,6 +18,7 @@ pub enum SyscallResult {
         code: usize,
         extra: usize,
     },
+    #[allow(unused)]
     Retry,
     NextASID {
         asid: usize,
@@ -34,6 +35,7 @@ pub enum SyscallResult {
 }
 
 impl SyscallResult {
+    #[allow(unused)]
     fn ok(extra: usize) -> Self {
         SyscallResult::Procceed { code: 0, extra }
     }
@@ -197,17 +199,12 @@ fn do_test_interface(param: [usize; 6], user_satp: usize, func: usize) -> Syscal
         FUNC_TEST_RESET_TIMER => {
             unsafe { timer::TICKS = 0 }
             timer::tick();
-            SyscallResult::Procceed {
-                code: 0,
-                extra: 0,
-            }
+            SyscallResult::Procceed { code: 0, extra: 0 }
         }
-        FUNC_TEST_READ_TIMER => {
-            SyscallResult::Procceed {
-                code: unsafe { timer::TICKS },
-                extra: 0
-            }
-        }
+        FUNC_TEST_READ_TIMER => SyscallResult::Procceed {
+            code: unsafe { timer::TICKS },
+            extra: 0,
+        },
         _ => panic!("Unknown syscall test, func: {}, param: {:?}", func, param),
     }
 }

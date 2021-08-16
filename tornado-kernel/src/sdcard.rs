@@ -1,7 +1,6 @@
 //! 异步 SD 卡驱动
 //!
 //! todo: 使用`DMAC`进行数据传输，传输完成发生外部中断，在外部中断中唤醒SD卡读写任务
-use alloc::boxed::Box;
 use alloc::sync::Arc;
 use async_sd::SDCardWrapper;
 use lazy_static::lazy_static;
@@ -16,14 +15,17 @@ impl AsyncSDCard {
     pub fn new() -> Self {
         Self(SDCardWrapper::new())
     }
+    #[allow(unused)]
     pub async fn read_block(&self, block_id: usize, buf: &mut [u8]) {
         self.0.read(block_id, buf).await
     }
+    #[allow(unused)]
     pub async fn write_block(&self, block_id: usize, buf: &[u8]) {
         self.0.write(block_id, buf).await
     }
 }
 
+#[allow(unused)]
 pub async fn sdcard_test() {
     println!("sdcard init");
     let mut read_buf = [0u8; 512];

@@ -44,6 +44,7 @@ impl Process {
     /// 创建一个用户进程
     ///
     /// 暂时和创建内核进程无太大区别，后续会思考这部分设计
+    #[allow(unused)]
     pub fn new_user(memory_set: MemorySet) -> Option<Arc<Self>> {
         let process = Arc::new(Process {
             id: next_process_id(),

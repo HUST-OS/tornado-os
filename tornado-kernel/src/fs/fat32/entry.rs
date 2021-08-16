@@ -1,8 +1,4 @@
-use super::{
-    bs_bpb::{cluster_offset_bytes, cluster_offset_sectors},
-    fat::FAT,
-    BLOCK_SIZE,
-};
+use super::{bs_bpb::cluster_offset_sectors, fat::FAT, BLOCK_SIZE};
 use crate::cache::CACHE;
 use alloc::{format, string::String, sync::Arc, vec::Vec};
 use bit_field::BitField;
@@ -169,6 +165,7 @@ impl DirectoryEntry {
     ///     return (Sum);
     /// }
     /// ```
+    #[allow(unused)]
     pub fn checksum(&self) -> u8 {
         let mut sum = 0;
         for c in self.name.iter() {
@@ -235,6 +232,7 @@ impl LongDirectoryEntry {
             .collect::<Vec<char>>()
     }
     /// 是否是最后一个长文件名目录项
+    #[allow(unused)]
     pub fn is_last(&self) -> bool {
         self.order.is_last()
     }
@@ -282,10 +280,11 @@ impl Into<[u8; 32]> for LongDirectoryEntry {
 #[derive(Clone)]
 pub struct LongOrder(u8);
 impl LongOrder {
+    #[allow(unused)]
     pub fn order(&self) -> u8 {
         self.0.get_bits(0..5)
     }
-
+    #[allow(unused)]
     pub fn is_last(&self) -> bool {
         self.0.get_bit(6)
     }
@@ -299,12 +298,15 @@ impl LongOrder {
 #[derive(Clone, Default)]
 pub struct Date(u16);
 impl Date {
+    #[allow(unused)]
     pub fn day(&self) -> u16 {
         self.0.get_bits(0..5)
     }
+    #[allow(unused)]
     pub fn month(&self) -> u16 {
         self.0.get_bits(5..9)
     }
+    #[allow(unused)]
     pub fn year(&self) -> u16 {
         self.0.get_bits(9..15) + 1980
     }
@@ -319,18 +321,22 @@ impl Date {
 pub struct Time(u16);
 
 impl Time {
+    #[allow(unused)]
     pub fn seconds(&self) -> u16 {
         self.0.get_bits(0..5) * 2
     }
+    #[allow(unused)]
     pub fn minutes(&self) -> u16 {
         self.0.get_bits(5..11)
     }
+    #[allow(unused)]
     pub fn hours(&self) -> u16 {
         self.0.get_bits(11..15)
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[allow(non_camel_case_types)]
 pub enum Attribute {
     ATTR_READ_ONLY = 0x01,
     ATTR_HIDDEN = 0x02,

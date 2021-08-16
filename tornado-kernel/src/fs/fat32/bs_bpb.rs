@@ -9,6 +9,7 @@ use alloc::string::String;
 use core::convert::TryInto;
 
 /// Boot Sector 各字段的偏移
+#[allow(unused)]
 enum BootSectorOffset {
     /// Jump instruction to boot code
     JmpBoot = 0,
@@ -30,6 +31,7 @@ enum BootSectorOffset {
 
 impl BootSectorOffset {
     #[allow(missing_docs)]
+    #[allow(unused)]
     pub fn jmp_boot(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::JmpBoot, Self::OEMName, sector)
@@ -38,10 +40,12 @@ impl BootSectorOffset {
         )
     }
     #[allow(missing_docs)]
+    #[allow(unused)]
     pub fn oem_name(sector: &[u8]) -> String {
         String::from_utf8(Self::split(Self::OEMName, Self::DrvNum, sector).to_vec()).unwrap()
     }
     #[allow(missing_docs)]
+    #[allow(unused)]
     pub fn drv_num(sector: &[u8]) -> u8 {
         u8::from_le_bytes(
             Self::split(Self::DrvNum, Self::Reserved1, sector)
@@ -50,6 +54,7 @@ impl BootSectorOffset {
         )
     }
     #[allow(missing_docs)]
+    #[allow(unused)]
     pub fn boot_sig(sector: &[u8]) -> u8 {
         u8::from_le_bytes(
             Self::split(Self::BootSig, Self::VolID, sector)
@@ -58,6 +63,7 @@ impl BootSectorOffset {
         )
     }
     #[allow(missing_docs)]
+    #[allow(unused)]
     pub fn vol_id(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::VolID, Self::VolLab, sector)
@@ -66,6 +72,7 @@ impl BootSectorOffset {
         )
     }
     #[allow(missing_docs)]
+    #[allow(unused)]
     fn split(start: Self, end: Self, buf: &[u8]) -> &[u8] {
         &buf[start as usize..end as usize]
     }
@@ -86,35 +93,49 @@ enum BPBOffset {
     /// For FAT32 volumes, this field must be set to 0
     RootEntCnt = 17,
     /// Old 16-bit total count of sectors on the volume
+    #[allow(unused)]
     TotSec16 = 19,
     /// ignored
+    #[allow(unused)]
     Media = 21,
     /// On FAT32 volumes this field mut be 0
+    #[allow(unused)]
     FATSz16 = 22,
     /// ignored
+    #[allow(unused)]
     SecPerTrk = 24,
     /// ignored
+    #[allow(unused)]
     NumHeads = 26,
     /// Count of hidden sectors preceding the partition that contains this FAT volume
+    #[allow(unused)]
     HiddSec = 28,
     /// The new 32-bit total count of sectors on the volume
+    #[allow(unused)]
     TotSec32 = 32,
     /// FAT32 32-bit count of sectors occupied by ONE FAT
+    #[allow(unused)]
     FATSz32 = 36,
     /// Extern Flags
+    #[allow(unused)]
     ExtFlags = 40,
     /// High bype is major revision number.
     /// Low byte is minor revision number.
+    #[allow(unused)]
     FSVer = 42,
     /// The cluster number of the first cluster of the root directory
     /// Usually 2 but not required to be 2.
+    #[allow(unused)]
     RootClus = 44,
     /// Sector number of FSINFO structure in the reserved area of the FAT32 volume
     /// Usually 1
+    #[allow(unused)]
     FSInfo = 48,
     /// ignored
+    #[allow(unused)]
     BkBootSec = 50,
     /// Reserved
+    #[allow(unused)]
     Reserved = 52,
 }
 
@@ -152,6 +173,7 @@ impl BPBOffset {
         )
     }
     /// 根目录的目录项数量，对于 `FAT32` 来说，这个域必须是 0
+    #[allow(unused)]
     pub fn root_entry_count(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::RootEntCnt, Self::TotSec16, sector)
@@ -160,6 +182,7 @@ impl BPBOffset {
         )
     }
     /// 该分区的总扇区数，该域可以是 0，如果该域是 0，`BPB_TotSec32` 域必须非零
+    #[allow(unused)]
     pub fn total_sector_16(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::TotSec16, Self::Media, sector)
@@ -184,6 +207,7 @@ impl BPBOffset {
         )
     }
     /// 该分区的总扇区数，如果 `BPB_TotSec16` 域为零，该域必须是非零
+    #[allow(unused)]
     pub fn total_sector_32(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::TotSec32, Self::FATSz32, sector)
@@ -200,6 +224,7 @@ impl BPBOffset {
         )
     }
     #[allow(missing_docs)]
+    #[allow(unused)]
     pub fn extern_flags(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::ExtFlags, Self::FSVer, sector)
@@ -208,6 +233,7 @@ impl BPBOffset {
         )
     }
     #[allow(missing_docs)]
+    #[allow(unused)]
     pub fn root_cluster(sector: &[u8]) -> u32 {
         u32::from_le_bytes(
             Self::split(Self::RootClus, Self::FSInfo, sector)
@@ -216,6 +242,7 @@ impl BPBOffset {
         )
     }
     #[allow(missing_docs)]
+    #[allow(unused)]
     pub fn fs_info(sector: &[u8]) -> u16 {
         u16::from_le_bytes(
             Self::split(Self::FSInfo, Self::BkBootSec, sector)
@@ -242,6 +269,7 @@ pub(crate) fn fat_size(sector0: &[u8]) -> u32 {
 }
 
 /// 根据块号获取字节偏移量
+#[allow(unused)]
 pub(crate) fn cluster_offset_bytes(sector0: &[u8], cluster: u32) -> usize {
     let fat_size = fat_size(sector0) as usize;
     (BPBOffset::reserved_sector_number(sector0) as usize
@@ -252,6 +280,7 @@ pub(crate) fn cluster_offset_bytes(sector0: &[u8], cluster: u32) -> usize {
 }
 
 /// 根据块号获取扇区偏移量
+#[allow(unused)]
 pub(crate) fn cluster_offset_sectors(sector0: &[u8], cluster: u32) -> u32 {
     let fat_size = fat_size(sector0);
     BPBOffset::reserved_sector_number(sector0) as u32
@@ -261,6 +290,7 @@ pub(crate) fn cluster_offset_sectors(sector0: &[u8], cluster: u32) -> u32 {
 }
 
 /// 获取 `FAT1` 的字节偏移量
+#[allow(unused)]
 pub(crate) fn fat1_offset_bytes(sector0: &[u8]) -> usize {
     (BPBOffset::reserved_sector_number(sector0) as usize
         + BPBOffset::hidden_sector(sector0) as usize)
@@ -268,11 +298,13 @@ pub(crate) fn fat1_offset_bytes(sector0: &[u8]) -> usize {
 }
 
 /// 获取 `FAT1` 的扇区偏移量
+#[allow(unused)]
 pub(crate) fn fat1_offset_sectors(sector0: &[u8]) -> u32 {
     BPBOffset::reserved_sector_number(sector0) as u32 + BPBOffset::hidden_sector(sector0)
 }
 
 /// 由该分区的第一个扇区来生成 [`FAT`] 数据结构
+#[allow(unused)]
 pub(crate) fn fat1(sector0: &[u8]) -> FAT {
     let fat_nums = BPBOffset::fats_number(sector0);
     let fat_size = fat_size(sector0);

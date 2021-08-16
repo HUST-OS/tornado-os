@@ -1,14 +1,11 @@
 use super::timer;
 use crate::{
-    hart::KernelHartInfo,
     plic,
     syscall::{syscall as do_syscall, SyscallResult, WAKE_NUM},
-    task::KernelTaskRepr,
 };
-use alloc::sync::Arc;
 use core::fmt;
 use riscv::register::{
-    scause::{self, Exception, Trap, Interrupt},
+    scause::{self, Exception, Interrupt, Trap},
     sepc,
     sstatus::{self, Sstatus, SPP},
     stval, stvec,
@@ -147,6 +144,7 @@ macro_rules! restore_switch {
 
 impl TrapFrame {
     /// 新建任务时，构建它的上下文
+    #[allow(unused)]
     pub fn new_task_context(is_user: bool, pc: usize, tp: usize, stack_top: usize) -> TrapFrame {
         // 设置sstatus的特权级
         if is_user {
@@ -215,7 +213,7 @@ pub unsafe extern "C" fn interrupt_reserved() -> ! {
 /// 初始化中断
 pub fn init() {
     unsafe {
-        /// 将`trap_vector`的地址以[`Vectored`]形式写入到`stvec`寄存器
+        // 将`trap_vector`的地址以[`Vectored`]形式写入到`stvec`寄存器
         stvec::write(trap_vector as usize, stvec::TrapMode::Vectored);
     }
 }
@@ -321,8 +319,8 @@ pub extern "C" fn rust_trap_exception(trap_frame: &mut TrapFrame) -> *mut TrapFr
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             timer::tick();
             trap_frame
-        },
-        _ => unimplemented!()
+        }
+        _ => unimplemented!(),
     }
 }
 

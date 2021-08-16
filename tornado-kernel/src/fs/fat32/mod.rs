@@ -23,7 +23,9 @@ mod fat;
 mod tree;
 
 use crate::cache::CACHE;
+#[allow(unused)]
 use crate::sdcard::AsyncSDCard;
+#[allow(unused)]
 use crate::virtio::async_blk::VirtIOAsyncBlock;
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use bs_bpb::*;
@@ -39,12 +41,15 @@ type Result<T = ()> = core::result::Result<T, FAT32Error>;
 #[derive(Debug)]
 pub enum FAT32Error {
     NotFound,
+    #[allow(unused)]
     CreateFileError,
 }
 
 /// FAT32 文件系统实现
 pub struct FAT32 {
+    #[allow(unused)]
     bpb: [u8; BLOCK_SIZE],
+    #[allow(unused)]
     fat: Arc<FAT>,
     tree: NTree<String, Vec<u8>, Vec<u32>>,
 }
@@ -223,6 +228,7 @@ impl FAT32 {
     ///     fs.create("/", "test.rs", 500).unwrap();       
     /// }
     /// ```
+    #[allow(unused)]
     pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) -> Result<()> {
         let node = self.tree.find_mut(dir);
         if node.is_none() {
@@ -346,6 +352,7 @@ impl FAT32 {
     /// ```
     /// todo!()
     /// ```
+    #[allow(unused)]
     pub async fn store_binary<S: Into<String>>(&mut self, file: S, src: &[u8]) -> Result<()> {
         if let Some(node) = self.tree.find(file) {
             // 需要的块数
@@ -396,6 +403,7 @@ impl FAT32 {
     /// ```
     /// todo!()
     /// ```
+    #[allow(unused)]
     fn is_long<S: AsRef<str>>(s: &S) -> bool {
         let s = s.as_ref();
         match s.len() {

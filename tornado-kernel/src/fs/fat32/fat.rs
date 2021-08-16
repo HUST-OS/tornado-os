@@ -1,7 +1,6 @@
 //! FAT表相关
-use super::BLOCK_SIZE;
 use crate::cache::CACHE;
-use alloc::{sync::Arc, vec::Vec};
+use alloc::vec::Vec;
 use core::convert::TryInto;
 
 /// `FAT` 数据结构
@@ -32,6 +31,7 @@ impl FAT {
     /// 找到第一个空的 `FAT` 表项，返回对应数据区的块号
     ///
     /// note: 这里假设一个块对应一个扇区
+    #[allow(unused)]
     pub async fn first_blank(&self) -> Option<u32> {
         for sector_id in 0..self.fat_size {
             let block = CACHE.read_block((self.base + sector_id) as usize).await;
@@ -48,6 +48,7 @@ impl FAT {
     /// 设置 `FAT` 表项的值
     ///
     /// 将块号为 `cluster` 在 `FAT` 表中的项的值设置为 `val`
+    #[allow(unused)]
     pub async fn set(&self, cluster: u32, val: u32) {
         // 获得对应扇区号
         let fat_sector = self.fat_sector(cluster) as usize;
