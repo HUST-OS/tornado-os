@@ -16,7 +16,7 @@ const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
-const USER_APPS: [&'static str; 9] = [
+const USER_APPS: [&'static str; 10] = [
     "user_task",
     "alloc-test",
     "yield-task0",
@@ -26,6 +26,7 @@ const USER_APPS: [&'static str; 9] = [
     "analysis0",
     "analysis1",
     "analysis2",
+    "swap-speed",
 ];
 const PASSWORD: &'static str = "xxx";
 
@@ -108,6 +109,7 @@ fn main() -> Result {
         (@subcommand mkfs =>
             (about: "Make FAT32 file system image")
             (@arg sdcard: --sdcard "Make FAT32 file system on sdcard")
+            (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand detect =>
             (about: "detect the k210 port")
@@ -179,6 +181,9 @@ fn main() -> Result {
         xtask.gdb()?;
     } else if let Some(matches) = matches.subcommand_matches("mkfs") {
         // xtask.set_release(); // 这行会导致地址空间参数非常大的bug
+        if matches.is_present("release") {
+            xtask.set_release();
+        }
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
         if matches.is_present("sdcard") {
