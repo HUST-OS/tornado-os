@@ -83,10 +83,11 @@ sudo dd if=fs.img of=/dev/sdb count=1440k # 将文件镜像写入到sd卡中
 cargo detect
 ```
 
-终端会打印出当前您的k210板子对应的USB串口。
+终端会打印出当前您的k210板子对应的USB串口，这里假设是`/dev/ttyUSB0`。
 
 最后运行命令：  
 ```bash
+sudo chmod 777 /dev/ttyUSB0 # windows平台不需要这步
 cargo k210 # 将内核二进制文件烧写到k210中运行
 ```
 
