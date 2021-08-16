@@ -19,8 +19,8 @@ panic = "abort"
 [profile.release]
 panic = "abort"
 
-# [patch.crates-io]
-# ucd-trie = { path = "ucd-trie" }
-# pest = { path = "pest/pest" }
-# pest_derive = { path = "pest/derive" }
-#pest_bootstrap = { path = "pest/bootstrap" }
+[patch.crates-io]
+ucd-trie = { path = "ucd-trie" }
+pest = { path = "pest/pest" }
+pest_derive = { path = "pest/derive" }
+pest_bootstrap = { path = "pest/bootstrap" }
