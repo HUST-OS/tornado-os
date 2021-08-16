@@ -42,30 +42,30 @@ impl MemorySet {
             fn _swap_frame();
         }
 
-        println!(
-            "text:   {:x?}",
-            VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize)
-        );
-        println!(
-            "rodata: {:x?}",
-            VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize)
-        );
-        println!(
-            "data:   {:x?}",
-            VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize)
-        );
-        println!(
-            "bss:    {:x?}",
-            VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize)
-        );
-        println!(
-            "swap frame: {:x?}",
-            VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize)
-        );
-        println!(
-            "free:   {:x?}",
-            *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear()
-        );
+        // println!(
+        //     "text:   {:x?}",
+        //     VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize)
+        // );
+        // println!(
+        //     "rodata: {:x?}",
+        //     VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize)
+        // );
+        // println!(
+        //     "data:   {:x?}",
+        //     VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize)
+        // );
+        // println!(
+        //     "bss:    {:x?}",
+        //     VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize)
+        // );
+        // println!(
+        //     "swap frame: {:x?}",
+        //     VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize)
+        // );
+        // println!(
+        //     "free:   {:x?}",
+        //     *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear()
+        // );
 
         // 建立字段
         #[allow(unused_mut)]
@@ -263,7 +263,7 @@ impl MemorySet {
     ///
     /// 如果当前页表就是自身，则不会替换，但仍然会刷新 TLB。
     pub fn activate(&self) {
-        println!("Activating memory set in asid {:?}", self.address_space_id);
+        println!("[kernel] activating memory set in asid {:?}", self.address_space_id);
         self.mapping.activate_on(self.address_space_id);
     }
     /// 获得当前映射的 [`Satp`]

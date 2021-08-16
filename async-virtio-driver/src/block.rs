@@ -242,7 +242,7 @@ impl<const N: usize> VirtIOBlock<N> {
 
         // 读取配置空间
         let config = unsafe { &mut *(header.config_space() as *mut BlockConfig) };
-        println!("[virtio] config: {:?}", config);
+        // println!("[virtio] config: {:?}", config);
         println!(
             "[virtio] found a block device of size {} KB",
             config.capacity.read() / 2

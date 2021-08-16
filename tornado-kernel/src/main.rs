@@ -97,26 +97,24 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         assert_eq!(value, i);
     }
 
-    println!("[kernel] heap test passed");
-
     println!("[kernel] max asid = {:?}", memory::max_asid());
 
     // 物理页分配
-    for i in 0..2 {
-        let frame_0 = match memory::frame_alloc() {
+    for _i in 0..2 {
+        let _frame_0 = match memory::frame_alloc() {
             Some(frame_tracker) => frame_tracker,
             None => panic!("frame allocation failed"),
         };
-        let frame_1 = match memory::frame_alloc() {
+        let _frame_1 = match memory::frame_alloc() {
             Some(frame_tracker) => frame_tracker,
             None => panic!("frame allocation failed"),
         };
-        println!(
-            "[kernel] test #{}: {:?} and {:?}",
-            i,
-            frame_0.start_address(),
-            frame_1.start_address()
-        );
+        // println!(
+        //     "[kernel] test #{}: {:?} and {:?}",
+        //     i,
+        //     frame_0.start_address(),
+        //     frame_1.start_address()
+        // );
     }
 
     println!("[kernel] _swap_frame: {:#x}", _swap_frame as usize);
@@ -132,8 +130,6 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     // 在启动程序之前，需要加载内核当前线程的信息到tp寄存器中
     unsafe { hart::KernelHartInfo::load_hart(hart_id) };
     // 这之后就可以分配地址空间了，这之前只能用内核的地址空间
-
-    println!("[kernel] current hart: {}", hart::KernelHartInfo::hart_id());
 
     // todo: 这里要有个地方往tp里写东西，否则目前会出错
     let kernel_memory = memory::MemorySet::new_kernel().expect("create kernel memory set");
@@ -154,18 +150,21 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     let stack_handle = process.alloc_stack().expect("alloc initial stack");
 
     // 创建一些测试任务
+    #[allow(unused)]
     let task_1 = task::new_kernel(
         task_1(),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_2 = task::new_kernel(
         task_2(),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_3 = task::new_kernel(
         FibonacciFuture::new(8),
         process.clone(),
@@ -198,9 +197,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     unsafe {
-        shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_1.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_2.task_repr());
+        // shared_payload.add_task(hart_id, address_space_id, task_3.task_repr());
         shared_payload.add_task(hart_id, address_space_id, task_5.task_repr());
     }
 
