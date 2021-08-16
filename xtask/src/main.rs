@@ -1,11 +1,4 @@
-use std::{
-    env,
-    ffi::OsStr,
-    fs,
-    io::{Seek, SeekFrom, Write},
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-};
+use std::{env::{self, current_dir}, ffi::OsStr, fs, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}, process::{Command, Stdio}};
 
 mod port;
 
@@ -185,6 +178,15 @@ fn main() -> Result {
         // xtask.set_release(); // 这行会导致地址空间参数非常大的bug
         if matches.is_present("release") {
             xtask.set_release();
+        }
+        if matches.is_present("db") {
+            // git submodule update --init
+            let mut git = Command::new("git");
+            git.current_dir(current_dir().unwrap());
+            git.arg("submodule");
+            git.arg("update");
+            git.arg("--init");
+            git.status().expect("update git submodule");
         }
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
