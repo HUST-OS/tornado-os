@@ -1,3 +1,6 @@
 [submodule "pest"]
 	path = pest
 	url = https://github.com/HUST-OS/pest
+[submodule "ucd-trie"]
+	path = ucd-trie
+	url = https://github.com/HUST-OS/ucd-trie
