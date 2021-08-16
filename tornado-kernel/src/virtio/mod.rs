@@ -1,7 +1,7 @@
 //! qemu virtio 前端驱动
 use crate::memory::{
     frame_alloc, FrameTracker, PhysicalAddress, PhysicalPageNumber, Satp, VirtualAddress,
-    VirtualPageNumber, VIRTIO0,
+    VirtualPageNumber,
 };
 use alloc::{sync::Arc, vec::Vec};
 use async_blk::VirtIOAsyncBlock;
@@ -79,6 +79,7 @@ pub extern "C" fn virtio_virt_to_phys(vaddr: VirtualAddress) -> PhysicalAddress 
 }
 
 /// 异步virtio块设备驱动测试
+#[allow(unused)]
 pub async fn async_virtio_blk_test() {
     let mut read_buf = [0u8; 512];
     let mut write_buf = [0u8; 512];

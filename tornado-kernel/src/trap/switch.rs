@@ -8,7 +8,7 @@
 
 use crate::{
     hart::KernelHartInfo,
-    memory::{swap_contex_va, AddressSpaceId, SWAP_FRAME_VA},
+    memory::{swap_contex_va, SWAP_FRAME_VA},
 };
 /// 内核态和用户态切换时需要保存的上下文
 #[repr(C)]

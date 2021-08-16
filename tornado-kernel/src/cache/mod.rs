@@ -7,6 +7,7 @@
 
 mod lfu;
 
+#[allow(unused)]
 use crate::{
     sdcard::{AsyncSDCard, SD_CARD},
     virtio::{async_blk::VirtIOAsyncBlock, VIRTIO_BLOCK},
@@ -105,7 +106,7 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
     ///     let cache = AsyncBlockCache::init();
     ///     let block = cache.read_block(0).await;
     /// }
-    /// 
+    ///
     /// ```
     pub async fn read_block(&self, block_id: usize) -> [u8; BLOCK_SIZE] {
         {
@@ -143,8 +144,9 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
     ///
     ///     cache.write_block(0, buf).await;
     /// }
-    /// 
+    ///
     /// ```
+    #[allow(unused)]
     pub async fn write_block(&self, block_id: usize, buf: [u8; BLOCK_SIZE]) {
         let mut s = self.cache.lock().await; // 申请锁
         let write_back = s.put(&block_id, buf);
@@ -165,8 +167,9 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
     ///
     ///     cache.write_sync(0, buf).await;
     /// }
-    /// 
+    ///
     /// ```
+    #[allow(unused)]
     pub async fn write_sync(&self, block_id: usize, buf: [u8; BLOCK_SIZE]) {
         self.write_block(block_id, buf.clone()).await;
         self.device.write_block(block_id, &buf).await
@@ -183,8 +186,9 @@ impl AsyncBlockCache<LFUCache<usize, [u8; BLOCK_SIZE], CACHE_SIZE>, BLOCK_SIZE, 
     ///     
     ///     cache.sync().await;
     /// }
-    /// 
+    ///
     /// ```
+    #[allow(unused)]
     pub async fn sync(&self) {
         let mut s = self.cache.lock().await;
         for (id, block) in s.all() {

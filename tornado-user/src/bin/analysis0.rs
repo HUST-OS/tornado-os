@@ -7,8 +7,7 @@ extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
 
-
-use tornado_user::{execute_async, spawn, reset_timer, read_timer, do_yield};
+use tornado_user::{do_yield, execute_async, read_timer, reset_timer, spawn};
 
 async fn a(_x: usize) {}
 

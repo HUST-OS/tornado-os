@@ -59,6 +59,7 @@ impl Directory {
         self.inner.name()
     }
     /// 获取该目录对应的数据区数据，返回值以目录项大小为单位分割
+    #[allow(unused)]
     pub async fn children(&self) -> Vec<[u8; 32]> {
         let data = self.inner.data().await;
         data.chunks(32)
@@ -107,6 +108,7 @@ impl File {
         self.inner.name()
     }
     /// 文件大小
+    #[allow(unused)]
     pub fn size(&self) -> u32 {
         self.inner.entry.file_size
     }
@@ -202,6 +204,7 @@ impl LongDirectory {
         self.inner.name()
     }
     /// 同 [`Directory`]
+    #[allow(unused)]
     pub async fn children(&self) -> Vec<[u8; 32]> {
         let data = self.inner.data().await;
         data.chunks(32)
@@ -274,12 +277,10 @@ impl AsNode for LongFile {
     #[cfg(feature = "qemu")]
     async fn content(&self) -> Self::Content {
         self.data().await[..self.inner.entry.file_size as usize].to_vec()
-        
     }
     #[cfg(feature = "k210")]
     async fn content(&self) -> Self::Content {
         self.data().await
-        
     }
     async fn content_ref(&self) -> Self::ContentRef {
         self.inner.entry.clusters(&self.inner.fat).await

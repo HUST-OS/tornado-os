@@ -1,13 +1,10 @@
 //! 从文件系统中加载用户程序到内存
 
 use super::space::USER_SPACE;
-use crate::{
-    fs::FS,
-    hart::KernelHartInfo,
-    memory::{AddressSpaceId, MemorySet, PhysicalAddress, PhysicalPageNumber},
-};
+use crate::{fs::FS, hart::KernelHartInfo, memory::MemorySet};
 use alloc::string::String;
-use core::{intrinsics::{volatile_copy_memory}, ptr::copy};
+#[allow(unused)]
+use core::{intrinsics::volatile_copy_memory, ptr::copy};
 
 /// 从文件系统中加载一个用户程序到内存，并返回包含映射关系的[`MemorySet`]结构
 ///

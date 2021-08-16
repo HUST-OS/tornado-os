@@ -53,6 +53,7 @@ impl<T, C, R> Node<T, C, R> {
         self.children.push(node);
     }
     /// 删除一个子结点，如果成功返回这个结点的 [`Box`]
+    #[allow(unused)]
     pub fn remove(&mut self, index: usize) -> Option<Box<Node<T, C, R>>> {
         if index >= self.children.len() {
             None
@@ -65,12 +66,14 @@ impl<T, C, R> Node<T, C, R> {
         &self.inner
     }
     /// 获取这个结点的内部数据的可变引用
+    #[allow(unused)]
     pub fn inner_mut(
         &mut self,
     ) -> &mut Box<dyn AsNode<Ident = T, Content = C, ContentRef = R> + Send + Sync> {
         &mut self.inner
     }
     /// 返回这个结点的某个子结点
+    #[allow(unused)]
     pub fn child<'a>(&'a self, index: usize) -> Option<&'a Node<T, C, R>> {
         if index >= self.children.len() {
             None
@@ -148,14 +151,17 @@ where
         None
     }
     /// 返回根结点的不可变引用
+    #[allow(unused)]
     pub fn root(&self) -> &Node<T, C, R> {
         self.root.borrow()
     }
     /// 返回根节点的可变引用
+    #[allow(unused)]
     pub fn root_mut(&mut self) -> &mut Node<T, C, R> {
         self.root.borrow_mut()
     }
     /// 列出某个结点的所有子结点
+    #[allow(unused)]
     pub fn list<'a, S: Into<T>>(&'a self, ident: S) -> Vec<&'a Node<T, C, R>> {
         if let Some(node) = self.find(ident) {
             node.children_ref()
@@ -164,6 +170,7 @@ where
         }
     }
     /// 列出某个结点的某个子结点
+    #[allow(unused)]
     pub fn list_one<'a, S: Into<T>>(&'a self, ident: S, index: usize) -> Option<&'a Node<T, C, R>> {
         if let Some(node) = self.find(ident) {
             node.child(index)
@@ -172,7 +179,8 @@ where
         }
     }
     /// 删除某个结点，以及以这个结点为根结点的子树
-    pub fn remove(&mut self, ident: &T) -> Option<Box<Node<T, C, R>>> {
+    #[allow(unused)]
+    pub fn remove(&mut self, _ident: &T) -> Option<Box<Node<T, C, R>>> {
         todo!()
     }
 }

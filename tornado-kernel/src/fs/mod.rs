@@ -6,20 +6,17 @@
 //! 我们已经实现了一款功能基本完善的异步FAT32文件系统，后面如果有时间可能会考虑支持更多的文件系统格式比如`EXTx`系列。
 mod fat32;
 
-use super::{
-    memory::{MemorySet, PhysicalAddress, PhysicalPageNumber, KERNEL_MAP_OFFSET, PAGE_SIZE},
-    sdcard::SD_CARD,
-    virtio::VIRTIO_BLOCK,
-};
+#[allow(unused)]
+use super::{sdcard::SD_CARD, virtio::VIRTIO_BLOCK};
 use alloc::{string::String, sync::Arc, vec::Vec};
 use async_mutex::AsyncMutex;
-use core::{intrinsics::copy, mem::MaybeUninit};
+use core::mem::MaybeUninit;
 use fat32::FAT32;
 use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref FS: Arc<AsyncMutex<MaybeUninit<Fs>>> =
-        unsafe { Arc::new(AsyncMutex::new(MaybeUninit::uninit())) };
+        Arc::new(AsyncMutex::new(MaybeUninit::uninit()));
 }
 
 pub struct Fs(pub FAT32);
@@ -39,10 +36,12 @@ impl Fs {
         self.0.load_binary(file).await.expect("load binary")
     }
     /// 写入文件
+    #[allow(unused)]
     pub async fn store_binary<S: Into<String>>(&mut self, file: S, src: &[u8]) {
-        self.0.load_binary(file).await.expect("store binary");
+        self.0.store_binary(file, src).await.expect("store binary");
     }
     /// 创建文件
+    #[allow(unused)]
     pub async fn create<S: Into<String>>(&mut self, dir: S, file: S, size: u32) {
         self.0.create(dir, file, size).await.expect("create file");
     }

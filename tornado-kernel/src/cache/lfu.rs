@@ -20,6 +20,7 @@ impl<K: Eq + PartialEq + Copy, V: Clone, const N: usize> LFUCache<K, V, N> {
     /// ```
     /// todo!()
     /// ```
+    #[allow(unused)]
     pub fn init(data: [Node<K, V>; N]) -> Self {
         Self {
             data,

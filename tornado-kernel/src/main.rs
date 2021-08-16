@@ -18,6 +18,8 @@
 #![feature(maybe_uninit_ref)]
 #![feature(linked_list_remove)]
 #![feature(core_intrinsics)]
+#![deny(warnings)]
+
 #[macro_use]
 extern crate alloc;
 
@@ -171,6 +173,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_set_task_state,
     );
     #[cfg(feature = "qemu")]
+    #[allow(unused)]
     let task_4 = task::new_kernel(
         virtio::async_virtio_blk_test(),
         process.clone(),
@@ -178,6 +181,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_set_task_state,
     );
     #[cfg(feature = "k210")]
+    #[allow(unused)]
     let task_4 = task::new_kernel(
         sdcard::sdcard_test(),
         process.clone(),
@@ -208,48 +212,56 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     // 通过一些任务从文件系统中加载用户的二进制文件和准备用户的上下文
+    #[allow(unused)]
     let task_6 = task::new_kernel(
         user::prepare_user("yield-task0.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_7 = task::new_kernel(
         user::prepare_user("yield-task1.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_8 = task::new_kernel(
         user::prepare_user("async-read.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_9 = task::new_kernel(
         user::prepare_user("channel.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_10 = task::new_kernel(
         user::prepare_user("analysis0.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_11 = task::new_kernel(
         user::prepare_user("analysis1.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_12 = task::new_kernel(
         user::prepare_user("analysis2.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
     let task_13 = task::new_kernel(
         user::prepare_user("swap-speed.bin", stack_handle.end.0),
         process.clone(),
@@ -257,22 +269,22 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_set_task_state,
     );
     unsafe {
-        // yield系统调用演示
+        // 任务切换演示
         shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
-        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr()); 
-        
+        shared_payload.add_task(hart_id, address_space_id, task_7.task_repr());
+
         // 异步IO系统调用演示
         // shared_payload.add_task(hart_id, address_space_id, task_8.task_repr());
-        
+
         // 任务间通信演示
         // shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
-        
-        // 性能测试
+
+        // 任务切换与进程切换对比测试
         // shared_payload.add_task(hart_id, address_space_id, task_10.task_repr());
         // shared_payload.add_task(hart_id, address_space_id, task_11.task_repr());
         // shared_payload.add_task(hart_id, address_space_id, task_12.task_repr());
 
-        // 切换性能测试
+        // 任务切换与进程切换切换对比测试
         // shared_payload.add_task(hart_id, address_space_id, task_13.task_repr());
     }
 
@@ -284,6 +296,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
 
     // 创建一个内核任务，用于测试
+    #[allow(unused)]
     let task_14 = task::new_kernel(
         yield_kernel(),
         process.clone(),
@@ -291,9 +304,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_set_task_state,
     );
 
-    unsafe {
-        // shared_payload.add_task(hart_id, address_space_id, task_14.task_repr());
-    }
+    // unsafe {
+    //     shared_payload.add_task(hart_id, address_space_id, task_14.task_repr());
+    // }
 
     // 进入地址空间编号为 1 的用户态空间
     user::enter_user(1)

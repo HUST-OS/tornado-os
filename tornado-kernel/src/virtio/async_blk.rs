@@ -1,6 +1,5 @@
 //! virtio异步块设备驱动
 use crate::memory::VIRTIO0;
-use alloc::{boxed::Box, sync::Arc};
 use async_virtio_driver::{block::*, mmio::VirtIOHeader};
 /// 异步虚拟块设备接口
 ///
@@ -36,6 +35,7 @@ impl VirtIOAsyncBlock {
     ///     VIRTIO_BLOCK.read_block(0, &mut buf).await;    
     /// }
     /// ```
+    #[allow(unused)]
     pub async fn read_block(&self, block_id: usize, buf: &mut [u8]) {
         self.0
             .read_block_event(block_id, buf)

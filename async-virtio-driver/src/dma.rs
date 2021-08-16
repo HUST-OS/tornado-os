@@ -89,6 +89,7 @@ impl DMA {
     }
 
     /// 转换成 buffer
+    #[allow(unused)]
     pub unsafe fn as_buf(&self) -> &'static mut [u8] {
         core::slice::from_raw_parts_mut(
             self.start_virtual_address() as _,
