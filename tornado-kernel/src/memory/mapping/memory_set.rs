@@ -1,11 +1,14 @@
+#[allow(unused)]
+use crate::memory::config::{PLIC_BASE, VIRTIO0};
+#[allow(unused)]
+use crate::memory::KERNEL_MAP_OFFSET;
 use crate::memory::{
     config::{FREE_MEMORY_START, MEMORY_END_ADDRESS, PAGE_SIZE, SWAP_FRAME_VA},
     swap_contex_va, AddressSpaceId, Flags, FrameTracker, MapType, Mapping, PhysicalAddress,
-    PhysicalPageNumber, Segment, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET, PLIC_BASE,
-    VIRTIO0,
+    PhysicalPageNumber, Segment, VirtualAddress, VirtualPageNumber,
 };
 use crate::SHAREDPAYLOAD_BASE;
-use alloc::{sync::Arc, vec::Vec};
+use alloc::vec::Vec;
 use core::ops::Range;
 
 use super::Satp;
@@ -39,32 +42,33 @@ impl MemorySet {
             fn _swap_frame();
         }
 
-        println!(
-            "text:   {:x?}",
-            VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize)
-        );
-        println!(
-            "rodata: {:x?}",
-            VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize)
-        );
-        println!(
-            "data:   {:x?}",
-            VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize)
-        );
-        println!(
-            "bss:    {:x?}",
-            VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize)
-        );
-        println!(
-            "swap frame: {:x?}",
-            VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize)
-        );
-        println!(
-            "free:   {:x?}",
-            *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear()
-        );
+        // println!(
+        //     "text:   {:x?}",
+        //     VirtualAddress(_stext as usize)..VirtualAddress(_etext as usize)
+        // );
+        // println!(
+        //     "rodata: {:x?}",
+        //     VirtualAddress(_srodata as usize)..VirtualAddress(_erodata as usize)
+        // );
+        // println!(
+        //     "data:   {:x?}",
+        //     VirtualAddress(_sdata as usize)..VirtualAddress(_edata as usize)
+        // );
+        // println!(
+        //     "bss:    {:x?}",
+        //     VirtualAddress(_sbss as usize)..VirtualAddress(_ebss as usize)
+        // );
+        // println!(
+        //     "swap frame: {:x?}",
+        //     VirtualAddress(_swap_frame as usize)..VirtualAddress(_etext as usize)
+        // );
+        // println!(
+        //     "free:   {:x?}",
+        //     *FREE_MEMORY_START..MEMORY_END_ADDRESS.virtual_address_linear()
+        // );
 
         // 建立字段
+        #[allow(unused_mut)]
         let mut segments = vec![
             // .text 段，r-x
             Segment {
@@ -99,13 +103,12 @@ impl MemorySet {
         ];
 
         #[cfg(feature = "k210")]
-        segments.push(
-            Segment {
-                map_type: MapType::Linear,
-                range: VirtualAddress(0x40000000 + KERNEL_MAP_OFFSET)..VirtualAddress(0x40600000 + KERNEL_MAP_OFFSET),
-                flags: Flags::READABLE | Flags::WRITABLE,
-            },
-        );
+        segments.push(Segment {
+            map_type: MapType::Linear,
+            range: VirtualAddress(0x40000000 + KERNEL_MAP_OFFSET)
+                ..VirtualAddress(0x40600000 + KERNEL_MAP_OFFSET),
+            flags: Flags::READABLE | Flags::WRITABLE,
+        });
 
         let mut mapping = Mapping::new_alloc()?;
         // 准备保存所有新分配的物理页面
@@ -260,7 +263,7 @@ impl MemorySet {
     ///
     /// 如果当前页表就是自身，则不会替换，但仍然会刷新 TLB。
     pub fn activate(&self) {
-        println!("Activating memory set in asid {:?}", self.address_space_id);
+        println!("[kernel] activating memory set in asid {:?}", self.address_space_id);
         self.mapping.activate_on(self.address_space_id);
     }
     /// 获得当前映射的 [`Satp`]

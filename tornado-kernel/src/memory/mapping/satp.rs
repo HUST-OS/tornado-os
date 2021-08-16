@@ -9,6 +9,7 @@ use riscv::register::satp::Mode;
 pub struct Satp(pub usize);
 
 impl Satp {
+    #[allow(unused)]
     pub fn mode(&self) -> Mode {
         match self.0.get_bits(60..64) {
             0 => Mode::Bare,
@@ -20,10 +21,12 @@ impl Satp {
         }
     }
     /// 地址空间参数
+    #[allow(unused)]
     pub fn asid(&self) -> usize {
         self.0.get_bits(44..60)
     }
     /// 根页表物理页号
+    #[allow(unused)]
     pub fn ppn(&self) -> usize {
         self.0.get_bits(0..44)
     }

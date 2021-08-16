@@ -5,26 +5,27 @@
 #![feature(linkage)]
 #![feature(alloc_error_handler)]
 #![feature(maybe_uninit_uninit_array)]
+#![deny(warnings)]
 
 extern crate alloc;
 
 #[macro_use]
 pub mod console;
-pub mod io;
 pub mod fs;
-pub mod net;
 pub mod future;
+pub mod io;
+pub mod net;
 pub mod option;
 pub mod path;
 pub mod result;
+pub mod rt;
 pub mod stream;
 pub mod string;
 pub mod sync;
-pub mod rt;
-pub mod unit;
-pub mod vec;
 pub mod syscall;
 pub mod task;
+pub mod unit;
+pub mod vec;
 pub use console::{stdin, Stdin};
 
 use buddy_system_allocator::LockedHeap;

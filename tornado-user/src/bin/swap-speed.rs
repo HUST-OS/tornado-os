@@ -7,7 +7,7 @@
 extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
-use tornado_user::{reset_timer, read_timer};
+use tornado_user::{read_timer, reset_timer};
 
 // 异步main函数，由entry调用execute_async_main
 #[no_mangle]
@@ -19,13 +19,13 @@ fn main() -> i32 {
         for test_id in 0..=5 {
             reset_timer();
             for _ in 0..rounds {
-                unsafe { no_switch() };// 没有进入上下文
+                unsafe { no_switch() }; // 没有进入上下文
                 work(); // 开始运行
-                unsafe { no_restore() };// 没有上下文恢复
+                unsafe { no_restore() }; // 没有上下文恢复
             }
             let time1 = read_timer();
             if test_id != 0 { // 第0次视为热身
-                // println!("[swap-speed] no swap ctx, rounds: {}, timer: {}", rounds, time1);
+                 // println!("[swap-speed] no swap ctx, rounds: {}, timer: {}", rounds, time1);
             }
             reset_timer();
             for _ in 0..rounds {
@@ -54,7 +54,10 @@ fn main() -> i32 {
                 // (time2 - time1) * (1000000 / rounds) => ns/it
                 let a1 = (time2 - time1) * (1_000_000 / rounds);
                 let a2 = (time3 - time1) * (1_000_000 / rounds);
-                println!("[swap-speed] rounds: {}, task: {} ns/iter, thread: {} ns/iter", rounds, a1, a2);
+                println!(
+                    "[swap-speed] rounds: {}, task: {} ns/iter, thread: {} ns/iter",
+                    rounds, a1, a2
+                );
             }
         }
     }
@@ -88,8 +91,8 @@ unsafe fn switch_by_thread() {
     let mut tmp = 0_usize;
     asm!(
     "sd     {tmp}, 33*8({stack})",
-    "mv     {tmp}, {tmp}", 
-    "sd     {tmp}, 34*8({stack})", 
+    "mv     {tmp}, {tmp}",
+    "sd     {tmp}, 34*8({stack})",
     "ld     {tmp}, 31*8({stack})
     ld      {tmp}, 32*8({stack})
     addi   {tmp}, {tmp}, 1
@@ -137,7 +140,7 @@ unsafe fn restore_by_thread() {
     let mut stack = [0usize; 35];
     let mut tmp = 0_usize;
     asm!(
-        "addi   {tmp}, {tmp}, 1", 
+        "addi   {tmp}, {tmp}, 1",
         "sd     ra, 0*8({stack})
         sd      gp, 2*8({stack})
         sd      tp, 3*8({stack})
@@ -172,7 +175,7 @@ unsafe fn restore_by_thread() {
         sd      t0, 31*8({stack})",
         "addi   {tmp}, {tmp}, 1
         sd      t1, 32*8({stack})",
-        "addi   {tmp}, {tmp}, 1", 
+        "addi   {tmp}, {tmp}, 1",
         "addi   {tmp}, {tmp}, 1", // ret指令
         stack = in(reg) stack.as_mut_ptr(),
         tmp = inlateout(reg) tmp

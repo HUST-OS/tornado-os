@@ -6,15 +6,15 @@ use crate::{
     memory::{self, Satp},
     memory::{AddressSpaceId, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET},
     plic, task,
-    trap::{self, SwapContext},
-    virtio::VIRTIO_BLOCK,
-    sdcard::SD_CARD,
-    SHAREDPAYLOAD_BASE,
     trap::timer,
+    trap::{self, SwapContext},
+    SHAREDPAYLOAD_BASE,
 };
+#[allow(unused)]
+use crate::{sdcard::SD_CARD, virtio::VIRTIO_BLOCK};
 use riscv::register::{
     scause::{self, Interrupt, Trap},
-    sepc, sie, stval, stvec,
+    sepc, stval,
 };
 
 const BLOCK_SIZE: usize = 512;
@@ -145,7 +145,7 @@ pub extern "C" fn user_trap_handler() {
                     swap_cx.epc = swap_cx.epc.wrapping_add(4);
                     trap::switch_to_user(swap_cx, user_satp.inner(), asid)
                 }
-                SyscallResult::Terminate(exit_code) => {
+                SyscallResult::Terminate(_exit_code) => {
                     // 用户执行器认为可以退出系统了
                     println!("User exit!");
                     crate::sbi::shutdown();
@@ -261,7 +261,7 @@ async fn write_block_task(
 ///
 /// 一般只用于`enroll_read`或`enroll_write`系统调用
 unsafe fn next_task_repr() -> usize {
-    let shared_payload = unsafe { async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE) };
+    let shared_payload = async_rt::SharedPayload::load(SHAREDPAYLOAD_BASE);
     ext_intr_off();
     let next_task = shared_payload.peek_task(should_switch);
     ext_intr_on();

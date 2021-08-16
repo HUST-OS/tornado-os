@@ -40,5 +40,5 @@ pub fn init() {
         riscv::register::sie::set_sext();
     }
 
-    println!("[kernel] mod interrupt initialized");
+    // println!("[kernel] mod interrupt initialized");
 }

@@ -20,9 +20,11 @@ impl From<ExternInterrupt> for Nr {
     }
 }
 
+#[allow(unused)]
 pub type PLIC = Plic<PLIC_BASE, 3>;
 
 /// 通过 plic 库来初始化 PLIC，目前有问题，原因未知
+#[allow(unused)]
 pub unsafe fn init() {
     // set desired IRQ priorities non-zero (otherwise disabled).
     PLIC::set_priority(ExternInterrupt::VIRTIO0, Priority::lowest());
@@ -33,20 +35,24 @@ pub unsafe fn init() {
     PLIC::set_threshold(hart * 2 + 1, Priority::never());
 }
 
+#[allow(unused)]
 pub const PLIC_PENDING: usize = PLIC_BASE.wrapping_add(0x1000);
 
+#[allow(unused)]
 pub const fn plic_senable(hart: usize) -> usize {
     PLIC_BASE
         .wrapping_add(0x2080)
         .wrapping_add((hart).wrapping_mul(0x100))
 }
 
+#[allow(unused)]
 pub const fn plic_spriority(hart: usize) -> usize {
     PLIC_BASE
         .wrapping_add(0x201000)
         .wrapping_add((hart).wrapping_mul(0x2000))
 }
 
+#[allow(unused)]
 pub const fn plic_sclaim(hart: usize) -> usize {
     PLIC_BASE
         .wrapping_add(0x201004)
@@ -54,6 +60,7 @@ pub const fn plic_sclaim(hart: usize) -> usize {
 }
 
 /// xv6 中初始化 PLIC 的方式，暂时先使用这种方法
+#[allow(unused)]
 pub unsafe fn xv6_plic_init() {
     *((PLIC_BASE + VIRTIO0_IRQ * 4) as *mut u32) = 1;
     let hart = hart::KernelHartInfo::hart_id();
@@ -62,6 +69,7 @@ pub unsafe fn xv6_plic_init() {
 }
 
 /// ask the PLIC what interrupt we should serve.
+#[allow(unused)]
 pub unsafe fn plic_claim() -> u32 {
     let hart = hart::KernelHartInfo::hart_id();
     let irq: u32 = *(plic_sclaim(hart) as *mut u32);
@@ -69,6 +77,7 @@ pub unsafe fn plic_claim() -> u32 {
 }
 
 /// tell the PLIC we've served this IRQ.
+#[allow(unused)]
 pub unsafe fn plic_complete(irq: u32) {
     let hart = hart::KernelHartInfo::hart_id();
     *(plic_sclaim(hart) as *mut u32) = irq;

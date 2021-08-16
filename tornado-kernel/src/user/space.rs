@@ -64,7 +64,7 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     ///
     /// println!("alloc ppn {:?}", ppn);
     /// ```
-    pub fn alloc(&mut self, pages: usize, asid: AddressSpaceId) -> Option<PhysicalPageNumber> {
+    pub fn alloc(&mut self, pages: usize, _asid: AddressSpaceId) -> Option<PhysicalPageNumber> {
         assert!(PAGE_SIZE % 2 == 0);
         if pages > N - self.len {
             None
@@ -87,6 +87,7 @@ impl<const N: usize, const B: usize> UserSpaceManager<N, B> {
     /// 释放一个地址空间占用的物理内存
     ///
     /// note: 还没测试
+    #[allow(unused)]
     pub fn dealloc(&mut self, asid: AddressSpaceId) -> Option<(PhysicalPageNumber, usize)> {
         let mut prev = &mut self.used;
         loop {

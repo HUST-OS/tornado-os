@@ -1,5 +1,12 @@
 use super::load::load_user;
-use crate::{hart::{self, KernelHartInfo}, memory::{AddressSpaceId, Flags, KERNEL_MAP_OFFSET, MemorySet, PhysicalAddress, STACK_SIZE, Satp, VirtualAddress, VirtualPageNumber, swap_contex_va}, syscall::{get_swap_cx, user_trap_handler}, task, trap};
+use crate::{
+    hart::{self, KernelHartInfo},
+    memory::{
+        swap_contex_va, Flags, VirtualAddress, VirtualPageNumber, KERNEL_MAP_OFFSET, STACK_SIZE,
+    },
+    syscall::{get_swap_cx, user_trap_handler},
+    trap,
+};
 use alloc::string::String;
 use riscv::register::satp;
 
@@ -45,7 +52,7 @@ pub async fn prepare_user<S: Into<String>>(user: S, kernel_stack_top: usize) {
             .unwrap()
     };
     // 获取用户的`satp`寄存器
-    let user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
+    let _user_satp = user_memory.mapping.get_satp(user_memory.address_space_id);
     // 用户态栈
     let user_stack_handle = user_memory
         .alloc_page_range(STACK_SIZE, Flags::READABLE | Flags::WRITABLE | Flags::USER)

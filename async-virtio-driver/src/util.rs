@@ -6,6 +6,7 @@ pub const fn align_up_page(size: usize) -> usize {
 }
 
 /// todo
+#[allow(unused)]
 pub const fn pages(size: usize) -> usize {
     (size + PAGE_SIZE - 1) / PAGE_SIZE
 }

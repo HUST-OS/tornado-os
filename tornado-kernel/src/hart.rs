@@ -4,7 +4,6 @@ use crate::{
     task::Process,
 };
 use alloc::{boxed::Box, collections::LinkedList, sync::Arc};
-use core::ptr::NonNull;
 
 /// 写一个指针到上下文指针
 #[inline]
@@ -126,6 +125,7 @@ impl KernelHartInfo {
     }
 
     /// 释放地址空间编号
+    #[allow(unused)]
     pub fn free_address_space_id(asid: AddressSpaceId) {
         use_tp_box(|b| {
             let (free, max) = &mut b.asid_alloc;
@@ -158,6 +158,7 @@ impl KernelHartInfo {
     /// 删除某个用户地址空间映射
     ///
     /// note: feature `linked_list_remove` is not stable
+    #[allow(unused)]
     pub unsafe fn unload_user_mm_set(asid: usize) -> Option<MemorySet> {
         use_tp_box(|b| {
             let (link, _prev) = &mut b.user_mm_sets;

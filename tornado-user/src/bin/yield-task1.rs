@@ -1,3 +1,4 @@
+//! 任务切换演示程序1
 #![no_std]
 #![no_main]
 #![feature(asm)]
@@ -7,7 +8,7 @@ extern crate alloc;
 #[macro_use]
 extern crate tornado_user;
 
-use tornado_user::{execute_async_main};
+use tornado_user::execute_async_main;
 async fn async_main() -> i32 {
     println!("[user] yield test task 1");
     0

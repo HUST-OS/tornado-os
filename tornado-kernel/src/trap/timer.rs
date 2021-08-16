@@ -5,7 +5,7 @@ use riscv::register::{sie, time};
 pub fn init() {
     unsafe {
         sie::set_stimer(); // 允许时钟中断
-        // sie::clear_stimer(); // 关闭时钟中断
+                           // sie::clear_stimer(); // 关闭时钟中断
     }
     set_next_timeout(); // 设置下一次时钟中断
 }
