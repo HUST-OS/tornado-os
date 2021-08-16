@@ -325,7 +325,7 @@ pub extern "C" fn rust_trap_exception(trap_frame: &mut TrapFrame) -> *mut TrapFr
 }
 
 fn breakpoint(trap_frame: &mut TrapFrame) -> *mut TrapFrame {
-    println!("Breakpoint at {:#08x}", trap_frame.sepc);
+    // println!("Breakpoint at {:#08x}", trap_frame.sepc);
     trap_frame.sepc = trap_frame.sepc.wrapping_add(2);
     trap_frame
 }

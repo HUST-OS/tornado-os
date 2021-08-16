@@ -20,7 +20,6 @@ use core::{intrinsics::volatile_copy_memory, ptr::copy};
 pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
     // 获取一个新的地址空间编号
     let asid = KernelHartInfo::alloc_address_space_id().expect("alloc address space id");
-    println!("[kernel] new asid: {:?}", asid);
     let binary = {
         let fs = FS.lock().await;
         let fs = unsafe { fs.assume_init_ref() };
@@ -36,7 +35,7 @@ pub async fn load_user<S: Into<String>>(user: S) -> MemorySet {
             .expect("alloc physical space for user binary")
     };
     let base = base.start_address();
-    println!("[kernel] asid {:?} user base: {:x?}", asid, base);
+    println!("[kernel] asid {:?} user binary base: {:x?}", asid, base);
     let base_va = base.virtual_address_linear();
     let dst = base_va.0 as *const () as *mut u8;
     let src = binary.as_ptr();
