@@ -16,7 +16,7 @@ const DEFAULT_TARGET: &'static str = "riscv64imac-unknown-none-elf";
 const DD: &'static str = "dd";
 const KERNEL_OFFSET: u64 = 0x2_0000;
 const SCHEDULER_OFFSET: u64 = 0x40_0000;
-const USER_APPS: [&'static str; 10] = [
+const USER_APPS: [&'static str; 11] = [
     "user_task",
     "alloc-test",
     "yield-task0",
@@ -27,6 +27,7 @@ const USER_APPS: [&'static str; 10] = [
     "analysis1",
     "analysis2",
     "swap-speed",
+    "database",
 ];
 const PASSWORD: &'static str = "xxx";
 
@@ -109,6 +110,7 @@ fn main() -> Result {
         (@subcommand mkfs =>
             (about: "Make FAT32 file system image")
             (@arg sdcard: --sdcard "Make FAT32 file system on sdcard")
+            (@arg db: --db "Build database binary")
             (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand detect =>
