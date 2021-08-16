@@ -16,11 +16,11 @@ pub extern "C" fn kernel_main() {
     kernel::init();
     // 共享调度器的基地址
     let base = 0x8600_0000;
-    // 获取共享调度器
+    // 实例化共享调度器
     let shared_scheduler = unsafe { task::SharedScheduler::load(base) };
-    // 创建一个 Future
+    // 创建一个[`Future`]
     let future = MyFuture::new();
-    // 用 future 创建一个任务
+    // 用future创建一个任务
     let task = task::KernelTask::new(future);
     // 往共享调度器里面添加任务
     shared_scheduler.add_task(task);
@@ -29,8 +29,6 @@ pub extern "C" fn kernel_main() {
 }
 
 ```
-
-用户态运行异步任务的方法和内核态基本一致。  
 
 ## 系统架构
 <img src="assets/飓风内核系统架构.png" alt="系统架构" align=center />  
@@ -75,6 +73,7 @@ cargo qemu能在任何的操作系统下运行。
 ```bash
 cargo mkfs # 生成文件镜像
 sudo dd if=fs.img of=/dev/sdb count=1440k # 将文件镜像写入到sd卡中
+# 上面这条命令如果长时间没结束可以直接Ctrl+C退出，文件镜像依然会写入到sd卡中
 ```
 
 然后将sd卡从读卡器中拔出来插入到k210板子上，将k210板子连接到PC端。
@@ -110,14 +109,13 @@ note: k210模式下按`Ctrl + ]`退出。
 |保底机制(时钟中断的处理)|❌|待实现|
 |相同地址空间任务通信|✅(Channel)|较小|
 |不同地址空间任务通信|❌|待实现|
-|性能测试|❌|待实现|
+|性能测试|✅(需要更精确的测试)|大|
 
 
 |系统调用|状态|实现优先级|
 |---|---|---|
 |yield|✅|高|
 |异步IO|✅(块设备读写)|高|
-|异步文件IO|❌|较高|
 |exec|❌|低|
 
 ## 目录介绍
@@ -157,7 +155,7 @@ note: k210模式下按`Ctrl + ]`退出。
 
 ## TODO
 + 从内核层面提供异步网络IO(异步网络协议栈)
-+ 性能测试分析
++ 更全面，更系统的性能测试分析
 + 活用内核生成器语法
 + 多核环境下的上下文管理机制
 
