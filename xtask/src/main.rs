@@ -1,11 +1,4 @@
-use std::{
-    env,
-    ffi::OsStr,
-    fs,
-    io::{Seek, SeekFrom, Write},
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-};
+use std::{env::{self, current_dir}, ffi::OsStr, fs, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}, process::{Command, Stdio}};
 
 mod port;
 
@@ -28,6 +21,7 @@ const USER_APPS: [&'static str; 11] = [
     "analysis2",
     "analysis3",
     "swap-speed",
+    "database",
 ];
 const PASSWORD: &'static str = "xxx";
 
@@ -110,6 +104,7 @@ fn main() -> Result {
         (@subcommand mkfs =>
             (about: "Make FAT32 file system image")
             (@arg sdcard: --sdcard "Make FAT32 file system on sdcard")
+            (@arg db: --db "Build database binary")
             (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand detect =>
@@ -184,6 +179,15 @@ fn main() -> Result {
         // xtask.set_release(); // 这行会导致地址空间参数非常大的bug
         if matches.is_present("release") {
             xtask.set_release();
+        }
+        if matches.is_present("db") {
+            // git submodule update --init
+            let mut git = Command::new("git");
+            git.current_dir(current_dir().unwrap());
+            git.arg("submodule");
+            git.arg("update");
+            git.arg("--init");
+            git.status().expect("update git submodule");
         }
         xtask.build_all_user_app()?;
         xtask.all_user_app_binary()?;
