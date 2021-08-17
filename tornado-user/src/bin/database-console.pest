@@ -1,0 +1,84 @@
+/*
+控制台语法文件，供参考
+
+create table t (a integer, b integer);
+delete from table where b = 2;
+describe table;
+select * from table where a = 1;
+insert into table (a, b) values (1, 2);
+show tables;
+
+- inputs
+  - create
+    - table: "t"
+    - create_content > parameters
+      - parameter
+        - column: "a"
+        - data_type: "integer"
+      - parameter
+        - column: "b"
+        - data_type: "integer"
+  - delete
+    - table: "table"
+    - where_clause > equation
+      - left_value: "b"
+      - right_value: "2"
+  - describe > table: "table"
+  - select
+    - column_selector: "*"
+    - table: "table"
+    - where_clause > equation
+      - left_value: "a"
+      - right_value: "1"
+  - insert
+    - table: "table"
+    - insert_content
+      - columns
+        - column: "a"
+        - column: "b"
+      - columns
+        - column: "1"
+        - column: "2"
+  - show: "show tables"
+  - EOI: ""
+*/
+
+inputs = { SOI ~ input* ~ EOI }
+input = _{ command ~ blank ~ ";" ~ blank }
+command = _{ select | insert | delete | describe | create | drop | show }
+select = { "select" ~ " " ~ column_selector ~ " " ~ 
+    "from" ~ " " ~ table ~ blank ~
+    (where_clause)? }
+insert = { "insert" ~ " " ~ "into" ~ " " ~ table ~ blank ~ insert_content }
+delete = { "delete" ~ " " ~ "from" ~ " " ~ table ~ blank ~ where_clause }
+describe = { "describe" ~ " " ~ table }
+create = { "create" ~ " " ~ "table" ~ " " ~ table ~ blank ~ create_content }
+drop = { "drop" ~ " " ~ "table" ~ " " ~ table }
+show = { "show tables" }
+
+where_clause = { "where" ~ " " ~ equation }
+equation = {  left_value ~ blank~"="~blank~right_value }
+left_value = { ident }
+right_value = { ident }
+
+insert_content = { "(" ~columns ~ ")"~blank~
+	"values"~blank~"("~columns~")" }
+   
+column_selector = { "*" | columns }
+columns = { column ~ (comma ~ column)* }
+column = { ident } 
+table = { ident }
+
+create_content = { "(" ~ parameters ~ ")" }
+parameters = _{ parameter ~ (comma ~ parameter)* }
+parameter = { column ~ " " ~ data_type }
+data_type = { "integer" }
+
+comma = _{ blank ~ "," ~ blank }
+
+alpha = _{ 'a'..'z' | 'A'..'Z' }
+digit = _{ '0'..'9' }
+
+ident = _{ (alpha | digit | "_" )+ }
+
+blank = _{ (" " | "\r" | "\n")* }
