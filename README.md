@@ -31,11 +31,13 @@ pub extern "C" fn kernel_main() {
 ```
 
 ## 系统架构
-<img src="assets/飓风内核系统架构.png" alt="系统架构" align=center />  
+![](assets/飓风内核系统架构.png)
+<!--<img src="assets/飓风内核系统架构.png" alt="系统架构" align=center />  -->
 
 
 ## 如何执行异步任务
-<img src="assets/异步任务执行.png" alt="异步任务执行" width = "80%" height = "80%" align=center />  
+![](assets/异步任务执行.png)
+<!--<img src="assets/异步任务执行.png" alt="异步任务执行" width = "80%" height = "80%" align=center />  -->
 
 
 ## 如何运行
@@ -165,9 +167,14 @@ cargo k210 # 将内核二进制文件烧写到k210中运行
 欢迎浏览[无相之风战队官方网站](https://qf.rs/)！
 
 ## **性能测试结果**
-<img src="assets/任务切换与进程切换性能对比(qemu).png" alt="任务切换与进程切换性能对比" width = "45%" height = "45%" align=left />
+![](assets/任务切换与进程切换性能对比(qemu).png)
+<!--<img src="assets/任务切换与进程切换性能对比(qemu).png" alt="任务切换与进程切换性能对比" width = "45%" height = "45%" align=left />-->
 
-<img src="assets/任务切换对比进程切换优化率(k210).png" alt="任务切换对比进程切换优化率" width = "45%" height = "45%" align=right />
+![](assets/任务切换对比进程切换优化率(k210).png)
+<!--<img src="assets/任务切换对比进程切换优化率(k210).png" alt="任务切换对比进程切换优化率" width = "45%" height = "45%" align=right />-->
 
-<img src="assets/飓风内核与rCore-Tutorial运行多任务性能对比(qemu).png" alt="飓风内核与rCore-Tutorial运行多任务性能对比(qemu)" width = "45%" height = "45%" align=left />
-<img src="assets/飓风内核与rCore-Tutorial运行多任务性能对比(k210).png" alt="飓风内核与rCore-Tutorial运行多任务性能对比(k210)" width = "45%" height = "45%" align=right />
+![](assets/飓风内核与rCore-Tutorial运行多任务性能对比(qemu).png)
+<!--<img src="assets/飓风内核与rCore-Tutorial运行多任务性能对比(qemu).png" alt="飓风内核与rCore-Tutorial运行多任务性能对比(qemu)" width = "45%" height = "45%" align=left />-->
+
+![](assets/飓风内核与rCore-Tutorial运行多任务性能对比(k210).png)
+<!--<img src="assets/飓风内核与rCore-Tutorial运行多任务性能对比(k210).png" alt="飓风内核与rCore-Tutorial运行多任务性能对比(k210)" width = "45%" height = "45%" align=right />-->
