@@ -21,7 +21,6 @@ const USER_APPS: [&'static str; 11] = [
     "analysis2",
     "analysis3",
     "swap-speed",
-    "database",
 ];
 const PASSWORD: &'static str = "xxx";
 
