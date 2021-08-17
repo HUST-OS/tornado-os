@@ -70,5 +70,6 @@ const fn user_contex_va(asid: usize) -> usize {
 > ps: RISC-V指令集中tp寄存器指代`thread pointer`，和硬件线程有一点关系，(据说)编译器一般会把线程的上下文基地址放这里来索引一些线程上下文里面的变量。
 
 有了上面三个要素，yield系统调用的流程就如下图所示:  
-<img src="../assets/yield系统调用.png" alt="yield系统调用" width = "20%" height = "20%" align=center />  
+![](../assets/yield系统调用.png)
+<!-- <img src="../assets/yield系统调用.png" alt="yield系统调用" width = "20%" height = "20%" align=center />   -->
 

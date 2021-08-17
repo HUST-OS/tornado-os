@@ -31,10 +31,12 @@ pub extern "C" fn kernel_main() {
 ```
 
 ## 系统架构
-<img src="assets/飓风内核系统架构.png" alt="系统架构" align=center />  
+![](assets/飓风内核系统架构.png)
+<!--<img src="assets/飓风内核系统架构.png" alt="系统架构" align=center />  -->
 
 ## 如何执行异步任务
-<img src="assets/异步任务执行.png" alt="异步任务执行" width = "80%" height = "80%" align=center />  
+![](assets/异步任务执行.png)
+<!--<img src="assets/异步任务执行.png" alt="异步任务执行" width = "80%" height = "80%" align=center />  -->
 
 ## 如何运行
 
@@ -61,9 +63,8 @@ cargo qemu # 运行qemu模拟器
 其中，cargo mkfs将生成文件的镜像，它需要在Linux或macOS系统下运行；如果开发环境是Windows，可以考虑在WSL下开发项目。
 cargo qemu能在任何的操作系统下运行。
 
-项目直接使用xtask写法，所以不需要安装make、just等脚本工具。如果在编写的过程中要求输入账号密码，可能因为xtask写法而输入失败。
-这时候需要修改[xtask/src/main.rs](./xtask/src/main.rs)文件中的 `PASSWORD` 全局变量。
-也可以使用`sudo su`等需要特权的Linux命令，输入密码后退出`su`环境，当前控制台暂时保存权限，此时再运行命令就不需要输入密码了。
+项目直接使用xtask写法，所以不需要安装make、just等脚本工具。**如果在编写的过程中要求输入账号密码，可能因为xtask写法而输入失败。
+这时候可以使用`sudo su`等需要特权的Linux命令，输入密码后退出`su`环境，当前控制台暂时保存权限，此时再运行命令就不需要输入密码了。**
 
 在k210上运行：  
 首先制作sd卡，将sd卡放入读卡器中，连接到PC端，确认您的sd卡分区，假设是`/dev/sdb`，然后运行以下命令：
@@ -88,7 +89,7 @@ sudo chmod 777 /dev/ttyUSB0 # windows平台不需要这步
 cargo k210 # 将内核二进制文件烧写到k210中运行
 ```
 
-note: k210模式下按`Ctrl + ]`退出。
+> note: k210模式下按`Ctrl + ]`退出。
 
 如果您需要运行数据库测例，这个样例程序需要额外的依赖库才能运行。请输入`cargo mkfs --db`来编译，来选择这些依赖库。
 
@@ -154,7 +155,6 @@ note: k210模式下按`Ctrl + ]`退出。
 ## TODO
 + 从内核层面提供异步网络IO(异步网络协议栈)
 + 更全面，更系统的性能测试分析
-+ 活用内核生成器语法
 + 多核环境下的上下文管理机制
 
 ## 开源协议
@@ -165,3 +165,15 @@ note: k210模式下按`Ctrl + ]`退出。
 ## **无相之风战队出品**
 欢迎浏览[无相之风战队官方网站](https://qf.rs/)！
 
+## **性能测试结果**
+![](assets/任务切换与进程切换性能对比(qemu).png)
+<!--<img src="assets/任务切换与进程切换性能对比(qemu).png" alt="任务切换与进程切换性能对比" width = "45%" height = "45%" align=left />-->
+
+![](assets/任务切换对比进程切换优化率(k210).png)
+<!--<img src="assets/任务切换对比进程切换优化率(k210).png" alt="任务切换对比进程切换优化率" width = "45%" height = "45%" align=right />-->
+
+![](assets/飓风内核与rCore-Tutorial运行多任务性能对比(qemu).png)
+<!--<img src="assets/飓风内核与rCore-Tutorial运行多任务性能对比(qemu).png" alt="飓风内核与rCore-Tutorial运行多任务性能对比(qemu)" width = "45%" height = "45%" align=left />-->
+
+![](assets/飓风内核与rCore-Tutorial运行多任务性能对比(k210).png)
+<!--<img src="assets/飓风内核与rCore-Tutorial运行多任务性能对比(k210).png" alt="飓风内核与rCore-Tutorial运行多任务性能对比(k210)" width = "45%" height = "45%" align=right />-->

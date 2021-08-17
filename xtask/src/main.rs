@@ -129,7 +129,7 @@ fn main() -> Result {
             xtask.all_user_app_binary()?;
         } else {
             xtask.build_all_user_app()?;
-            xtask.all_user_app_binary_except_db()?;
+            xtask.all_user_app_binary()?;
         }
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
         // let app = matches.args.get("user").unwrap();
@@ -189,14 +189,15 @@ fn main() -> Result {
         if matches.is_present("db") {
             xtask.build_all_user_app_and_db()?;
             xtask.all_user_app_binary()?;
+            xtask.user_app_binary_db()?;
         } else {
             xtask.build_all_user_app()?;
-            xtask.all_user_app_binary_except_db()?;
+            xtask.all_user_app_binary()?;
         }
         if matches.is_present("sdcard") {
             xtask.mkfs_fat_sdcard()?;
         } else {
-            xtask.mkfs_fat()?;
+            xtask.mkfs_fat(matches.is_present("db"))?;
         }
     } else if let Some(_matches) = matches.subcommand_matches("detect") {
         if let Some(port) = port::detect_serial_ports() {
@@ -512,14 +513,10 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
         Ok(())
     }
+
     /// 生成所有用户程序的二进制文件，但是没有数据库测例
-    fn all_user_app_binary_except_db(&self) -> Result {
-        for app in USER_APPS.iter() {
-            if *app == "database" {
-                continue
-            }
-            self.user_app_binary(*app)?;
-        }
+    fn user_app_binary_db(&self) -> Result {
+        self.user_app_binary("database")?;
         Ok(())
     }
     /// 运行 qemu
@@ -744,7 +741,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
     }
     /// 打包文件镜像
-    fn mkfs_fat(&self) -> Result {
+    fn mkfs_fat(&self, db: bool) -> Result {
         let f = |mut cmd: Command| {
             let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
@@ -784,6 +781,14 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             sudo.current_dir(self.target_dir())
                 .args(&["-S", "cp"])
                 .arg(app)
+                .arg("/mnt");
+            s(sudo)?;
+        }
+        if db {
+            let mut sudo = Command::new("sudo");
+            sudo.current_dir(self.target_dir())
+                .args(&["-S", "cp"])
+                .arg("database.bin")
                 .arg("/mnt");
             s(sudo)?;
         }
