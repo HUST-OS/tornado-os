@@ -1,4 +1,4 @@
-use std::{env::{self, current_dir}, ffi::OsStr, fs, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}, process::{Command, Stdio}};
+use std::{env, ffi::OsStr, fs, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}, process::{Command, Stdio}};
 
 mod port;
 
@@ -72,6 +72,7 @@ fn main() -> Result {
         (@subcommand build =>
             (about: "Build project")
             (@arg platform: +required "Select execute platform")
+            (@arg db: --db "Build database binary")
             (@arg release: --release "Build artifacts in release mode, with optimizations")
         )
         (@subcommand qemu =>
@@ -122,8 +123,13 @@ fn main() -> Result {
         xtask.kernel_binary()?;
         xtask.build_shared_scheduler(platform)?;
         xtask.shared_scheduler_binary()?;
-        xtask.build_all_user_app()?;
-        xtask.all_user_app_binary()?;
+        if matches.is_present("db") {
+            xtask.build_all_user_app_and_db()?;
+            xtask.all_user_app_binary()?;
+        } else {
+            xtask.build_all_user_app()?;
+            xtask.all_user_app_binary_except_db()?;
+        }
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
         // let app = matches.args.get("user").unwrap();
         if matches.is_present("release") {
@@ -180,16 +186,12 @@ fn main() -> Result {
             xtask.set_release();
         }
         if matches.is_present("db") {
-            // git submodule update --init
-            let mut git = Command::new("git");
-            git.current_dir(current_dir().unwrap());
-            git.arg("submodule");
-            git.arg("update");
-            git.arg("--init");
-            git.status().expect("update git submodule");
+            xtask.build_all_user_app_and_db()?;
+            xtask.all_user_app_binary()?;
+        } else {
+            xtask.build_all_user_app()?;
+            xtask.all_user_app_binary_except_db()?;
         }
-        xtask.build_all_user_app()?;
-        xtask.all_user_app_binary()?;
         if matches.is_present("sdcard") {
             xtask.mkfs_fat_sdcard()?;
         } else {
@@ -419,6 +421,27 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             Err(XTaskError::CommandNotFound)
         }
     }
+    /// 编译所有用户程序包含数据库测例
+    fn build_all_user_app_and_db(&self) -> Result {
+        let mut cargo = Command::new(&self.cargo);
+        cargo.current_dir(self.root.join("tornado-user"));
+        cargo.arg("build");
+        if matches!(self.mode, CompileMode::Release) {
+            cargo.arg("--release");
+        }
+        cargo.args(&["--target", self.target]);
+        cargo.args(&["--features", "build-database"]);
+        cargo.arg("--bins");
+        if let Ok(status) = cargo.status() {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(XTaskError::BuildUserAppError)
+            }
+        } else {
+            Err(XTaskError::CommandNotFound)
+        }
+    }
     /// 生成内核二进制文件
     fn kernel_binary(&self) -> Result {
         // objcopy := "rust-objcopy --binary-architecture=riscv64"
@@ -482,6 +505,16 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
     /// 生成所有用户程序的二进制文件
     fn all_user_app_binary(&self) -> Result {
         for app in USER_APPS.iter() {
+            self.user_app_binary(*app)?;
+        }
+        Ok(())
+    }
+    /// 生成所有用户程序的二进制文件，但是没有数据库测例
+    fn all_user_app_binary_except_db(&self) -> Result {
+        for app in USER_APPS.iter() {
+            if *app == "database" {
+                continue
+            }
             self.user_app_binary(*app)?;
         }
         Ok(())
