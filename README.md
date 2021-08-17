@@ -64,8 +64,7 @@ cargo qemu # 运行qemu模拟器
 cargo qemu能在任何的操作系统下运行。
 
 项目直接使用xtask写法，所以不需要安装make、just等脚本工具。如果在编写的过程中要求输入账号密码，可能因为xtask写法而输入失败。
-这时候需要修改[xtask/src/main.rs](./xtask/src/main.rs)文件中的 `PASSWORD` 全局变量。
-也可以使用`sudo su`等需要特权的Linux命令，输入密码后退出`su`环境，当前控制台暂时保存权限，此时再运行命令就不需要输入密码了。
+这时候可以使用`sudo su`等需要特权的Linux命令，输入密码后退出`su`环境，当前控制台暂时保存权限，此时再运行命令就不需要输入密码了。
 
 在k210上运行：  
 首先制作sd卡，将sd卡放入读卡器中，连接到PC端，确认您的sd卡分区，假设是`/dev/sdb`，然后运行以下命令：
@@ -167,3 +166,10 @@ note: k210模式下按`Ctrl + ]`退出。
 ## **无相之风战队出品**
 欢迎浏览[无相之风战队官方网站](https://qf.rs/)！
 
+## **性能测试结果**
+<img src="assets/任务切换与进程切换性能对比(qemu).png" alt="任务切换与进程切换性能对比" width = "45%" height = "45%" align=left />
+
+<img src="assets/任务切换对比进程切换优化率(k210).png" alt="任务切换对比进程切换优化率" width = "45%" height = "45%" align=right />
+
+<img src="assets/飓风内核与rCore-Tutorial运行多任务性能对比(qemu).png" alt="飓风内核与rCore-Tutorial运行多任务性能对比(qemu)" width = "45%" height = "45%" align=left />
+<img src="assets/飓风内核与rCore-Tutorial运行多任务性能对比(k210).png" alt="飓风内核与rCore-Tutorial运行多任务性能对比(k210)" width = "45%" height = "45%" align=right />
