@@ -9,6 +9,8 @@ const CLOCK_FREQ: usize = 12500000;
 #[cfg(feature = "k210")]
 const CLOCK_FREQ: usize = 403000000 / 62;
 
+const TICKS_PER_SEC: usize = 100;
+
 /// 初始化时钟中断
 pub fn init() {
     unsafe {
@@ -18,11 +20,9 @@ pub fn init() {
     set_next_timeout(); // 设置下一次时钟中断
 }
 
-static INTERVAL: usize = 100000;
-
 /// 设置下一次时钟中断
 fn set_next_timeout() {
-    set_timer(time::read() + INTERVAL);
+    set_timer(time::read() + CLOCK_FREQ / TICKS_PER_SEC);
 }
 
 pub static mut TICKS: usize = 0;
