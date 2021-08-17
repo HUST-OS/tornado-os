@@ -12,8 +12,8 @@ woke = "0.0.2"
 spin = "0.5.2"
 r0 = "1"
 
-pest = { version = "2", default-features = false, optional = true }
-pest_derive = { version = "2", default-features = false, optional = true }
+pest = { git = "https://github.com/HUST-OS/pest", version = "2", default-features = false, optional = true }
+pest_derive = { git = "https://github.com/HUST-OS/pest-derive", version = "2", default-features = false, optional = true }
 hashbrown = { version = "0.9", optional = true }
 
 event = { path = "../event" }
@@ -25,6 +25,7 @@ version = "1.4.0"
 features = ["spin_no_std"]
 
 [features]
+default = []
 build-database = ["pest", "pest_derive", "hashbrown"]
 
 [[bin]]
