@@ -267,6 +267,13 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
     );
+    #[allow(unused)]
+    let task_14 = task::new_kernel(
+        user::prepare_user("database.bin", stack_handle.end.0),
+        process.clone(),
+        shared_payload.shared_scheduler,
+        shared_payload.shared_set_task_state,
+    );
     unsafe {
         // 任务切换演示
         shared_payload.add_task(hart_id, address_space_id, task_6.task_repr());
@@ -285,6 +292,9 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
 
         // 飓风内核与rCore-Tutorial-v3对照实验
         // shared_payload.add_task(hart_id, address_space_id, task_13.task_repr());
+
+        // 数据库程序演示
+        // shared_payload.add_task(hart_id, address_space_id, task_14.task_repr());
     }
 
     // 运行执行器
@@ -294,19 +304,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         |task_repr, new_state| unsafe { shared_payload.set_task_state(task_repr, new_state) },
     );
 
-    // 创建一个内核任务，用于测试
-    #[allow(unused)]
-    let task_14 = task::new_kernel(
-        yield_kernel(),
-        process.clone(),
-        shared_payload.shared_scheduler,
-        shared_payload.shared_set_task_state,
-    );
-
-    // unsafe {
-    //     shared_payload.add_task(hart_id, address_space_id, task_14.task_repr());
-    // }
-
+    
     // 进入地址空间编号为 1 的用户态空间
     user::enter_user(1)
     // end()
@@ -326,10 +324,6 @@ async fn task_1() {
 
 async fn task_2() {
     println!("hello world from 2!");
-}
-
-async fn yield_kernel() {
-    println!("yield kernel task!");
 }
 
 struct FibonacciFuture {
