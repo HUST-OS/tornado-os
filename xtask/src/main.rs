@@ -128,7 +128,7 @@ fn main() -> Result {
             xtask.all_user_app_binary()?;
         } else {
             xtask.build_all_user_app()?;
-            xtask.all_user_app_binary_except_db()?;
+            xtask.all_user_app_binary()?;
         }
     } else if let Some(matches) = matches.subcommand_matches("qemu") {
         // let app = matches.args.get("user").unwrap();
@@ -188,9 +188,10 @@ fn main() -> Result {
         if matches.is_present("db") {
             xtask.build_all_user_app_and_db()?;
             xtask.all_user_app_binary()?;
+            xtask.user_app_binary_db()?;
         } else {
             xtask.build_all_user_app()?;
-            xtask.all_user_app_binary_except_db()?;
+            xtask.all_user_app_binary()?;
         }
         if matches.is_present("sdcard") {
             xtask.mkfs_fat_sdcard()?;
@@ -511,14 +512,10 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
         Ok(())
     }
+
     /// 生成所有用户程序的二进制文件，但是没有数据库测例
-    fn all_user_app_binary_except_db(&self) -> Result {
-        for app in USER_APPS.iter() {
-            if *app == "database" {
-                continue
-            }
-            self.user_app_binary(*app)?;
-        }
+    fn user_app_binary_db(&self) -> Result {
+        self.user_app_binary("database")?;
         Ok(())
     }
     /// 运行 qemu
