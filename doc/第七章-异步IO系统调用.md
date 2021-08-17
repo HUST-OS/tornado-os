@@ -62,4 +62,5 @@ IO multiplexing对应的I/O系统调用是select和epoll等，也称这种IO方�
 
 
 ## 流程图
-<img src="../assets/异步IO系统调用.png" alt="异步IO系统调用" width = "80%" height = "80%" align=center />  
+![](../assets/异步IO系统调用.png)
+<!-- <img src="../assets/异步IO系统调用.png" alt="异步IO系统调用" width = "80%" height = "80%" align=center />   -->
