@@ -31,9 +31,6 @@ pub fn tick() {
     set_next_timeout();
     unsafe {
         TICKS = TICKS.wrapping_add(1);
-        // if TICKS % 1 == 0 {
-        //     println!("[timer] {} tick", TICKS);
-        // }
     }
 }
 
