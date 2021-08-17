@@ -19,6 +19,7 @@ const USER_APPS: [&'static str; 11] = [
     "analysis0",
     "analysis1",
     "analysis2",
+    "analysis3",
     "swap-speed",
     "database",
 ];

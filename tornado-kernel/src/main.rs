@@ -262,7 +262,7 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
     );
     #[allow(unused)]
     let task_13 = task::new_kernel(
-        user::prepare_user("swap-speed.bin", stack_handle.end.0),
+        user::prepare_user("analysis3.bin", stack_handle.end.0),
         process.clone(),
         shared_payload.shared_scheduler,
         shared_payload.shared_set_task_state,
@@ -278,12 +278,12 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         // 任务间通信演示
         // shared_payload.add_task(hart_id, address_space_id, task_9.task_repr());
 
-        // 任务切换与进程切换对比测试
+        // 飓风内核自身对照实验
         // shared_payload.add_task(hart_id, address_space_id, task_10.task_repr());
         // shared_payload.add_task(hart_id, address_space_id, task_11.task_repr());
         // shared_payload.add_task(hart_id, address_space_id, task_12.task_repr());
 
-        // 任务切换与进程切换切换对比测试
+        // 飓风内核与rCore-Tutorial-v3对照实验
         // shared_payload.add_task(hart_id, address_space_id, task_13.task_repr());
     }
 
