@@ -196,7 +196,7 @@ fn main() -> Result {
         if matches.is_present("sdcard") {
             xtask.mkfs_fat_sdcard()?;
         } else {
-            xtask.mkfs_fat()?;
+            xtask.mkfs_fat(matches.is_present("db"))?;
         }
     } else if let Some(_matches) = matches.subcommand_matches("detect") {
         if let Some(port) = port::detect_serial_ports() {
@@ -744,7 +744,7 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         }
     }
     /// 打包文件镜像
-    fn mkfs_fat(&self) -> Result {
+    fn mkfs_fat(&self, db: bool) -> Result {
         let f = |mut cmd: Command| {
             let status = cmd.status().map_err(|_| XTaskError::CommandNotFound)?;
             if !status.success() {
@@ -784,6 +784,14 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             sudo.current_dir(self.target_dir())
                 .args(&["-S", "cp"])
                 .arg(app)
+                .arg("/mnt");
+            s(sudo)?;
+        }
+        if db {
+            let mut sudo = Command::new("sudo");
+            sudo.current_dir(self.target_dir())
+                .args(&["-S", "cp"])
+                .arg("database.bin")
                 .arg("/mnt");
             s(sudo)?;
         }
