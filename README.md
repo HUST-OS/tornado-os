@@ -1,4 +1,4 @@
-# 飓风内核（开发中）
+# 飓风内核
 异步内核就像风一样快！  
 ![os](https://img.shields.io/badge/kernel-asynchronous-red)
 ![ISA](https://img.shields.io/badge/ISA-RISC--V-yellow)
