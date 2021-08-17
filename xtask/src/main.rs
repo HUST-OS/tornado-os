@@ -286,7 +286,7 @@ impl<'x> Xtask<'x, String> {
         }
         toolchain
     }
-    fn check_tool<S: AsRef<str>>(tool: S) -> Option<String> {
+    fn  check_tool<S: AsRef<str>>(tool: S) -> Option<String> {
         // 先看系统中有没有 `rust-x` 工具
         if let Ok(status) = Command::new(format!("rust-{}", tool.as_ref()))
             .arg("--version")
@@ -319,6 +319,8 @@ impl<'x> Xtask<'x, String> {
         }
         None
     }
+    
+    
 }
 
 impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
@@ -566,7 +568,8 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
         k210.seek(SeekFrom::Start(SCHEDULER_OFFSET))
             .expect("seek to shared-scheduler offsets");
         k210.write(&buf).expect("write kernel binary to k210 ouput");
-        let mut py = Command::new("python");
+        let py = Self::check_py().unwrap();
+        let mut py = Command::new(py);
         py.current_dir(&self.root);
         py.arg("ktool.py")
             .args(&["--port", port.as_str()])
@@ -785,5 +788,27 @@ impl<'x, S: AsRef<OsStr>> Xtask<'x, S> {
             s(sudo)?;
         }
         Ok(())
+    }
+
+    fn check_py() -> Option<String> {
+        if let Ok(status) = Command::new("python3")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .status()
+        {
+            if status.success() {
+                return Some("python3".into());
+            }
+        }
+        if let Ok(status) = Command::new("python")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .status()
+        {
+            if status.success() {
+                return Some("python".into());
+            }
+        }
+        None
     }
 }
