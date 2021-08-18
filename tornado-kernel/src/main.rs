@@ -294,6 +294,8 @@ pub extern "C" fn rust_main(hart_id: usize) -> ! {
         // shared_payload.add_task(hart_id, address_space_id, task_13.task_repr());
 
         // 数据库程序演示
+        //
+        // 运行该程序需要编译文件系统镜像的时候加上`--db`选项
         // shared_payload.add_task(hart_id, address_space_id, task_14.task_repr());
     }
 
