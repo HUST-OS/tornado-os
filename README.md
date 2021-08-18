@@ -43,9 +43,9 @@ pub extern "C" fn kernel_main() {
 如果您已经能够运行[rCore-Tutorial](https://github.com/rcore-os/rCore-Tutorial-v3)，那么您的环境已经能满足编译飓风内核的要求，不需要再次安装构建工具，请直接开始下一步。
 
 首先需要准备构建工具：  
-* Rust 环境(nightly-2021-03-01或以上)
-* [qemu-system-riscv64](https://github.com/qemu/qemu)(请使用 5.2.0 版本)
-* `riscv64-linux-gnu-`系列或`riscv64-unknown-elf-`系列两种常用的RISC-V工具链，或Rust嵌入式社区的[cargo-binutils](https://github.com/rust-embedded/cargo-binutils)工具链
+* Rust 环境(nightly-2021-03-01或以上)，[安装方法](https://www.rust-lang.org/zh-CN/tools/install)
+* [qemu-system-riscv64](https://github.com/qemu/qemu)(请使用 5.2.0 版本)，[qemu安装方法](https://rcore-os.github.io/rCore-Tutorial-Book-v3/chapter0/5setup-devel-env.html#qemu)
+* `riscv64-linux-gnu-`系列或`riscv64-unknown-elf-`系列两种常用的RISC-V工具链，或Rust嵌入式社区的[cargo-binutils](https://github.com/rust-embedded/cargo-binutils)工具链，其中`riscv64-linux-gnu`在Ubuntu平台可以使用`apt`直接安装，`cargo-binutils`按照github说明安装即可。
 * 调试工具(可选)：RISC-V 指令集支持的 [gdb](https://mirrors.tuna.tsinghua.edu.cn/gnu/gdb/?C=M&O=D)
 
 下载源码：  
