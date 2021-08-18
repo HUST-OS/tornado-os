@@ -48,7 +48,7 @@ pub extern "C" fn kernel_main() {
 * `riscv64-linux-gnu-`系列或`riscv64-unknown-elf-`系列两种常用的RISC-V工具链，或Rust嵌入式社区的[cargo-binutils](https://github.com/rust-embedded/cargo-binutils)工具链，其中`riscv64-linux-gnu`在Ubuntu平台可以使用`apt`直接安装，`cargo-binutils`按照github说明安装即可。
 * 调试工具(可选)：RISC-V 指令集支持的 [gdb](https://mirrors.tuna.tsinghua.edu.cn/gnu/gdb/?C=M&O=D)
 
-> 演示视频链接：https://pan.baidu.com/s/11U0_G3tufcu9fksLHryAYQ，提取码：cym9
+> 演示视频链接：https://pan.baidu.com/s/11U0_G3tufcu9fksLHryAYQ, 提取码：cym9
 
 下载源码：  
 ```bash
