@@ -137,7 +137,7 @@ cargo k210 # 将内核二进制文件烧写到k210中运行
 飓风内核中与共享调度器通过 API 兼容方式进行交互，具体参考[代码](tornado-kernel/src/async_rt/shared.rs)，用户态代码同上，具体请参考[代码](tornado-user/src/task/shared.rs)。  
 
 ## 开发文档
-+ [项目大纲](doc/项目大纲.md)文档
++ [项目大纲](doc/项目大纲.md)文档，[pdf](doc/飓风内核项目大纲.pdf)
 + [doc](doc)目录
     * [第一章-飓风内核设计](doc/第一章-飓风内核设计.md)
     * [第二章-共享调度器设计与实现](doc/第二章-共享调度器设计与实现.md)
